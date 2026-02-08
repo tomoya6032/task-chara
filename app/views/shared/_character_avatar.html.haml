@@ -1,0 +1,52 @@
+/ app/views/shared/_character_avatar.html.haml
+- emotion = character.emotion_display
+- intelligence_fx = character.intelligence_effect  
+- inner_peace_fx = character.inner_peace_effect
+
+.relative.inline-block
+  / キャラクター本体
+  .character-avatar.bg-gradient-to-br.from-blue-200.via-purple-200.to-pink-200.dark:from-blue-800.dark:via-purple-800.dark:to-pink-800.rounded-full.flex.items-center.justify-center.transition-all.duration-500{
+    class: "#{character.body_shape_class} #{character.body_scale_effect}",
+    style: "#{intelligence_fx[:glow]}; #{inner_peace_fx}"
+  }
+    / メイン表情
+    %span.text-6xl.relative.z-10{class: emotion[:color]}
+      = emotion[:emoji]
+    
+    / 髭エフェクト
+    - if character.facial_hair_effect.present?
+      .absolute.bottom-2{"left-1/2" => true, class: "transform -translate-x-1/2 text-2xl text-gray-600 dark:text-gray-400 opacity-70"}
+        = character.facial_hair_effect
+    
+    / 眼鏡エフェクト（知性高い場合）
+    - if intelligence_fx[:glasses]
+      .absolute{"top-1/3" => true, "left-1/2" => true, class: "transform -translate-x-1/2 -translate-y-1/2 text-4xl"}
+        = "👓"
+
+  / 内面の平和エフェクト（キラキラ）
+  - if character.inner_peace && character.inner_peace > 60
+    .absolute{"-top-2" => true, "-left-2" => true, class: "text-lg animate-pulse"}
+      = "✨"
+    .absolute{"-top-2" => true, "-right-2" => true, class: "text-lg animate-pulse", style: "animation-delay: 0.5s"}
+      = "✨"
+    .absolute{"-bottom-2" => true, "-left-2" => true, class: "text-lg animate-pulse", style: "animation-delay: 1s"}
+      = "✨"
+    .absolute{"-bottom-2" => true, "-right-2" => true, class: "text-lg animate-pulse", style: "animation-delay: 1.5s"}
+      = "✨"
+
+  / ステータスバッジ
+  .absolute{"-bottom-3" => true, "-right-3" => true, class: "bg-white dark:bg-slate-800 rounded-full px-3 py-1 shadow-lg border border-slate-200 dark:border-slate-600"}
+    %span.text-sm.font-medium{class: emotion[:color]}
+      = emotion[:description]
+
+/ キャラクター情報（デスクトップ時詳細表示）
+.hidden.lg:block.mt-4.text-center.space-y-2.text-sm.text-slate-600.dark:text-slate-400
+  %p
+    体型: 
+    %span.font-semibold= character.body_shape_description
+  %p
+    髭: 
+    %span.font-semibold= character.shave_level_description
+  %p
+    だらしなさ度: 
+    %span.font-semibold= "#{character.disheveled_level.round(1)}%"

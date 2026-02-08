@@ -1,0 +1,34 @@
+/ app/views/tasks/_task_item.html.haml
+%div{id: "task-#{task.id}", class: "bg-slate-50 dark:bg-slate-700 rounded-lg p-4 border-l-4 #{task.completed? ? 'border-green-500' : 'border-blue-500'}"}
+  .flex.items-center.justify-between
+    .flex-1
+      .flex.items-center.gap-3
+        - if task.completed?
+          %div.flex-shrink-0.w-6.h-6.bg-green-500.rounded-full.flex.items-center.justify-center
+            %svg.w-4.h-4.text-white{fill: "currentColor", viewBox: "0 0 20 20"}
+              %path{fill_rule: "evenodd", d: "M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z", clip_rule: "evenodd"}
+        - else
+          %div.flex-shrink-0.w-6.h-6.border-2.border-slate-300.dark:border-slate-500.rounded-full
+
+        .flex-1
+          %h4.text-sm.font-medium{class: task.completed? ? 'text-slate-500 dark:text-slate-400 line-through' : 'text-slate-900 dark:text-white'}
+            = task.title
+          .flex.items-center.gap-2.mt-1
+            %span.text-xs.px-2.py-1.bg-slate-200.dark:bg-slate-600.text-slate-600.dark:text-slate-300.rounded-full
+              = task.category_display
+            %span.text-xs.px-2.py-1.bg-red-100.dark:bg-red-900.text-red-600.dark:text-red-300.rounded-full
+              = task.dislike_level_display
+            - if task.completed?
+              %span.text-xs.text-slate-500.dark:text-slate-400
+                完了: #{task.completed_at.strftime('%H:%M')}
+
+    - unless task.completed?
+      .flex.items-center.gap-2
+        = button_to complete_task_path(task), 
+            method: :patch,
+            class: "bg-green-500 hover:bg-green-600 text-white text-xs px-3 py-1 rounded-full font-medium transition-colors",
+            data: { 
+              turbo_method: "patch",
+              turbo_confirm: "このタスクを完了しますか？"
+            } do
+          ✓ 完了
