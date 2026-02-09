@@ -1,0 +1,10 @@
+-# タスクリスト全体を再描画
+= turbo_stream.replace "tasks-list" do
+  = render "shared/tasks_overview", character: @character
+
+-# モーダルを閉じる
+= turbo_stream.update "task-modal", ""
+
+-# 成功メッセージを表示
+= turbo_stream.prepend "flash-container" do
+  = render "shared/flash", type: "success", message: "✅ タスク「#{@task.title}」を追加しました！"

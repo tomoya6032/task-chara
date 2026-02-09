@@ -1,0 +1,32 @@
+/ app/views/tasks/_task.html.haml
+.task-item.bg-white.dark:bg-gray-800.rounded-lg.p-4.shadow-sm.border.border-gray-200.dark:border-gray-700.mb-3
+  .flex.items-start.justify-between
+    .flex-1
+      .flex.items-center.gap-3.mb-2
+        %span.text-2xl= category_emoji(task.category)
+        .flex-1
+          %h3.font-semibold.text-gray-900.dark:text-white= task.title
+          %p.text-sm.text-gray-600.dark:text-gray-400= task.category.humanize
+      
+      - if task.description.present?
+        %p.text-gray-700.dark:text-gray-300.text-sm.mb-3= task.description
+      
+      .flex.items-center.gap-4.text-xs.text-gray-500.dark:text-gray-400
+        .flex.items-center.gap-1
+          %span 難易度:
+          %span.font-medium.text-purple-600.dark:text-purple-400= task.difficulty
+        .flex.items-center.gap-1
+          %span ステータス:
+          %span.px-2.py-1.rounded.text-xs{
+            class: task.completed? ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300" : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300"
+          }= task.completed? ? "完了" : "進行中"
+    
+    .flex.items-center.gap-2
+      - unless task.completed?
+        %button.px-3.py-1.bg-green-600.text-white.rounded.text-sm.hover:bg-green-700.transition-colors{
+          data: { action: "click->tasks#complete", task_id: task.id }
+        } 完了
+      
+      %button.px-3.py-1.bg-red-600.text-white.rounded.text-sm.hover:bg-red-700.transition-colors{
+        data: { action: "click->tasks#delete", task_id: task.id, confirm: "本当に削除しますか？" }
+      } 削除

@@ -12,6 +12,12 @@ Rails.application.routes.draw do
   resources :tasks, only: [ :new, :create, :show ] do
     member do
       patch :complete
+      patch :hide
+      patch :unhide
+      delete :destroy
+    end
+    collection do
+      get :hidden
     end
   end
 

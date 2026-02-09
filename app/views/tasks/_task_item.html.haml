@@ -24,11 +24,7 @@
 
     - unless task.completed?
       .flex.items-center.gap-2
-        = button_to complete_task_path(task), 
-            method: :patch,
-            class: "bg-green-500 hover:bg-green-600 text-white text-xs px-3 py-1 rounded-full font-medium transition-colors",
-            data: { 
-              turbo_method: "patch",
-              turbo_confirm: "このタスクを完了しますか？"
-            } do
-          ✓ 完了
+        = button_to complete_task_path(task), method: :patch, class: "bg-green-500 hover:bg-green-600 text-white text-xs px-3 py-1 rounded-full font-medium transition-colors", data: { turbo_method: "patch", turbo_confirm: "このタスクを完了しますか？" } do
+          ✓ 完了にする
+        = button_to hide_task_path(task), method: :patch, class: "bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-1 rounded-full font-medium transition-colors", data: { turbo_method: "patch", turbo_confirm: "このタスクを非表示にしますか？" } do
+          🗑 削除する

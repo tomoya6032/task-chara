@@ -17,11 +17,11 @@
                   📊
                   ダッシュボード
               %li
-                = link_to new_task_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold", data: { "turbo-frame": "modal" } do
+                = link_to new_task_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold", data: { "turbo-frame": "task-modal" } do
                   = "✅"
                   タスク管理
               %li  
-                = link_to new_activity_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold", data: { "turbo-frame": "modal" } do
+                = link_to new_activity_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold", data: { "turbo-frame": "task-modal" } do
                   = "📝"
                   日報投稿
               %li
@@ -39,10 +39,10 @@
       = link_to dashboard_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400" do
         %span.text-lg= "📊"
         %span.text-xs.mt-1 ホーム
-      = link_to new_task_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400", data: { "turbo-frame": "modal" } do
+      = link_to new_task_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400", data: { "turbo-frame": "task-modal" } do
         %span.text-lg= "✅"
         %span.text-xs.mt-1 タスク
-      = link_to new_activity_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400", data: { "turbo-frame": "modal" } do
+      = link_to new_activity_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400", data: { "turbo-frame": "task-modal" } do
         %span.text-lg= "📝"
         %span.text-xs.mt-1 日報
       %a.flex.flex-col.items-center.py-2.px-1.text-slate-600.dark:text-slate-400{href: "#"}
@@ -62,7 +62,7 @@
           %span.ml-2.text-sm.text-slate-500 ✨
       
       / フラッシュメッセージエリア
-      %div#flash-messages.mb-6
+      %div#flash-container.mb-6
       
       / キャラクターメインカード
       %turbo-frame#character-display
@@ -117,7 +117,7 @@
       %span.text-xl= "📝"
 
   / モーダルエリア
-  %turbo-frame#modal
+  %turbo-frame#task-modal
   
   / ローディングオーバーレイ
   #loading-overlay.fixed.inset-0.bg-black.bg-opacity-50.z-60.hidden.flex.items-center.justify-center

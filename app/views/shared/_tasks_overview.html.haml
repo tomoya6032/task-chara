@@ -3,32 +3,37 @@
   .px-4.py-6.sm:px-6.lg:px-8
     .flex.justify-between.items-center.mb-6
       %h3.text-lg.font-semibold.text-slate-900.dark:text-white
-        今日のタスク
+        進行中のタスク
       .flex.gap-2
         = link_to new_task_path, 
           class: "bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2",
-          data: { "turbo-frame": "modal", "action": "click->loading#show" } do
+          data: { "turbo-frame": "task-modal", "action": "click->loading#show" } do
           %span ✅
           タスク追加
+        = link_to hidden_tasks_path, 
+          class: "bg-slate-500 hover:bg-slate-600 text-white px-3 py-2 rounded-lg text-xs font-medium transition-colors flex items-center gap-1",
+          data: { "turbo-frame": "task-modal" } do
+          %span 🗑
+          非表示タスク
         = link_to new_task_path, 
           class: "bg-gray-500 hover:bg-gray-600 text-white px-3 py-2 rounded-lg text-xs",
           target: "_blank" do
           🔗 別タブで開く
 
     #tasks-list
-      - today_tasks = character.tasks.where(created_at: Time.current.beginning_of_day..Time.current.end_of_day)
+      - all_tasks = character.tasks.visible.pending.order(created_at: :desc)
       
-      - if today_tasks.any?
+      - if all_tasks.any?
         .space-y-3
-          - today_tasks.each do |task|
+          - all_tasks.each do |task|
             = render 'tasks/task_item', task: task
       - else
         .text-center.py-8.text-slate-500.dark:text-slate-400
           %div.text-4xl.mb-2 📝
-          %p.text-sm.mb-3 今日のタスクはまだありません
+          %p.text-sm.mb-3 進行中のタスクはありません
           %p.text-xs.mb-4 新しいタスクを追加して成長しましょう！
           = link_to new_task_path, 
             class: "inline-flex items-center gap-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-all transform hover:scale-105 shadow-lg",
-            data: { "turbo-frame": "modal" } do
+            data: { "turbo-frame": "task-modal" } do
             %span.text-lg ✅
             最初のタスクを追加する

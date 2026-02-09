@@ -2,12 +2,16 @@
 class Task < ApplicationRecord
   belongs_to :character
 
+  after_initialize :set_defaults
+
   validates :title, presence: true
   validates :category, presence: true, inclusion: { in: %w[welfare web admin] }
   validates :dislike_level, presence: true, numericality: { in: 1..10 }
 
   scope :completed, -> { where.not(completed_at: nil) }
   scope :pending, -> { where(completed_at: nil) }
+  scope :visible, -> { where(hidden: false) }
+  scope :hidden, -> { where(hidden: true) }
   scope :overdue, -> { pending.where("created_at < ?", 24.hours.ago) }
   scope :by_category, ->(category) { where(category: category) }
 
@@ -24,6 +28,22 @@ class Task < ApplicationRecord
   def overdue?
     return false if completed?
     created_at < 24.hours.ago
+  end
+
+  def hide!
+    if self.class.column_names.include?("hidden_at")
+      update!(hidden: true, hidden_at: Time.current)
+    else
+      update!(hidden: true)
+    end
+  end
+
+  def unhide!
+    if self.class.column_names.include?("hidden_at")
+      update!(hidden: false, hidden_at: nil)
+    else
+      update!(hidden: false)
+    end
   end
 
   def category_display
@@ -53,6 +73,10 @@ class Task < ApplicationRecord
   end
 
   private
+
+  def set_defaults
+    self.hidden = false if hidden.nil?
+  end
 
   def polish_character_from_completion
     CharacterPolisher.new(character: character, task: self).polish_from_task_completion!

@@ -1,0 +1,49 @@
+/ app/views/tasks/hidden.html.haml
+%turbo-frame#task-modal
+  .fixed.inset-0.bg-black.bg-opacity-50.z-50.flex.items-center.justify-center.p-4{
+    data: { controller: "modal", action: "click->modal#closeOnBackdrop" }
+  }
+    .bg-white.dark:bg-slate-800.rounded-2xl.shadow-2xl.max-w-2xl.w-full{
+      style: "max-height: 90vh; overflow-y: auto;",
+      data: { modal_target: "content" }
+    }
+      / ヘッダー
+      .flex.items-center.justify-between.p-6.border-b.border-slate-200.dark:border-slate-600
+        %h2.text-xl.font-bold.text-slate-900.dark:text-white
+          🗑 非表示にしたタスク
+        %button.text-slate-400.hover:text-slate-600.dark:hover:text-slate-300.text-2xl.leading-none{
+          data: { action: "click->modal#close" }
+        } ×
+
+      / コンテンツ
+      .p-6
+        - if @hidden_tasks.any?
+          .space-y-4
+            - @hidden_tasks.each do |task|
+              %div{id: "hidden-task-#{task.id}", class: "bg-slate-50 dark:bg-slate-700 rounded-lg p-4 border border-slate-200 dark:border-slate-600 opacity-75"}
+                .flex.items-center.justify-between
+                  .flex-1
+                    %h4.text-sm.font-medium.text-slate-600.dark:text-slate-400.line-through
+                      = task.title
+                    .flex.items-center.gap-2.mt-1
+                      %span.text-xs.px-2.py-1.bg-slate-200.dark:bg-slate-600.text-slate-500.dark:text-slate-400.rounded-full
+                        = task.category_display
+                      %span.text-xs.text-slate-500.dark:text-slate-400
+                        非表示: #{(task.respond_to?(:hidden_at) && task.hidden_at) ? task.hidden_at.strftime('%m/%d %H:%M') : task.updated_at&.strftime('%m/%d %H:%M')}
+                  
+                  .flex.items-center.gap-2
+                    = button_to unhide_task_path(task), method: :patch, class: "bg-blue-500 hover:bg-blue-600 text-white text-xs px-3 py-1 rounded-full font-medium transition-colors", data: { turbo_method: "patch", turbo_confirm: "このタスクを復元しますか？" } do
+                      ↩️ 復元
+                    = button_to task_path(task), method: :delete, class: "bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1 rounded-full font-medium transition-colors", data: { turbo_method: "delete", turbo_confirm: "このタスクを完全に削除しますか？" } do
+                      🗑 完全削除
+        - else
+          .text-center.py-8.text-slate-500.dark:text-slate-400
+            %div.text-4xl.mb-2 ✨
+            %p.text-sm 非表示にしたタスクはありません
+
+      / フッター
+      .flex.justify-end.p-6.border-t.border-slate-200.dark:border-slate-600
+        %button.bg-slate-200.dark:bg-slate-600.text-slate-700.dark:text-slate-300.font-medium.py-2.px-4.rounded-lg.hover:bg-slate-300.dark:hover:bg-slate-500.transition-colors{
+          data: { action: "click->modal#close" }
+        }
+          閉じる

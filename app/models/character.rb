@@ -204,7 +204,7 @@ class Character < ApplicationRecord
   # 今日の活動状況
   def todays_summary
     today_activities = activities.today.count
-    pending_tasks = tasks.pending.count
+    pending_tasks = tasks.visible.pending.count
     completed_today = tasks.completed.where(completed_at: Time.current.beginning_of_day..Time.current.end_of_day).count
 
     {
