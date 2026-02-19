@@ -1,0 +1,52 @@
+/ app/views/tasks/create_success.html.haml
+!!!
+%html
+  %head
+    %meta{charset: "utf-8"}
+    %meta{name: "viewport", content: "width=device-width,initial-scale=1"}
+    %title TaskChara - タスク作成完了
+    = csrf_meta_tags
+    = csp_meta_tag
+    = stylesheet_link_tag "application", "data-turbo-track": "reload"
+    = javascript_importmap_tags
+
+  %body.bg-gradient-to-br.from-green-50.to-blue-50.min-h-screen.flex.items-center.justify-center.p-4
+    .bg-white.rounded-2xl.shadow-xl.p-8.max-w-md.w-full.text-center
+      .mb-6
+        %div.w-16.h-16.bg-green-100.rounded-full.flex.items-center.justify-center.mx-auto.mb-4
+          %svg.w-8.h-8.text-green-600{fill: "currentColor", viewBox: "0 0 20 20"}
+            %path{fill_rule: "evenodd", d: "M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z", clip_rule: "evenodd"}
+        
+        %h1.text-2xl.font-bold.text-gray-900.mb-2
+          タスク作成完了！
+        
+        %p.text-gray-600.mb-6
+          タスク「#{@task.title}」を正常に作成しました。
+
+      .bg-gray-50.rounded-lg.p-4.mb-6.text-left
+        %h3.font-semibold.text-gray-700.mb-2 作成されたタスク
+        %div.flex.items-center.gap-2.mb-2
+          %span.text-2xl
+            - case @task.category
+            - when 'welfare'
+              🏠
+            - when 'web'
+              💻
+            - when 'admin'
+              📋
+            - else
+              ✅
+          %span.font-medium= @task.title
+        %div.text-sm.text-gray-600.space-y-1
+          %div カテゴリ: #{@task.category_display}
+          %div 嫌い度: #{@task.dislike_level}/10
+
+      .space-y-3
+        = link_to dashboard_path, 
+          class: "w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors block text-center" do
+          📊 ダッシュボードに戻る
+        
+        %button.w-full.bg-gray-200.hover:bg-gray-300.text-gray-700.font-medium.py-3.px-4.rounded-lg.transition-colors{
+          onclick: "window.close()"
+        }
+          このウィンドウを閉じる

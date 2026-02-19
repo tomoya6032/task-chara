@@ -7,22 +7,33 @@
     .grid.grid-cols-1.sm:grid-cols-2.gap-4
       / サウナボタン
       - if character.sauna_available?
-        %button.group.relative.bg-gradient-to-r.from-orange-400.to-red-500.hover:from-orange-500.hover:to-red-600.text-white.font-bold.py-4.px-6.rounded-xl.text-lg.shadow-lg.hover:shadow-xl.transform.hover:scale-105.transition-all.duration-300.animate-bounce{
-          data: { action: "click->sauna#activate" }
-        }
+        = button_to "/sauna/activate", 
+            method: :post, 
+            remote: true,
+            class: "group relative bg-gradient-to-r from-orange-400 to-red-500 hover:from-orange-500 hover:to-red-600 text-white font-bold py-4 px-6 rounded-xl text-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 animate-bounce border-0",
+            data: { turbo: true } do
           %span.relative.z-10
             🔥 整う (サウナ)
           / 輝きエフェクト
           .absolute.inset-0.bg-gradient-to-r.from-yellow-300.to-orange-300.rounded-xl.opacity-30.blur-sm.group-hover:opacity-50.transition-opacity.duration-300
       - else
-        %button.bg-slate-400.dark:bg-slate-600.text-white.font-bold.py-4.px-6.rounded-xl.text-lg.shadow-lg.cursor-not-allowed.opacity-60{disabled: true}
-          %span.text-sm 🔒
-          🔥 整う
-          %br
-          %span.text-xs (要: 強靭さ50+)
+        - if character.toughness >= 50 && character.last_sauna_at && character.last_sauna_at >= 2.hours.ago
+          - remaining_minutes = (120 - ((Time.current - character.last_sauna_at) / 1.minute)).to_i
+          %button.bg-slate-400.dark:bg-slate-600.text-white.font-bold.py-4.px-6.rounded-xl.text-lg.shadow-lg.cursor-not-allowed.opacity-60{disabled: true}
+            %span.text-sm 🔒
+            🔥 整う
+            %br
+            %span.text-xs= "あと#{remaining_minutes}分待機"
+        - else
+          %button.bg-slate-400.dark:bg-slate-600.text-white.font-bold.py-4.px-6.rounded-xl.text-lg.shadow-lg.cursor-not-allowed.opacity-60{disabled: true}
+            %span.text-sm 🔒
+            🔥 整う
+            %br
+            %span.text-xs (要: 強靭さ50+)
 
       / ご褒美ボタン  
-      %button.bg-gradient-to-r.from-purple-400.to-pink-500.hover:from-purple-500.hover:to-pink-600.text-white.font-bold.py-4.px-6.rounded-xl.text-lg.shadow-lg.hover:shadow-xl.transform.hover:scale-105.transition-all.duration-300{
-        data: { action: "click->rewards#show" }
-      }
-        🎁 ご褒美タイム
+      .relative{data: { controller: "rewards" }}
+        %button.bg-gradient-to-r.from-purple-400.to-pink-500.hover:from-purple-500.hover:to-pink-600.text-white.font-bold.py-4.px-6.rounded-xl.text-lg.shadow-lg.hover:shadow-xl.transform.hover:scale-105.transition-all.duration-300.w-full{
+          data: { action: "click->rewards#show" }
+        }
+          🎁 ご褒美タイム

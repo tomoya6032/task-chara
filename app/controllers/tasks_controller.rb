@@ -2,8 +2,24 @@ class TasksController < ApplicationController
   before_action :set_character
   before_action :set_task, only: [ :show, :complete, :hide, :unhide, :destroy ]
 
+  def index
+    @tasks = @character.tasks.includes(:character).order(created_at: :desc)
+    @pending_tasks = @tasks.pending
+    @completed_tasks = @tasks.completed
+    @hidden_tasks = @tasks.where(hidden: true)
+  end
+
+  def completed
+    @completed_tasks = @character.tasks.completed.order(completed_at: :desc)
+  end
+
   def new
     @task = @character.tasks.build
+
+    respond_to do |format|
+      format.html
+      format.turbo_stream
+    end
   end
 
   def create
@@ -12,8 +28,20 @@ class TasksController < ApplicationController
 
     if @task.save
       respond_to do |format|
-        format.turbo_stream
-        format.html { redirect_to dashboard_path, notice: "タスクが作成されました" }
+        format.turbo_stream do
+          if params.dig(:task, :from_new_window) == "true"
+            # 別ウィンドウからの場合：ウィンドウを閉じるJavaScriptを送信
+            render turbo_stream: turbo_stream.update("task-modal",
+              "<script>window.close();</script>")
+          else
+            # 通常のモーダルからの場合：既存のturbo_streamテンプレートを使用
+            # デフォルトでcreate.turbo_stream.hamlが呼ばれる
+          end
+        end
+        format.html do
+          # すべての場合でダッシュボードにリダイレクト（シンプルな解決策）
+          redirect_to dashboard_path, notice: "✅ タスク「#{@task.title}」を追加しました！"
+        end
       end
     else
       respond_to do |format|
@@ -37,7 +65,17 @@ class TasksController < ApplicationController
           )
         ]
       end
-      format.html { redirect_to dashboard_path, notice: "タスクが完了しました" }
+      format.html do
+        toughness_gain = (@task.dislike_level || 1) * 1.5
+        flash[:notice] = "🎉 お疲れさま！タスク「#{@task.title}」を完了しました！強靭さ+#{toughness_gain}pt獲得！"
+
+        # リファラーに基づいてリダイレクト先を決定
+        if request.referer&.include?("/tasks")
+          redirect_to tasks_path
+        else
+          redirect_to dashboard_path
+        end
+      end
     end
   end
 
@@ -54,6 +92,11 @@ class TasksController < ApplicationController
 
       # 直接クエリで安全にhiddenタスクを取得
       @hidden_tasks = Task.where(character: @character, hidden: true).order(updated_at: :desc)
+
+      respond_to do |format|
+        format.html
+        format.turbo_stream
+      end
     rescue => e
       Rails.logger.error "Error in hidden action: #{e.message}"
       Rails.logger.error e.backtrace.join("\n")
@@ -70,7 +113,16 @@ class TasksController < ApplicationController
       format.turbo_stream do
         render turbo_stream: turbo_stream.remove("task-#{@task.id}")
       end
-      format.html { redirect_to dashboard_path, notice: "タスクを非表示にしました" }
+      format.html do
+        flash[:notice] = "👁️ タスク「#{@task.title}」を非表示にしました"
+
+        # リファラーに基づいてリダイレクト先を決定
+        if request.referer&.include?("/tasks")
+          redirect_to tasks_path
+        else
+          redirect_to dashboard_path
+        end
+      end
     end
   end
 

@@ -19,9 +19,17 @@
               %li
                 = link_to new_task_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold", data: { "turbo-frame": "task-modal" } do
                   = "✅"
-                  タスク管理
+                  タスク追加
+              %li
+                = link_to tasks_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
+                  = "📋"
+                  タスク一覧
+              %li
+                = link_to completed_tasks_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
+                  = "🏆"
+                  完了履歴
               %li  
-                = link_to new_activity_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold", data: { "turbo-frame": "task-modal" } do
+                = link_to new_activity_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold", data: { "turbo-frame": "activity_form_modal" } do
                   = "📝"
                   日報投稿
               %li
@@ -42,7 +50,7 @@
       = link_to new_task_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400", data: { "turbo-frame": "task-modal" } do
         %span.text-lg= "✅"
         %span.text-xs.mt-1 タスク
-      = link_to new_activity_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400", data: { "turbo-frame": "task-modal" } do
+      = link_to new_activity_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400", data: { "turbo-frame": "activity_form_modal" } do
         %span.text-lg= "📝"
         %span.text-xs.mt-1 日報
       %a.flex.flex-col.items-center.py-2.px-1.text-slate-600.dark:text-slate-400{href: "#"}
@@ -66,36 +74,7 @@
       
       / キャラクターメインカード
       %turbo-frame#character-display
-        .bg-white.dark:bg-slate-800.overflow-hidden.shadow-xl.rounded-2xl.mb-8
-          .px-4.py-6.sm:px-6.lg:px-8
-            / キャラクター表示エリア
-            .text-center.mb-6
-              %h2.text-2xl.font-bold.text-slate-900.dark:text-white.mb-2
-                = @character.name
-              %p.text-sm.text-slate-500.dark:text-slate-400
-                = @character.overall_status
-            
-            .flex.justify-center.mb-8
-              = render 'shared/character_avatar', character: @character
-
-            / 今日のサマリー
-            - summary = @character.todays_summary
-            .grid.grid-cols-3.gap-4.mb-6.text-center
-              .bg-slate-50.dark:bg-slate-700.rounded-lg.p-3
-                %div.text-2xl.font-bold.text-blue-600.dark:text-blue-400
-                  = summary[:activities_count]
-                %div.text-xs.text-slate-600.dark:text-slate-400
-                  本日の日報
-              .bg-slate-50.dark:bg-slate-700.rounded-lg.p-3
-                %div.text-2xl.font-bold.text-green-600.dark:text-green-400
-                  = summary[:completed_tasks]
-                %div.text-xs.text-slate-600.dark:text-slate-400
-                  完了タスク
-              .bg-slate-50.dark:bg-slate-700.rounded-lg.p-3
-                %div.text-2xl.font-bold.text-amber-600.dark:text-amber-400
-                  = summary[:pending_tasks]
-                %div.text-xs.text-slate-600.dark:text-slate-400
-                  残りタスク
+        = render 'dashboards/character_display', character: @character
 
       / ステータスバーカード
       %turbo-frame#status-bars
@@ -113,18 +92,21 @@
   .fixed.bottom-20.right-4.lg:hidden.z-40
     = link_to new_activity_path, 
         class: "bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-full w-14 h-14 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200",
-        data: { "turbo-frame": "modal" } do
+        data: { "turbo-frame": "task-modal" } do
       %span.text-xl= "📝"
 
   / モーダルエリア
   %turbo-frame#task-modal
   
   / ローディングオーバーレイ
-  #loading-overlay.fixed.inset-0.bg-black.bg-opacity-50.z-60.hidden.flex.items-center.justify-center
-    .bg-white.dark:bg-slate-800.rounded-lg.p-6.text-center
+  #loading-overlay.fixed.inset-0.bg-black.bg-opacity-30.backdrop-blur-sm.z-60.hidden.flex.items-center.justify-center
+    .bg-white.dark:bg-slate-800.bg-opacity-95.dark:bg-opacity-95.rounded-lg.p-6.text-center.border.border-slate-200.dark:border-slate-600
       .animate-spin.rounded-full.h-8.w-8.border-b-2.border-blue-600.mx-auto.mb-4
       %p.text-slate-600.dark:text-slate-400
         AIが精神保健福祉士の視点で解析中...
+
+  / 日報投稿モーダル用のTurbo Frame
+  = turbo_frame_tag "activity_form_modal"
 
   / デバッグ情報（開発時のみ）
   - if Rails.env.development?

@@ -1,9 +1,9 @@
 / app/views/tasks/hidden.html.haml
 %turbo-frame#task-modal
-  .fixed.inset-0.bg-black.bg-opacity-50.z-50.flex.items-center.justify-center.p-4{
+  .fixed.inset-0.bg-black.bg-opacity-30.backdrop-blur-sm.z-50.flex.items-center.justify-center.p-4{
     data: { controller: "modal", action: "click->modal#closeOnBackdrop" }
   }
-    .bg-white.dark:bg-slate-800.rounded-2xl.shadow-2xl.max-w-2xl.w-full{
+    .bg-white.dark:bg-slate-800.bg-opacity-95.dark:bg-opacity-95.rounded-2xl.shadow-2xl.max-w-2xl.w-full.border.border-slate-200.dark:border-slate-600{
       style: "max-height: 90vh; overflow-y: auto;",
       data: { modal_target: "content" }
     }

@@ -1,0 +1,173 @@
+/ app/views/activities/new.html.haml
+%turbo-frame#task-modal
+  .fixed.inset-0.bg-black.bg-opacity-30.backdrop-blur-sm.z-50.flex.items-center.justify-center.p-4{
+    data: { controller: "modal", action: "click->modal#closeOnBackdrop" }
+  }
+    .bg-white.dark:bg-slate-800.bg-opacity-95.dark:bg-opacity-95.border.border-slate-200.dark:border-slate-600.rounded-2xl.shadow-2xl.max-w-lg.w-full{
+      class: "max-h-[90vh] overflow-y-auto", 
+      data: { modal_target: "content" }
+    }
+      / ヘッダー
+      .flex.items-center.justify-between.p-6.border-b.border-slate-200.dark:border-slate-600
+        %h2.text-xl.font-bold.text-slate-900.dark:text-white
+          📝 今日の日報を投稿
+        %button.text-slate-400.hover:text-slate-600.dark:hover:text-slate-300.text-2xl.leading-none{
+          data: { action: "click->modal#close" }
+        } ×
+
+      / フォーム
+      = form_with model: @activity, 
+          url: activities_path, 
+          local: false,
+          class: "p-6",
+          data: { 
+            controller: "loading",
+            action: "submit->loading#show turbo:submit-end->loading#hide" 
+          } do |form|
+        
+        .mb-6
+          = form.label :category, "業務カテゴリ", class: "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
+          = form.select :category, 
+              options_for_select([
+                ['🏠 訪問福祉', 'welfare'],
+                ['💻 Web制作', 'web'], 
+                ['📋 事務作業', 'admin'],
+                ['🏥 医療・看護', 'medical'],
+                ['🏫 教育・研修', 'education'],
+                ['📞 相談・カウンセリング', 'counseling'],
+                ['🤝 その他', 'other']
+              ], { prompt: "カテゴリを選択してください" }), 
+              {}, 
+              class: "w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+
+        / テンプレート選択
+        .mb-4.bg-slate-50.dark:bg-slate-700.p-4.rounded-lg
+          %label.block.text-sm.font-medium.text-slate-700.dark:text-slate-300.mb-2
+            📝 テンプレート（選択すると内容が自動入力されます）
+          .grid.grid-cols-1.sm:grid-cols-2.gap-2
+            %button.text-left.p-2.text-xs.bg-white.dark:bg-slate-600.border.border-slate-200.dark:border-slate-500.rounded.hover:bg-slate-50.dark:hover:bg-slate-500.transition-colors{
+              type: "button",
+              data: { controller: "template", action: "click->template#applyWelfareTemplate" }
+            }
+              🏠 訪問福祉テンプレート
+            %button.text-left.p-2.text-xs.bg-white.dark:bg-slate-600.border.border-slate-200.dark:border-slate-500.rounded.hover:bg-slate-50.dark:hover:bg-slate-500.transition-colors{
+              type: "button",
+              data: { controller: "template", action: "click->template#applyWebTemplate" }
+            }
+              💻 Web制作テンプレート
+            %button.text-left.p-2.text-xs.bg-white.dark:bg-slate-600.border.border-slate-200.dark:border-slate-500.rounded.hover:bg-slate-50.dark:hover:bg-slate-500.transition-colors{
+              type: "button",
+              data: { controller: "template", action: "click->template#applyAdminTemplate" }
+            }
+              📋 事務作業テンプレート
+            %button.text-left.p-2.text-xs.bg-white.dark:bg-slate-600.border.border-slate-200.dark:border-slate-500.rounded.hover:bg-slate-50.dark:hover:bg-slate-500.transition-colors{
+              type: "button",
+              data: { controller: "template", action: "click->template#applyMedicalTemplate" }
+            }
+              🏥 医療・看護テンプレート
+
+        .mb-6
+          = form.label :content, "今日の業務内容", class: "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
+          = form.text_area :content, 
+              rows: 6,
+              placeholder: "今日はどんな業務をしましたか？\n\n例：\n- 利用者Aさんの訪問介護\n- Webサイトのデザイン修正\n- 事務作業（請求書作成）",
+              class: "w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 resize-none",
+              data: { controller: "character-counter", character_counter_target: "input" }
+          
+          .flex.justify-between.items-center.mt-2
+            %span.text-xs.text-slate-500.dark:text-slate-400
+              詳細に記録すると、AI解析でより良いボーナスが得られます
+            %span.text-xs.text-slate-500.dark:text-slate-400{data: { character_counter_target: "counter" }}
+              0文字
+
+        / 気分と疲労度のスライダー
+        .grid.grid-cols-1.sm:grid-cols-2.gap-4.mb-6
+          .bg-slate-50.dark:bg-slate-700.p-4.rounded-lg
+            = form.label :mood_level, "今日の気分", class: "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
+            .flex.items-center.gap-3
+              %span.text-xs.text-slate-500 😔
+              = form.range_field :mood_level, 
+                  in: 1..10, 
+                  value: 5,
+                  class: "flex-1 accent-blue-500",
+                  data: { controller: "slider", action: "input->slider#update" }
+              %span.text-xs.text-slate-500 😊
+            %div.text-center.mt-2
+              %span.text-sm.font-medium.text-slate-700.dark:text-slate-300{data: { slider_target: "value" }}
+                5
+          
+          .bg-slate-50.dark:bg-slate-700.p-4.rounded-lg
+            = form.label :fatigue_level, "疲労度", class: "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
+            .flex.items-center.gap-3
+              %span.text-xs.text-slate-500 😌
+              = form.range_field :fatigue_level, 
+                  in: 1..10, 
+                  value: 5,
+                  class: "flex-1 accent-red-500",
+                  data: { controller: "slider", action: "input->slider#update" }
+              %span.text-xs.text-slate-500 😵
+            %div.text-center.mt-2
+              %span.text-sm.font-medium.text-slate-700.dark:text-slate-300{data: { slider_target: "value" }}
+                5
+
+        .mb-6
+          %label.block.text-sm.font-medium.text-slate-700.dark:text-slate-300.mb-2
+            📷 画像添付（任意）
+          
+          .border-2.border-dashed.border-slate-300.dark:border-slate-600.rounded-lg.p-4.text-center{
+            data: { controller: "image-upload", image_upload_target: "dropzone" }
+          }
+            .mb-4
+              .text-4xl.text-slate-400.mb-2 📷
+              %p.text-sm.text-slate-500.dark:text-slate-400.mb-2
+                ファイルをドラッグ＆ドロップするか、URLを入力してください
+              
+              %input.hidden{
+                type: "file",
+                accept: "image/*",
+                data: { image_upload_target: "fileInput", action: "change->image-upload#handleFileSelect" }
+              }
+              
+              %button.bg-blue-500.hover:bg-blue-600.text-white.px-4.py-2.rounded.text-sm.mb-2{
+                type: "button",
+                data: { action: "click->image-upload#triggerFileSelect" }
+              }
+                ファイル選択
+            
+            %div.text-xs.text-slate-400.mb-2 または
+            
+            = form.url_field :image_url, 
+                placeholder: "https://example.com/image.jpg",
+                class: "w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500",
+                data: { image_upload_target: "urlInput", action: "input->image-upload#handleUrlInput" }
+            
+            / プレビュー表示エリア
+            .mt-4.hidden{data: { image_upload_target: "preview" }}
+              %img.max-w-full.max-h-32.object-cover.rounded.mx-auto{data: { image_upload_target: "previewImage" }}
+              %button.mt-2.text-red-500.hover:text-red-700.text-sm{
+                type: "button",
+                data: { action: "click->image-upload#clearImage" }
+              }
+                ✕ 削除
+
+        / AI解析について
+        .mb-6.bg-blue-50.dark:bg-blue-900.border.border-blue-200.dark:border-blue-700.rounded-lg.p-4
+          .flex.items-start.gap-3
+            %span.text-2xl 🤖
+            .text-sm
+              %h3.font-medium.text-blue-800.dark:text-blue-300.mb-1
+                AI解析について
+              %p.text-blue-700.dark:text-blue-400
+                投稿された日報は精神保健福祉士の専門的視点でAI解析され、キャラクターの成長に反映されます。
+
+        / ボタン
+        .flex.gap-3
+          %button.flex-1.bg-slate-200.dark:bg-slate-600.text-slate-700.dark:text-slate-300.font-medium.py-3.px-4.rounded-lg.hover:bg-slate-300.dark:hover:bg-slate-500.transition-colors{
+            type: "button",
+            data: { action: "click->modal#close" }
+          }
+            キャンセル
+          
+          = form.submit "日報を投稿", 
+              class: "flex-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-medium py-3 px-4 rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all transform hover:scale-105 shadow-lg disabled:opacity-50 disabled:transform-none",
+              data: { loading_target: "button" }

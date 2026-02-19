@@ -1,0 +1,21 @@
+/ app/views/shared/_flash_message.html.haml
+- flash_class = type == "error" ? "border-red-300 text-red-800 bg-red-50" : "border-green-300 text-green-800 bg-green-50"
+.flash-message.border.rounded-xl.p-6.mb-4.animate-bounce.shadow-2xl.max-w-md.mx-4.pointer-events-auto{
+  class: flash_class,
+  data: { controller: "flash", flash_timeout_value: 5000 }
+}
+  .flex.items-center.justify-between
+    .flex.items-center.gap-3
+      - if type == "error"
+        %span.text-2xl ⚠️
+        .text-left
+          %div.text-lg.font-bold エラー
+          %div.text-sm= message
+      - else
+        %span.text-2xl 🎉
+        .text-left
+          %div.text-lg.font-bold 成功！
+          %div.text-sm= message
+    %button.text-lg.opacity-70.hover:opacity-100.transition-opacity.ml-4{
+      data: { action: "click->flash#close" }
+    } ×

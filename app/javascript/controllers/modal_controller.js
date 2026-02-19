@@ -15,16 +15,19 @@ export default class extends Controller {
     document.body.style.overflow = "auto"
   }
   
-  close() {
+  close(event) {
+    if (event) event.preventDefault()
     console.log("Modal close called") // デバッグ用
     this.element.innerHTML = ""
     document.body.style.overflow = "auto"
   }
   
   closeOnBackdrop(event) {
-    if (event.target === this.element) {
-      console.log("Modal close on backdrop") // デバッグ用
-      this.close()
+    console.log("Modal close on backdrop clicked, target:", event.target, "element:", this.element) // デバッグ用
+    // モーダルの背景（最外側の要素）がクリックされた場合のみ閉じる
+    if (event.target === event.currentTarget) {
+      console.log("Modal close on backdrop - closing") // デバッグ用
+      this.close(event)
     }
   }
 }

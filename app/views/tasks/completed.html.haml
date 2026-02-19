@@ -1,0 +1,140 @@
+/ app/views/tasks/completed.html.haml
+%html{lang: "ja"}
+  %head
+    %meta{charset: "UTF-8"}
+    %meta{name: "viewport", content: "width=device-width, initial-scale=1.0"}
+    %title 完了したタスク一覧 - TaskChara
+    = csrf_meta_tags
+    = csp_meta_tag
+    = stylesheet_link_tag "tailwind"
+    = javascript_importmap_tags
+
+  %body.bg-slate-50.dark:bg-slate-900.min-h-screen
+    / フラッシュメッセージ表示領域（画面中央）
+    #flash-container.fixed.inset-0.flex.items-start.justify-center.pt-20.z-50.pointer-events-none
+      - flash.each do |type, message|
+        .flash-message.border.rounded-xl.p-6.mb-4.animate-bounce.bg-white.border-green-300.text-green-800.shadow-2xl.max-w-md.mx-4.pointer-events-auto{
+          data: { controller: "flash", flash_timeout_value: 8000 }
+        }
+          .flex.items-center.justify-between
+            .flex.items-center.gap-3
+              %span.text-2xl 🎉
+              .text-left
+                %div.text-lg.font-bold お疲れさま！
+                %div.text-sm= message
+            %button.text-lg.opacity-70.hover:opacity-100.transition-opacity.ml-4{
+              data: { action: "click->flash#close" }
+            } ×
+
+    .max-w-4xl.mx-auto.px-4.py-6
+
+      / ヘッダー
+      .flex.items-center.justify-between.mb-6
+        .flex.items-center.gap-3
+          = link_to dashboard_path, class: "text-slate-600 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200" do
+            %svg.w-6.h-6{fill: "none", stroke: "currentColor", viewbox: "0 0 24 24"}
+              %path{d: "M15 19l-7-7 7-7", "stroke-linecap": "round", "stroke-linejoin": "round", "stroke-width": "2"}
+          %h1.text-2xl.font-bold.text-slate-900.dark:text-white
+            ✅ 完了したタスク
+
+        .flex.gap-2
+          = link_to tasks_path, class: "bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 px-4 py-2 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors" do
+            📋 全タスク
+          = link_to hidden_tasks_path, class: "bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 px-4 py-2 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors" do
+            👁️ 非表示タスク
+
+      / 統計情報
+      .bg-white.dark:bg-slate-800.rounded-xl.shadow-sm.p-6.mb-6
+        .grid.grid-cols-1.sm:grid-cols-3.gap-4
+          .text-center
+            .text-2xl.font-bold.text-green-600.dark:text-green-400
+              = @completed_tasks.count
+            .text-sm.text-slate-600.dark:text-slate-400
+              完了したタスク
+
+          .text-center
+            .text-2xl.font-bold.text-blue-600.dark:text-blue-400
+              = @completed_tasks.where("completed_at >= ?", Time.current.beginning_of_week).count
+            .text-sm.text-slate-600.dark:text-slate-400
+              今週完了
+
+          .text-center
+            .text-2xl.font-bold.text-purple-600.dark:text-purple-400
+              = @completed_tasks.where("completed_at >= ?", Time.current.beginning_of_month).count
+            .text-sm.text-slate-600.dark:text-slate-400
+              今月完了
+
+      / 完了タスク一覧
+      - if @completed_tasks.any?
+        .space-y-4
+          - @completed_tasks.group_by { |task| task.completed_at.to_date }.each do |date, tasks|
+            .bg-white.dark:bg-slate-800.rounded-xl.shadow-sm.overflow-hidden
+              .bg-slate-100.dark:bg-slate-700.px-6.py-3.border-b.border-slate-200.dark:border-slate-600
+                %h3.text-lg.font-semibold.text-slate-900.dark:text-white
+                  = date.strftime("%Y年%m月%d日 (%a)")
+                  %span.ml-2.text-sm.text-slate-600.dark:text-slate-400
+                    = "#{tasks.count}件完了"
+
+              .divide-y.divide-slate-200.dark:divide-slate-600
+                - tasks.each do |task|
+                  .p-6.hover:bg-slate-50.dark:hover:bg-slate-700.transition-colors
+                    .flex.items-start.justify-between
+                      .flex.items-start.gap-4.flex-1
+                        / カテゴリアイコン
+                        .flex-shrink-0.mt-1
+                          - case task.category
+                          - when 'welfare'
+                            %span.text-2xl 🏠
+                          - when 'web'
+                            %span.text-2xl 💻
+                          - when 'admin'
+                            %span.text-2xl 📋
+                          - else
+                            %span.text-2xl ✅
+
+                        .flex-1.min-w-0
+                          %h4.text-lg.font-medium.text-slate-900.dark:text-white.mb-2
+                            = task.title
+
+                          .flex.flex-wrap.items-center.gap-3.text-sm.text-slate-600.dark:text-slate-400
+                            .flex.items-center.gap-1
+                              %svg.w-4.h-4{fill: "currentColor"}
+                                %path{d: "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"}
+                              完了時刻: #{task.completed_at.strftime("%H:%M")}
+
+                            .flex.items-center.gap-1
+                              %svg.w-4.h-4{fill: "currentColor"}
+                                %path{d: "M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"}
+                              嫌い度: #{task.dislike_level}/10
+
+                      .flex-shrink-0.ml-4
+                        .text-sm.text-green-600.dark:text-green-400.font-medium
+                          + #{(task.dislike_level || 1) * 1.5}pt 強靭さ
+
+      - else
+        .text-center.py-12
+          .text-6xl.mb-4 🎯
+          %h3.text-xl.font-semibold.text-slate-900.dark:text-white.mb-2
+            まだ完了したタスクがありません
+          %p.text-slate-600.dark:text-slate-400.mb-6
+            タスクを完了すると、ここに表示されます
+          = link_to dashboard_path, class: "bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-colors" do
+            ダッシュボードに戻る
+
+    :javascript
+      // フラッシュメッセージの自動非表示
+      document.addEventListener('DOMContentLoaded', function() {
+        const flashMessages = document.querySelectorAll('.flash-message');
+        flashMessages.forEach(function(message) {
+          setTimeout(function() {
+            message.style.transition = 'opacity 0.5s ease-out, transform 0.5s ease-out';
+            message.style.opacity = '0';
+            message.style.transform = 'translateY(-20px)';
+            setTimeout(function() {
+              if (message.parentNode) {
+                message.parentNode.removeChild(message);
+              }
+            }, 500);
+          }, 8000);
+        });
+      });

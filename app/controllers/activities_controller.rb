@@ -3,6 +3,11 @@ class ActivitiesController < ApplicationController
 
   def new
     @activity = @character.activities.build
+
+    respond_to do |format|
+      format.html
+      format.turbo_stream
+    end
   end
 
   def create
@@ -18,9 +23,9 @@ class ActivitiesController < ApplicationController
           partial: "dashboards/status_bars",
           locals: { character: @character }
         ),
-        turbo_stream.replace("activity-form-modal", ""),
+        turbo_stream.replace("task-modal", ""),
         turbo_stream.append("flash-messages",
-          partial: "shared/flash",
+          partial: "shared/flash_message",
           locals: { message: "日報を投稿し、AIが解析中です！✨", type: "success" }
         )
       ]
@@ -50,6 +55,6 @@ class ActivitiesController < ApplicationController
   end
 
   def activity_params
-    params.require(:activity).permit(:content, :image_url)
+    params.require(:activity).permit(:content, :image_url, :category, :mood_level, :fatigue_level)
   end
 end

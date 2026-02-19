@@ -3,7 +3,37 @@ import { Controller } from "@hotwired/stimulus"
 
 export default class extends Controller {
   activate() {
-    // サウナ効果のアニメーション
+    // サウナAPI呼び出し
+    fetch('/sauna/activate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+      }
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      // Turbo Streamレスポンスを処理
+      return response.text();
+    })
+    .then(html => {
+      // Turbo Streamを実行
+      if (window.Turbo) {
+        window.Turbo.renderStreamMessage(html);
+      }
+      
+      // サウナ効果のアニメーション
+      this.showSaunaAnimation();
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      this.showFlash('サウナの利用に失敗しました', 'error');
+    });
+  }
+  
+  showSaunaAnimation() {
     const messages = [
       "🔥 サウナで汗を流しています...",
       "💧 老廃物が排出されています...",

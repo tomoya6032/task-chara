@@ -9,7 +9,7 @@ Rails.application.routes.draw do
   resources :activities, only: [ :new, :create, :show ]
 
   # Tasks routes
-  resources :tasks, only: [ :new, :create, :show ] do
+  resources :tasks, only: [ :index, :new, :create, :show ] do
     member do
       patch :complete
       patch :hide
@@ -18,8 +18,13 @@ Rails.application.routes.draw do
     end
     collection do
       get :hidden
+      get :completed
     end
   end
+
+  # Special actions routes
+  post "sauna/activate", to: "special_actions#sauna_activate"
+  post "rewards/claim", to: "special_actions#claim_reward"
 
   # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.
   # Can be used by load balancers and uptime monitors to verify that the app is live.

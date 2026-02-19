@@ -15,7 +15,7 @@
           data: { "turbo-frame": "task-modal" } do
           %span 🗑
           非表示タスク
-        = link_to new_task_path, 
+        = link_to new_task_path(from_new_window: 'true'), 
           class: "bg-gray-500 hover:bg-gray-600 text-white px-3 py-2 rounded-lg text-xs",
           target: "_blank" do
           🔗 別タブで開く

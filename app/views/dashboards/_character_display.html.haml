@@ -1,0 +1,31 @@
+/ app/views/dashboards/_character_display.html.haml
+.bg-white.dark:bg-slate-800.overflow-hidden.shadow-xl.rounded-2xl.mb-8
+  .px-4.py-6.sm:px-6.lg:px-8
+    / キャラクター表示エリア
+    .text-center.mb-6
+      %h2.text-2xl.font-bold.text-slate-900.dark:text-white.mb-2
+        = character.name
+      %p.text-sm.text-slate-500.dark:text-slate-400
+        = character.overall_status
+    
+    .flex.justify-center.mb-8
+      = render 'shared/character_avatar', character: character
+
+    / 今日のサマリー
+    - summary = character.todays_summary
+    .grid.grid-cols-3.gap-4.mb-6.text-center
+      .bg-slate-50.dark:bg-slate-700.rounded-lg.p-3
+        %div.text-2xl.font-bold.text-blue-600.dark:text-blue-400
+          = summary[:activities_count]
+        %div.text-xs.text-slate-600.dark:text-slate-400
+          本日の日報
+      .bg-slate-50.dark:bg-slate-700.rounded-lg.p-3
+        %div.text-2xl.font-bold.text-green-600.dark:text-green-400
+          = summary[:completed_tasks]
+        %div.text-xs.text-slate-600.dark:text-slate-400
+          完了タスク
+      .bg-slate-50.dark:bg-slate-700.rounded-lg.p-3
+        %div.text-2xl.font-bold.text-amber-600.dark:text-amber-400
+          = summary[:pending_tasks]
+        %div.text-xs.text-slate-600.dark:text-slate-400
+          残りタスク

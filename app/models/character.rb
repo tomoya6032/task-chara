@@ -74,9 +74,11 @@ class Character < ApplicationRecord
     end
   end
 
-  # サウナボタンの表示条件
+  # サウナボタンの表示条件（強靭さ50以上かつ前回から2時間以上経過）
   def sauna_available?
-    (toughness || 0) >= 50
+    sufficient_toughness = (toughness || 0) >= 50
+    time_passed = last_sauna_at.nil? || last_sauna_at < 2.hours.ago
+    sufficient_toughness && time_passed
   end
 
   # 10段階の感情表現
