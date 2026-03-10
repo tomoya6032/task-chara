@@ -6,7 +6,7 @@ Rails.application.routes.draw do
   root "dashboards#show"
 
   # Activities routes
-  resources :activities, only: [ :new, :create, :show ]
+  resources :activities, only: [ :index, :new, :create, :show, :edit, :update, :destroy ]
 
   # Tasks routes
   resources :tasks, only: [ :index, :new, :create, :show ] do

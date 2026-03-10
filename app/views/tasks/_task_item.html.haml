@@ -18,6 +18,18 @@
               = task.category_display
             %span.text-xs.px-2.py-1.bg-red-100.dark:bg-red-900.text-red-600.dark:text-red-300.rounded-full
               = task.dislike_level_display
+            - if task.due_date.present?
+              %span.text-xs.px-2.py-1.rounded-full{
+                class: case task.due_status
+                       when "期限切れ"
+                         "bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-300"
+                       when "期限間近" 
+                         "bg-amber-100 dark:bg-amber-900 text-amber-600 dark:text-amber-300"
+                       else
+                         "bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300"
+                       end
+              }
+                ⏰ #{task.due_date.strftime('%m/%d %H:%M')}
             - if task.completed?
               %span.text-xs.text-slate-500.dark:text-slate-400
                 完了: #{task.completed_at.strftime('%H:%M')}

@@ -3,10 +3,19 @@ class TasksController < ApplicationController
   before_action :set_task, only: [ :show, :complete, :hide, :unhide, :destroy ]
 
   def index
-    @tasks = @character.tasks.includes(:character).order(created_at: :desc)
+    sort_by = params[:sort] || "created_date"
+
+    @tasks = case sort_by
+    when "due_date"
+               @character.tasks.includes(:character).ordered_by_due_date
+    else
+               @character.tasks.includes(:character).ordered_by_created_date
+    end
+
     @pending_tasks = @tasks.pending
     @completed_tasks = @tasks.completed
     @hidden_tasks = @tasks.where(hidden: true)
+    @current_sort = sort_by
   end
 
   def completed
@@ -179,6 +188,6 @@ class TasksController < ApplicationController
   end
 
   def task_params
-    params.require(:task).permit(:title, :category, :dislike_level)
+    params.require(:task).permit(:title, :category, :dislike_level, :due_date)
   end
 end

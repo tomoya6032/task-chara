@@ -215,4 +215,28 @@ class Character < ApplicationRecord
       completed_tasks: completed_today
     }
   end
+
+  # 連続投稿日数を計算
+  def calculate_consecutive_activity_days
+    return 0 if activities.empty?
+
+    consecutive_days = 0
+    current_date = Date.current
+
+    # 今日から遡って連続している日数を計算
+    loop do
+      activities_on_date = activities.where(
+        created_at: current_date.beginning_of_day..current_date.end_of_day
+      )
+
+      if activities_on_date.any?
+        consecutive_days += 1
+        current_date = current_date.prev_day
+      else
+        break
+      end
+    end
+
+    consecutive_days
+  end
 end

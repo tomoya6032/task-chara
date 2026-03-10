@@ -1,0 +1,133 @@
+/ 日報編集ページ
+.min-h-screen.bg-slate-50.dark:bg-slate-900
+  / デスクトップサイドバー（lg以上で表示）
+  .hidden.lg:fixed.lg:inset-y-0.lg:z-50.lg:flex.lg:w-72.lg:flex-col
+    .flex.grow.flex-col.gap-y-5.overflow-y-auto.bg-white.dark:bg-slate-800.px-6.border-r.border-slate-200.dark:border-slate-700
+      .flex.h-16.shrink-0.items-center
+        %h1.text-2xl.font-bold.text-slate-900.dark:text-white
+          TaskChara
+        %span.ml-2.text-sm.text-slate-500 ✨
+
+      %nav.flex.flex-1.flex-col
+        %ul.flex.flex-1.flex-col.gap-y-7{role: "list"}
+          %li
+            %ul.space-y-1{role: "list"}
+              %li
+                = link_to dashboard_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
+                  📊
+                  ダッシュボード
+              %li
+                = link_to activities_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
+                  = "📖"
+                  日報一覧
+              %li  
+                = link_to new_activity_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold", data: { "turbo-frame": "activity_form_modal" } do
+                  = "📝"
+                  日報投稿
+
+  / メインコンテンツエリア
+  .lg:pl-72
+    .px-4.sm:px-6.lg:px-8.py-8
+      / 戻るボタン
+      .mb-6
+        = link_to activity_path(@activity), class: "inline-flex items-center text-sm text-slate-500 hover:text-slate-700" do
+          ← 日報詳細に戻る
+
+      / 日報編集フォーム
+      .bg-white.dark:bg-slate-800.shadow-xl.rounded-2xl.border.border-slate-200.dark:border-slate-700.overflow-hidden
+        .px-6.py-6.border-b.border-slate-200.dark:border-slate-700
+          %h1.text-2xl.font-bold.text-slate-900.dark:text-white.mb-2
+            📝 日報を編集
+
+        = form_with model: @activity, local: true, class: "px-6 py-6", data: { controller: "slider character-counter visit-time" } do |form|
+          - if @activity.errors.any?
+            .mb-6.bg-red-50.border.border-red-200.rounded-lg.p-4
+              %h4.text-red-700.font-medium エラーが発生しました:
+              %ul.mt-2.text-sm.text-red-600
+                - @activity.errors.full_messages.each do |message|
+                  %li= message
+
+          / 訪問先
+          .mb-6
+            = form.label :title, "訪問先", class: "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
+            %span.text-red-500.text-sm *必須
+            = form.text_field :title, placeholder: "訪問先名を入力してください（例：田中様宅）", class: "mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white", required: true
+
+          / 訪問時間
+          .mb-6
+            .grid.grid-cols-1.md:grid-cols-2.gap-4
+              %div
+                = form.label :visit_start_time, "訪問開始時間", class: "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
+                = form.datetime_local_field :visit_start_time, class: "mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white", data: { visit_time_target: "startTime", action: "change->visit-time#syncEndTime change->visit-time#calculateDuration" }
+              %div
+                = form.label :visit_end_time, "訪問終了時間", class: "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
+                = form.datetime_local_field :visit_end_time, class: "mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white", data: { visit_time_target: "endTime", action: "change->visit-time#calculateDuration" }
+            / 所要時間表示
+            .bg-blue-50.border.border-blue-200.rounded-md.p-3.mt-2{ data: { visit_time_target: "duration" }, style: "display: none;" }
+              .flex.items-center.space-x-2
+                %i.fas.fa-clock.text-blue-600
+                %span.text-sm.font-medium.text-blue-800 所要時間:
+                %span.text-sm.font-bold.text-blue-900{ data: { visit_time_target: "durationText" } } --
+
+          / カテゴリ選択
+          .mb-6
+            = form.label :category, "カテゴリ", class: "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
+            = form.select :category, options_for_select([['📚 学習', 'study'], ['💼 仕事', 'work'], ['💪 運動', 'exercise'], ['🎯 目標', 'goal'], ['💭 思考', 'thought'], ['🎉 その他', 'other']], @activity.category), { prompt: 'カテゴリを選択してください' }, { class: "mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white" }
+
+          / 気分レベル
+          .mb-6
+            = form.label :mood_level, "今日の気分", class: "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-3"
+            .flex.items-center.space-x-4
+              - (1..5).each do |level|
+                - mood_icons = ["😢", "😞", "😐", "😊", "😄"]
+                - mood_labels = ["とても悪い", "悪い", "普通", "良い", "とても良い"]
+                %label.flex.flex-col.items-center.cursor-pointer
+                  = form.radio_button :mood_level, level, 
+                    class: "sr-only", 
+                    data: { controller: "slider", action: "change->slider#updateMood" }
+                  %span.text-3xl.mb-1{data: { mood_value: level }}
+                    = mood_icons[level - 1]
+                  %span.text-xs.text-slate-600.dark:text-slate-400
+                    = mood_labels[level - 1]
+
+          / 疲労レベル
+          .mb-6
+            = form.label :fatigue_level, "今日の疲労度", class: "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-3"
+            .flex.items-center.space-x-4
+              - (1..5).each do |level|
+                - fatigue_icons = ["😴", "😪", "😐", "⚡", "🔥"]
+                - fatigue_labels = ["とても疲れた", "疲れた", "普通", "元気", "とても元気"]
+                %label.flex.flex-col.items-center.cursor-pointer
+                  = form.radio_button :fatigue_level, level, 
+                    class: "sr-only", 
+                    data: { controller: "slider", action: "change->slider#updateFatigue" }
+                  %span.text-3xl.mb-1{data: { fatigue_value: level }}
+                    = fatigue_icons[level - 1]
+                  %span.text-xs.text-slate-600.dark:text-slate-400
+                    = fatigue_labels[level - 1]
+
+          / 内容
+          .mb-6
+            = form.label :content, "今日の活動内容", class: "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
+            %span.text-red-500.text-sm *必須（最低10文字）
+            = form.text_area :content, rows: 10, placeholder: "今日一日の活動や学んだこと、感じたことを自由に書いてください...", class: "mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white", data: { controller: "character-counter", "character-counter-target": "input", action: "input->character-counter#update" }, required: true, minlength: 10
+            
+            .mt-2.flex.justify-between.items-center
+              %span.text-xs.text-slate-500{data: { "character-counter-target": "counter" }}
+                = "#{@activity.content&.length || 0}文字"
+              %span.text-xs.text-slate-400
+                AIが内容を解析してキャラクターの成長に反映します
+
+          / 画像URL（オプション）
+          .mb-6
+            = form.label :image_url, "画像URL（オプション）", class: "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
+            = form.url_field :image_url, placeholder: "https://example.com/image.jpg", class: "mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white"
+
+          / ボタン
+          .flex.justify-between.items-center
+            = link_to activity_path(@activity), 
+                class: "inline-flex items-center px-4 py-2 border border-slate-300 text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors" do
+              ← キャンセル
+
+            = form.submit "日報を更新", 
+                class: "inline-flex items-center px-6 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"

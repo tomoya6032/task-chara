@@ -41,6 +41,13 @@
             = form.select :category, options_for_select([['訪問福祉 🏠', 'welfare'], ['Web制作 💻', 'web'], ['事務作業 📋', 'admin']], @task.category), {}, class: "w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
           
           .mb-6
+            = form.label :due_date, "期限", class: "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
+            %div.text-xs.text-slate-500.dark:text-slate-400.mb-2
+              ※ 年月日と時間を設定してください（未設定も可能）
+            = form.datetime_local_field :due_date, 
+              class: "w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          
+          .mb-6
             = form.label :dislike_level, "嫌い度（1-10）", class: "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
             %div.text-xs.text-slate-500.dark:text-slate-400.mb-2
               ※ 嫌いなタスクほど完了時の強靽さボーナスが大きくなります
@@ -103,6 +110,13 @@
           .mb-6
             = form.label :category, "カテゴリ", class: "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
             = form.select :category, options_for_select([['訪問福祉 🏠', 'welfare'], ['Web制作 💻', 'web'], ['事務作業 📋', 'admin']], @task.category), {}, class: "w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          
+          .mb-6
+            = form.label :due_date, "期限", class: "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
+            %div.text-xs.text-slate-500.dark:text-slate-400.mb-2
+              ※ 年月日と時間を設定してください（未設定も可能）
+            = form.datetime_local_field :due_date, 
+              class: "w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
           
           .mb-6
             = form.label :dislike_level, "嫌い度（1-10）", class: "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"

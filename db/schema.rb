@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_02_19_054255) do
+ActiveRecord::Schema[8.0].define(version: 2026_03_06_042350) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -24,6 +24,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_02_19_054255) do
     t.string "category"
     t.integer "mood_level"
     t.integer "fatigue_level"
+    t.string "title"
+    t.datetime "visit_start_time"
+    t.datetime "visit_end_time"
     t.index ["character_id"], name: "index_activities_on_character_id"
   end
 
@@ -57,6 +60,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_02_19_054255) do
     t.datetime "updated_at", null: false
     t.boolean "hidden"
     t.datetime "hidden_at"
+    t.datetime "due_date"
     t.index ["character_id"], name: "index_tasks_on_character_id"
   end
 

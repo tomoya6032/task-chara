@@ -1,0 +1,137 @@
+/ 日報詳細ページ
+.min-h-screen.bg-slate-50.dark:bg-slate-900
+  / デスクトップサイドバー（lg以上で表示）
+  .hidden.lg:fixed.lg:inset-y-0.lg:z-50.lg:flex.lg:w-72.lg:flex-col
+    .flex.grow.flex-col.gap-y-5.overflow-y-auto.bg-white.dark:bg-slate-800.px-6.border-r.border-slate-200.dark:border-slate-700
+      .flex.h-16.shrink-0.items-center
+        %h1.text-2xl.font-bold.text-slate-900.dark:text-white
+          TaskChara
+        %span.ml-2.text-sm.text-slate-500 ✨
+
+      %nav.flex.flex-1.flex-col
+        %ul.flex.flex-1.flex-col.gap-y-7{role: "list"}
+          %li
+            %ul.space-y-1{role: "list"}
+              %li
+                = link_to dashboard_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
+                  📊
+                  ダッシュボード
+              %li
+                = link_to activities_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
+                  = "📖"
+                  日報一覧
+              %li  
+                = link_to new_activity_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold", data: { "turbo-frame": "activity_form_modal" } do
+                  = "📝"
+                  日報投稿
+
+  / メインコンテンツエリア
+  .lg:pl-72
+    .px-4.sm:px-6.lg:px-8.py-8
+      / 戻るボタン
+      .mb-6
+        = link_to activities_path, class: "inline-flex items-center text-sm text-slate-500 hover:text-slate-700" do
+          ← 日報一覧に戻る
+
+      / 日報詳細カード
+      .bg-white.dark:bg-slate-800.shadow-xl.rounded-2xl.border.border-slate-200.dark:border-slate-700.overflow-hidden
+        .px-6.py-6.border-b.border-slate-200.dark:border-slate-700
+          .flex.items-start.justify-between.mb-4
+            %div
+              .flex.items-center.gap-4.mb-2
+                %h1.text-2xl.font-bold.text-slate-900.dark:text-white
+                  = @activity.title.present? ? @activity.title : "📖 日報詳細"
+                - if @activity.category.present?
+                  %span.inline-flex.items-center.px-3.py-1.rounded-full.text-sm.font-medium{
+                    class: case @activity.category
+                      when 'study' then 'bg-blue-100 text-blue-800'
+                      when 'work' then 'bg-purple-100 text-purple-800'
+                      when 'exercise' then 'bg-green-100 text-green-800'
+                      when 'goal' then 'bg-yellow-100 text-yellow-800'
+                      when 'thought' then 'bg-pink-100 text-pink-800'
+                      else 'bg-gray-100 text-gray-800'
+                    end
+                  }
+                    - case @activity.category
+                      - when 'study'
+                        📚 学習
+                      - when 'work'
+                        💼 仕事
+                      - when 'exercise'
+                        💪 運動
+                      - when 'goal'
+                        🎯 目標
+                      - when 'thought'
+                        💭 思考
+                      - else
+                        🎉 その他
+                / 気分・疲労度表示
+                - if @activity.mood_level.present? || @activity.fatigue_level.present?
+                  - if @activity.mood_level.present?
+                    .flex.items-center.space-x-2
+                      - mood_icons = ["😢", "😞", "😐", "😊", "😄"]
+                      - mood_labels = ["とても悪い", "悪い", "普通", "良い", "とても良い"]
+                      %span.inline-flex.items-center.px-2.py-1.rounded-full.text-xs.font-medium.bg-blue-100.text-blue-800
+                        %span.text-lg.mr-1
+                          = mood_icons[@activity.mood_level - 1] rescue "😐"
+                        = mood_labels[@activity.mood_level - 1] rescue "普通"
+                  - if @activity.fatigue_level.present?
+                    .flex.items-center.space-x-2
+                      - fatigue_icons = ["😴", "😪", "😐", "⚡", "🔥"]
+                      - fatigue_labels = ["とても疲れた", "疲れた", "普通", "元気", "とても元気"]
+                      %span.inline-flex.items-center.px-2.py-1.rounded-full.text-xs.font-medium.bg-green-100.text-green-800
+                        %span.text-lg.mr-1
+                          = fatigue_icons[@activity.fatigue_level - 1] rescue "😐"
+                        = fatigue_labels[@activity.fatigue_level - 1] rescue "普通"
+              .flex.items-center.space-x-4.text-sm.text-slate-500
+                %span
+                  = @activity.created_at.strftime("%Y年%m月%d日 %H:%M投稿")
+                %span
+                  = "#{@activity.content&.length || 0}文字"
+                - if @activity.visit_start_time.present? || @activity.visit_end_time.present?
+                  %span.text-blue-600
+                    🕐 
+                    - if @activity.visit_start_time.present?
+                      = @activity.visit_start_time.strftime("%H:%M")
+                    - if @activity.visit_start_time.present? && @activity.visit_end_time.present?
+                      〜
+                    - if @activity.visit_end_time.present?
+                      = @activity.visit_end_time.strftime("%H:%M")
+
+        .px-6.py-6
+          / 内容表示
+          %div
+            %h3.text-lg.font-semibold.text-slate-900.dark:text-white.mb-1
+              日報内容
+            .prose.max-w-none
+              %p.text-slate-700.dark:text-slate-300.leading-relaxed.whitespace-pre-wrap
+                = @activity.content
+
+          / 画像表示（もしあれば）
+          - if @activity.has_image?
+            .mt-6
+              %h3.text-lg.font-semibold.text-slate-900.dark:text-white.mb-3
+                添付画像
+              %img.rounded-lg.shadow-md.max-w-full.h-auto{src: @activity.image_data_url, alt: "日報画像", style: "max-width: 600px;"}
+
+        / アクションボタン
+        .px-6.py-4.bg-slate-50.dark:bg-slate-700.border-t.border-slate-200.dark:border-slate-600
+          .flex.justify-between.items-center
+            = link_to activities_path, class: "inline-flex items-center px-4 py-2 border border-slate-300 text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors" do
+              ← 一覧に戻る
+            
+            .flex.space-x-2
+              = link_to edit_activity_path(@activity), 
+                  class: "inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors" do
+                📝 編集
+              = button_to activity_path(@activity), method: :delete,
+                  class: "inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors",
+                  data: { confirm: "この日報を削除しますか？" } do
+                🗑️ 削除
+              = link_to new_activity_path, 
+                  class: "inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors",
+                  data: { "turbo-frame": "activity_form_modal" } do
+                📝 新しい日報を投稿
+
+  / 日報投稿モーダル用のTurbo Frame
+  = turbo_frame_tag "activity_form_modal"

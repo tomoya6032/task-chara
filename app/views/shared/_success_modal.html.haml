@@ -1,0 +1,25 @@
+/ 成功通知モーダル
+.fixed.inset-0.bg-black.bg-opacity-50.z-50.flex.items-center.justify-center{ data: { controller: "success-modal", "success-modal-redirect-url-value": redirect_url, "success-modal-redirect-delay-value": redirect_delay } }
+  .bg-white.rounded-2xl.shadow-xl.max-w-md.w-full.mx-4.overflow-hidden.transform.transition-all{ data: { action: "click->success-modal#stopPropagation" } }
+    .bg-gradient-to-r.from-green-500.to-emerald-600.px-6.py-4
+      .flex.items-center.justify-center.mb-2
+        .w-16.h-16.bg-white.bg-opacity-20.rounded-full.flex.items-center.justify-center
+          %i.fas.fa-check.text-3xl.text-white
+      %h2.text-xl.font-bold.text-white.text-center
+        = title
+
+    .px-6.py-6
+      %p.text-gray-700.text-center.leading-relaxed.whitespace-pre-line
+        = message
+      
+      .mt-6.text-center
+        .flex.items-center.justify-center.space-x-2.text-sm.text-gray-500.mb-4
+          %i.fas.fa-spinner.fa-spin
+          %span{ data: { "success-modal-target": "countdown" } }
+            = "#{redirect_delay / 1000}秒後に一覧ページに移動します..."
+        
+        .flex.justify-center.space-x-3
+          %button.px-4.py-2.bg-gray-100.hover:bg-gray-200.text-gray-700.rounded-md.text-sm.font-medium.transition-colors{ type: "button", data: { action: "click->success-modal#close" } }
+            閉じる
+          %button.px-6.py-2.bg-blue-600.hover:bg-blue-700.text-white.rounded-md.text-sm.font-medium.transition-colors{ type: "button", data: { action: "click->success-modal#redirectNow" } }
+            今すぐ移動

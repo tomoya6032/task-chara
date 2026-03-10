@@ -14,6 +14,10 @@ class Task < ApplicationRecord
   scope :hidden, -> { where(hidden: true) }
   scope :overdue, -> { pending.where("created_at < ?", 24.hours.ago) }
   scope :by_category, ->(category) { where(category: category) }
+  scope :due_soon, -> { pending.where(due_date: Time.current..1.day.from_now) }
+  scope :past_due, -> { pending.where("due_date < ?", Time.current) }
+  scope :ordered_by_due_date, -> { order(Arel.sql("due_date IS NULL, due_date ASC")) }
+  scope :ordered_by_created_date, -> { order(created_at: :desc) }
 
   # タスク完了時の処理
   def mark_as_completed!
@@ -28,6 +32,36 @@ class Task < ApplicationRecord
   def overdue?
     return false if completed?
     created_at < 24.hours.ago
+  end
+
+  def due_date_passed?
+    return false unless due_date.present?
+    return false if completed?
+    due_date < Time.current
+  end
+
+  def due_soon?
+    return false unless due_date.present?
+    return false if completed?
+    due_date.between?(Time.current, 1.day.from_now)
+  end
+
+  def due_status
+    return "完了" if completed?
+    return "期限なし" unless due_date.present?
+
+    if due_date_passed?
+      "期限切れ"
+    elsif due_soon?
+      "期限間近"
+    else
+      "余裕あり"
+    end
+  end
+
+  def due_date_display
+    return "期限なし" unless due_date.present?
+    due_date.strftime("%Y/%m/%d %H:%M")
   end
 
   def hide!

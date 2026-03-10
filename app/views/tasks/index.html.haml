@@ -77,6 +77,18 @@
           }
             完了済み (#{@completed_tasks.count})
 
+        / 並び替えオプション
+        .flex.justify-between.items-center.p-4.bg-slate-50.dark:bg-slate-700
+          %span.text-sm.font-medium.text-slate-700.dark:text-slate-300
+            並び替え:
+          .flex.gap-2
+            = link_to tasks_path(sort: 'due_date'), 
+                class: "px-3 py-1 rounded-md text-xs font-medium transition-colors #{'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300' if @current_sort == 'due_date'} #{'bg-white dark:bg-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-500' unless @current_sort == 'due_date'}" do
+              ⏰ 期限順
+            = link_to tasks_path(sort: 'created_date'), 
+                class: "px-3 py-1 rounded-md text-xs font-medium transition-colors #{'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300' if @current_sort == 'created_date'} #{'bg-white dark:bg-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-500' unless @current_sort == 'created_date'}" do
+              📅 作成日順
+
         / 未完了タスク
         #pending-tab.p-6
           - if @pending_tasks.any?
@@ -102,6 +114,18 @@
                         .text-sm.text-slate-600.dark:text-slate-400.mt-1
                           嫌い度: #{task.dislike_level}/10 | 
                           作成: #{task.created_at.strftime("%m/%d %H:%M")}
+                        - if task.due_date.present?
+                          .text-sm.mt-1{
+                            class: case task.due_status
+                                   when "期限切れ"
+                                     "text-red-600 dark:text-red-400 font-medium"
+                                   when "期限間近"
+                                     "text-amber-600 dark:text-amber-400 font-medium"
+                                   else
+                                     "text-slate-500 dark:text-slate-400"
+                                   end
+                          }
+                            ⏰ #{task.due_date_display} (#{task.due_status})
 
                     .flex.gap-2
                       = button_to complete_task_path(task), method: :patch, class: "bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm transition-colors", data: { confirm: "「#{task.title}」を完了しますか？\n強靭さ+#{(task.dislike_level || 1) * 1.5}pt獲得できます！", turbo: false }, form_class: "inline" do

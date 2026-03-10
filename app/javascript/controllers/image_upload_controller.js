@@ -6,6 +6,10 @@ export default class extends Controller {
 
   connect() {
     this.setupDragAndDrop()
+    // 初期値がある場合はプレビューを表示
+    if (this.hasUrlInputTarget && this.urlInputTarget.value) {
+      this.handleUrlInput({ target: this.urlInputTarget })
+    }
   }
 
   setupDragAndDrop() {
@@ -31,7 +35,9 @@ export default class extends Controller {
   }
 
   triggerFileSelect() {
-    this.fileInputTarget.click()
+    if (this.hasFileInputTarget) {
+      this.fileInputTarget.click()
+    }
   }
 
   handleFileSelect(event) {
@@ -46,9 +52,15 @@ export default class extends Controller {
       const reader = new FileReader()
       reader.onload = (e) => {
         this.showPreview(e.target.result)
-        this.urlInputTarget.value = e.target.result
+        // URLフィールドにdata URLを設定
+        if (this.hasUrlInputTarget) {
+          this.urlInputTarget.value = e.target.result
+        }
       }
       reader.readAsDataURL(file)
+    } else {
+      alert('画像ファイルを選択してください。')
+      this.clearImage()
     }
   }
 
@@ -62,22 +74,30 @@ export default class extends Controller {
   }
 
   isValidImageUrl(url) {
-    return /\.(jpg|jpeg|png|gif|webp)$/i.test(url) || url.startsWith('data:image/')
+    return /\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i.test(url) || url.startsWith('data:image/')
   }
 
   showPreview(src) {
-    this.previewImageTarget.src = src
-    this.previewTarget.classList.remove('hidden')
+    if (this.hasPreviewImageTarget && this.hasPreviewTarget) {
+      this.previewImageTarget.src = src
+      this.previewTarget.style.display = 'block'
+    }
   }
 
   hidePreview() {
-    this.previewTarget.classList.add('hidden')
-    this.previewImageTarget.src = ''
+    if (this.hasPreviewTarget && this.hasPreviewImageTarget) {
+      this.previewTarget.style.display = 'none'
+      this.previewImageTarget.src = ''
+    }
   }
 
   clearImage() {
-    this.urlInputTarget.value = ''
-    this.fileInputTarget.value = ''
+    if (this.hasFileInputTarget) {
+      this.fileInputTarget.value = ''
+    }
+    if (this.hasUrlInputTarget) {
+      this.urlInputTarget.value = ''
+    }
     this.hidePreview()
   }
 }

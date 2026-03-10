@@ -1,0 +1,220 @@
+/ 日報一覧ページ
+.min-h-screen.bg-slate-50.dark:bg-slate-900
+  / デスクトップサイドバー（lg以上で表示）
+  .hidden.lg:fixed.lg:inset-y-0.lg:z-50.lg:flex.lg:w-72.lg:flex-col
+    .flex.grow.flex-col.gap-y-5.overflow-y-auto.bg-white.dark:bg-slate-800.px-6.border-r.border-slate-200.dark:border-slate-700
+      .flex.h-16.shrink-0.items-center
+        %h1.text-2xl.font-bold.text-slate-900.dark:text-white
+          TaskChara
+        %span.ml-2.text-sm.text-slate-500 ✨
+
+      %nav.flex.flex-1.flex-col
+        %ul.flex.flex-1.flex-col.gap-y-7{role: "list"}
+          %li
+            %ul.space-y-1{role: "list"}
+              %li
+                = link_to dashboard_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
+                  📊
+                  ダッシュボード
+              %li
+                = link_to new_task_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold", data: { "turbo-frame": "task-modal" } do
+                  = "✅"
+                  タスク追加
+              %li
+                = link_to tasks_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
+                  = "📋"
+                  タスク一覧
+              %li
+                = link_to completed_tasks_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
+                  = "🏆"
+                  完了履歴
+              %li  
+                = link_to new_activity_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold", data: { "turbo-frame": "activity_form_modal" } do
+                  = "📝"
+                  日報投稿
+              %li
+                = link_to activities_path, class: "bg-slate-50 text-slate-700 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
+                  = "📖"
+                  日報一覧
+              %li
+                %a.text-slate-400.hover:text-slate-700.hover:bg-slate-50.group.flex.gap-x-3.rounded-md.p-2.text-sm.leading-6.font-semibold{href: "#"}
+                  = "🛍️"
+                  つながるマルシェ
+              %li
+                %a.text-slate-400.hover:text-slate-700.hover:bg-slate-50.group.flex.gap-x-3.rounded-md.p-2.text-sm.leading-6.font-semibold{href: "#"}
+                  = "⚙️"
+                  設定
+
+  / モバイルボトムナビゲーション（lg未満で表示）
+  .fixed.bottom-0.left-0.right-0.z-50.bg-white.dark:bg-slate-800.border-t.border-slate-200.dark:border-slate-700.lg:hidden
+    .grid.grid-cols-5.py-2
+      = link_to dashboard_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400" do
+        %span.text-lg= "📊"
+        %span.text-xs.mt-1 ホーム
+      = link_to new_task_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400", data: { "turbo-frame": "task-modal" } do
+        %span.text-lg= "✅"
+        %span.text-xs.mt-1 タスク
+      = link_to new_activity_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400", data: { "turbo-frame": "activity_form_modal" } do
+        %span.text-lg= "📝"
+        %span.text-xs.mt-1 日報
+      = link_to activities_path, class: "flex flex-col items-center py-2 px-1 text-blue-600 dark:text-blue-400" do
+        %span.text-lg= "📖"
+        %span.text-xs.mt-1 一覧
+      %a.flex.flex-col.items-center.py-2.px-1.text-slate-600.dark:text-slate-400{href: "#"}
+        %span.text-lg= "⚙️"
+        %span.text-xs.mt-1 設定
+
+  / メインコンテンツエリア
+  .lg:pl-72
+    .px-4.sm:px-6.lg:px-8.py-8
+      / モバイルヘッダー
+      .lg:hidden.mb-6
+        %h1.text-2xl.font-bold.text-slate-900.dark:text-white
+          日報一覧
+          %span.ml-2.text-sm.text-slate-500 📖
+
+      / デスクトップヘッダー
+      .hidden.lg:block.mb-8
+        %h1.text-3xl.font-bold.text-slate-900.dark:text-white
+          📖 日報一覧
+        %p.text-slate-600.dark:text-slate-400.mt-2
+          投稿した日報の履歴を確認できます
+
+      / 統計カード
+      .grid.grid-cols-1.md:grid-cols-3.gap-6.mb-8
+        .bg-white.dark:bg-slate-800.overflow-hidden.shadow-xl.rounded-2xl.border.border-slate-200.dark:border-slate-700
+          .px-6.py-4
+            .flex.items-center
+              .flex-shrink-0
+                %span.text-2xl 📈
+              .ml-3
+                %p.text-sm.font-medium.text-slate-500.dark:text-slate-400 総投稿数
+                %p.text-2xl.font-semibold.text-slate-900.dark:text-white
+                  = @activities.count
+                  %span.text-sm.text-slate-500 件
+
+        .bg-white.dark:bg-slate-800.overflow-hidden.shadow-xl.rounded-2xl.border.border-slate-200.dark:border-slate-700
+          .px-6.py-4
+            .flex.items-center
+              .flex-shrink-0
+                %span.text-2xl 🗓️
+              .ml-3
+                %p.text-sm.font-medium.text-slate-500.dark:text-slate-400 今月の投稿
+                %p.text-2xl.font-semibold.text-slate-900.dark:text-white
+                  = @activities.where(created_at: Time.current.beginning_of_month..Time.current.end_of_month).count
+                  %span.text-sm.text-slate-500 件
+
+        .bg-white.dark:bg-slate-800.overflow-hidden.shadow-xl.rounded-2xl.border.border-slate-200.dark:border-slate-700
+          .px-6.py-4
+            .flex.items-center
+              .flex-shrink-0
+                %span.text-2xl 🔥
+              .ml-3
+                %p.text-sm.font-medium.text-slate-500.dark:text-slate-400 連続投稿日数
+                %p.text-2xl.font-semibold.text-slate-900.dark:text-white
+                  - consecutive_days = @character.calculate_consecutive_activity_days
+                  = consecutive_days
+                  %span.text-sm.text-slate-500 日
+
+      / 日報リスト
+      .bg-white.dark:bg-slate-800.shadow-xl.rounded-2xl.border.border-slate-200.dark:border-slate-700
+        .px-6.py-4.border-b.border-slate-200.dark:border-slate-700
+          %h2.text-lg.font-semibold.text-slate-900.dark:text-white
+            📚 投稿履歴
+
+        - if @activities.any?
+          .divide-y.divide-slate-200.dark:divide-slate-700
+            - @activities.each do |activity|
+              .px-6.py-4.hover:bg-slate-50.dark:hover:bg-slate-700.transition-colors
+                .flex.items-start.justify-between
+                  .flex-1
+                    / タイトル表示
+                    - if activity.title.present?
+                      %h3.text-base.font-medium.text-slate-900.dark:text-white.mb-2
+                        = activity.title
+                    
+                    .flex.items-center.space-x-3.mb-2
+                      - if activity.category.present?
+                        %span.inline-flex.items-center.px-2.py-1.rounded-full.text-xs.font-medium{
+                          class: case activity.category
+                            when 'study' then 'bg-blue-100 text-blue-800'
+                            when 'work' then 'bg-purple-100 text-purple-800'
+                            when 'exercise' then 'bg-green-100 text-green-800'
+                            when 'goal' then 'bg-yellow-100 text-yellow-800'
+                            when 'thought' then 'bg-pink-100 text-pink-800'
+                            else 'bg-gray-100 text-gray-800'
+                          end
+                        }
+                          - case activity.category
+                            - when 'study'
+                              📚 学習
+                            - when 'work'
+                              💼 仕事
+                            - when 'exercise'
+                              💪 運動
+                            - when 'goal'
+                              🎯 目標
+                            - when 'thought'
+                              💭 思考
+                            - else
+                              🎉 その他
+                      
+                      - if activity.mood_level.present?
+                        %span.text-sm.text-slate-500
+                          気分: 
+                          - mood_icons = ["😢", "😞", "😐", "😊", "😄"]
+                          = mood_icons[activity.mood_level - 1] rescue "😐"
+                          
+                      - if activity.fatigue_level.present?
+                        %span.text-sm.text-slate-500
+                          疲労: 
+                          - fatigue_icons = ["😴", "😪", "😐", "⚡", "🔥"]
+                          = fatigue_icons[activity.fatigue_level - 1] rescue "😐"
+
+                    %p.text-slate-900.dark:text-white.text-sm.leading-relaxed.mb-2
+                      = truncate(activity.content, length: 150)
+
+                    / 画像表示
+                    - if activity.has_image?
+                      .mb-2
+                        %img.w-full.max-w-md.h-32.object-cover.rounded-lg.border.border-slate-200{
+                          src: activity.image_data_url,
+                          alt: "投稿画像"
+                        }
+
+                    .flex.items-center.text-xs.text-slate-500.space-x-4
+                      %span
+                        = activity.created_at.strftime("%Y年%m月%d日 %H:%M")
+                      %span
+                        = "#{activity.content&.length || 0}文字"
+                      - if activity.visit_start_time.present? || activity.visit_end_time.present?
+                        %span.text-blue-600
+                          🕐 
+                          - if activity.visit_start_time.present?
+                            = activity.visit_start_time.strftime("%H:%M")
+                          - if activity.visit_start_time.present? && activity.visit_end_time.present?
+                            〜
+                          - if activity.visit_end_time.present?
+                            = activity.visit_end_time.strftime("%H:%M")
+
+                  .ml-4
+                    = link_to activity_path(activity), class: "inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-blue-600 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors" do
+                      詳細
+        - else
+          .px-6.py-12.text-center
+            %div
+              %span.text-6xl.mb-4.block 📝
+              %h3.text-lg.font-medium.text-slate-900.dark:text-white.mb-2
+                まだ日報が投稿されていません
+              %p.text-slate-500.dark:text-slate-400.mb-6
+                最初の日報を投稿してみましょう！
+              = link_to new_activity_path, 
+                  class: "inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500",
+                  data: { "turbo-frame": "activity_form_modal" } do
+                📝 日報を投稿する
+
+  / モーダルエリア
+  %turbo-frame#task-modal
+  
+  / 日報投稿モーダル用のTurbo Frame
+  = turbo_frame_tag "activity_form_modal"

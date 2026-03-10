@@ -20,8 +20,20 @@
           target: "_blank" do
           🔗 別タブで開く
 
+    - overdue_tasks = character.tasks.visible.past_due
+    - if overdue_tasks.any?
+      .mb-4.p-3.bg-red-50.dark:bg-red-900.border.border-red-200.dark:border-red-700.rounded-lg
+        .flex.items-center.gap-2.mb-2
+          %span.text-red-600.dark:text-red-400 ⚠️
+          %span.text-sm.font-medium.text-red-700.dark:text-red-300
+            期限切れのタスクが#{overdue_tasks.count}件あります
+        .space-y-1
+          - overdue_tasks.limit(3).each do |task|
+            .text-xs.text-red-600.dark:text-red-400
+              = "• #{task.title} (期限: #{task.due_date_display})"
+
     #tasks-list
-      - all_tasks = character.tasks.visible.pending.order(created_at: :desc)
+      - all_tasks = character.tasks.visible.pending.ordered_by_due_date
       
       - if all_tasks.any?
         .space-y-3

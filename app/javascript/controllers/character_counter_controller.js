@@ -2,24 +2,24 @@
 import { Controller } from "@hotwired/stimulus"
 
 export default class extends Controller {
-  static targets = ["input", "counter"]
+  static targets = ["textarea", "counter"]
 
   connect() {
     this.updateCounter()
-    this.inputTarget.addEventListener("input", () => this.updateCounter())
   }
 
   updateCounter() {
-    const length = this.inputTarget.value.length
-    this.counterTarget.textContent = `${length}文字`
-    
-    // 文字数に応じて色を変える
-    if (length < 50) {
-      this.counterTarget.className = "text-xs text-red-500"
-    } else if (length < 200) {
-      this.counterTarget.className = "text-xs text-yellow-500"
-    } else {
-      this.counterTarget.className = "text-xs text-green-500"
+    if (this.hasTextareaTarget && this.hasCounterTarget) {
+      const length = this.textareaTarget.value.length
+      this.counterTarget.textContent = `${length}文字`
+      
+      if (length > 1000) {
+        this.counterTarget.classList.add("text-red-500")
+        this.counterTarget.classList.remove("text-gray-600")
+      } else {
+        this.counterTarget.classList.add("text-gray-600")
+        this.counterTarget.classList.remove("text-red-500")
+      }
     }
   }
 }
