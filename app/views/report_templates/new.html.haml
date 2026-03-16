@@ -1,0 +1,146 @@
+-# app/views/report_templates/new.html.haml
+.min-h-screen.bg-slate-50.dark:bg-slate-900
+  -# デスクトップサイドバー（lg以上で表示）
+  .hidden.lg:fixed.lg:inset-y-0.lg:z-50.lg:flex.lg:w-72.lg:flex-col
+    .flex.grow.flex-col.gap-y-5.overflow-y-auto.bg-white.dark:bg-slate-800.px-6.border-r.border-slate-200.dark:border-slate-700
+      .flex.h-16.shrink-0.items-center
+        %h1.text-lg.font-semibold.text-slate-900.dark:text-white
+          TaskChara
+        %span.ml-2.text-xs.text-slate-500 ✨
+
+      %nav.flex.flex-1.flex-col
+        %ul.flex.flex-1.flex-col.gap-y-7{role: "list"}
+          %li
+            %ul.space-y-1{role: "list"}
+              %li
+                = link_to dashboard_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
+                  📊
+                  ダッシュボード
+              %li
+                = link_to new_task_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold", data: { "turbo-frame": "task-modal" } do
+                  = "✅"
+                  タスク追加
+              %li
+                = link_to tasks_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
+                  = "📋"
+                  タスク一覧
+              %li
+                = link_to completed_tasks_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
+                  = "🏆"
+                  完了履歴
+              %li  
+                = link_to new_activity_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold", data: { "turbo-frame": "activity_form_modal" } do
+                  = "📝"
+                  日報投稿
+              %li
+                = link_to activities_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
+                  = "📖"
+                  日報一覧
+              %li
+                = link_to support_reports_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
+                  = "📋"
+                  支援報告書
+              %li
+                = link_to report_templates_path, class: "bg-slate-50 text-slate-700 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
+                  = "📄"
+                  テンプレート管理
+              %li
+                %a.text-slate-400.hover:text-slate-700.hover:bg-slate-50.group.flex.gap-x-3.rounded-md.p-2.text-sm.leading-6.font-semibold{href: "#"}
+                  = "🛍️"
+                  つながるマルシェ
+              %li
+                = link_to report_templates_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
+                  = "⚙️"
+                  設定
+
+  -# モバイルボトムナビゲーション（lg未満で表示）
+  .fixed.bottom-0.left-0.right-0.z-50.bg-white.dark:bg-slate-800.border-t.border-slate-200.dark:border-slate-700.lg:hidden
+    .grid.grid-cols-5.py-2
+      = link_to new_task_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400", data: { "turbo-frame": "task-modal" } do
+        %span.text-lg= "✅"
+        %span.text-xs.mt-1 タスク
+      = link_to new_activity_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400", data: { "turbo-frame": "activity_form_modal" } do
+        %span.text-lg= "📝"
+        %span.text-xs.mt-1 日報
+      = link_to activities_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400" do
+        %span.text-lg= "📖"
+        %span.text-xs.mt-1 一覧
+      = link_to support_reports_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400" do
+        %span.text-lg= "📋"
+        %span.text-xs.mt-1 報告書
+      = link_to report_templates_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400" do
+        %span.text-lg= "⚙️"
+        %span.text-xs.mt-1 設定
+
+  -# メインコンテンツエリア
+  .lg:pl-72.pt-4
+    .px-4.sm:px-6.lg:px-8.py-8
+      -# モバイルヘッダー
+      .lg:hidden.mb-6
+        %h1.text-2xl.font-bold.text-slate-900.dark:text-white
+          新しいテンプレートを作成
+
+      -# ヘッダー部分
+      .flex.items-center.mb-8
+        = link_to report_templates_path, class: "mr-4 text-gray-600 hover:text-gray-800" do
+          ← 戻る
+        %h1.text-2xl.font-bold.text-gray-900 新しいテンプレートを作成
+
+      .bg-white.rounded-lg.shadow-sm.border.p-6
+        
+        -# エラー表示
+        - if @report_template.errors.any?
+          .mb-6.bg-red-50.border.border-red-200.rounded-lg.p-4
+            %h4.text-red-700.font-medium エラーが発生しました:
+            %ul.mt-2.text-sm.text-red-600
+              - @report_template.errors.full_messages.each do |message|
+                %li= message
+
+        = form_with model: @report_template, local: true, multipart: true, class: "space-y-6" do |form|
+          
+          -# テンプレート名
+          .form-group
+            = form.label :name, "テンプレート名", class: "block text-sm font-medium text-gray-700 mb-2"
+            = form.text_field :name, class: "w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500", placeholder: "例: 月次支援報告書"
+            %p.mt-1.text-sm.text-gray-500 分かりやすいテンプレート名を入力してください
+
+          -# 説明
+          .form-group
+            = form.label :description, "説明（任意）", class: "block text-sm font-medium text-gray-700 mb-2"
+            = form.text_area :description, rows: 3, class: "w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500", placeholder: "このテンプレートの用途や特徴を説明してください"
+
+          -# PDFファイル
+          .form-group
+            = form.label :pdf_file, "PDFテンプレートファイル", class: "block text-sm font-medium text-gray-700 mb-2"
+            = form.file_field :pdf_file, accept: ".pdf", class: "w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            %p.mt-1.text-sm.text-gray-500 
+              雛形となるPDFファイルを選択してください。AIがこの書式を分析し、同様の形式で報告書を生成します。
+            %p.mt-1.text-xs.text-gray-400 ファイルサイズ: 10MB以下
+
+          -# デフォルト設定
+          .form-group
+            .flex.items-center
+              = form.check_box :is_default, class: "h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              = form.label :is_default, "このテンプレートをデフォルトに設定", class: "ml-2 block text-sm text-gray-900"
+            %p.mt-1.text-sm.text-gray-500 報告書生成時にデフォルトで選択されるテンプレートになります
+
+          -# フォーマット指示（手動設定）
+          .form-group
+            = form.label :format_instructions, "フォーマット指示（任意）", class: "block text-sm font-medium text-gray-700 mb-2"
+            = form.text_area :format_instructions, rows: 6, class: "w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500", placeholder: "AIが報告書を生成する際の書式指示を入力してください（PDFから自動抽出されない場合）\n\n例:\n- 見出しは「■」で始める\n- 日時は「令和○年○月○日」形式で記載\n- 活動内容は箇条書きで「・」を使用\n- 最後に「以上」で締める"
+            %p.mt-1.text-sm.text-gray-500 PDFファイルをアップロード後、自動的に書式が解析されます
+
+          -# 注意事項
+          .bg-blue-50.border.border-blue-200.rounded-lg.p-4
+            %h4.text-blue-800.font-medium 📝 使用方法
+            %ul.mt-2.text-sm.text-blue-700.space-y-1
+              %li • PDFファイルをアップロードすると、AIが自動的に書式を分析します
+              %li • 分析には数分かかる場合があります
+              %li • 分析結果は後から手動で調整できます
+              %li • 報告書生成時にこのテンプレートを選択して使用します
+
+          -# ボタン
+          .flex.justify-end.space-x-4
+            = link_to report_templates_path, class: "px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50" do
+              キャンセル
+            = form.submit "テンプレートを作成", class: "px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md"

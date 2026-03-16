@@ -1,0 +1,2 @@
+module SupportReportsHelper
+end

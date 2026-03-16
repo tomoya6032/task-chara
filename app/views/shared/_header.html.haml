@@ -1,0 +1,24 @@
+/ 共通ヘッダー
+%header.bg-white.shadow-sm.border-b.border-slate-200.dark:bg-slate-800.dark:border-slate-700
+  .max-w-7xl.mx-auto.px-4.sm:px-6.lg:px-8
+    .flex.justify-between.items-center.h-16
+      / 左側: ロゴ
+      .flex.items-center
+        = link_to root_path, class: "flex items-center space-x-3 hover:opacity-80 transition-opacity" do
+          %span.text-2xl 👩‍💼
+          %span.text-xl.font-bold.text-slate-900.dark:text-white
+            AI秘書エージェント
+
+      / 中央: ナビゲーション
+      .hidden.md:flex.items-center.space-x-8
+        = link_to activities_path, class: "text-slate-700 hover:text-blue-600 dark:text-slate-300 dark:hover:text-blue-400 font-medium" do
+          📝 日報
+        = link_to support_reports_path, class: "text-slate-700 hover:text-blue-600 dark:text-slate-300 dark:hover:text-blue-400 font-medium" do
+          📋 支援報告書
+        = link_to report_templates_path, class: "text-slate-700 hover:text-blue-600 dark:text-slate-300 dark:hover:text-blue-400 font-medium" do
+          📄 テンプレート管理
+
+      / 右側: ログインボタン
+      .flex.items-center
+        %button.inline-flex.items-center.px-4.py-2.border.border-slate-300.rounded-md.shadow-sm.text-sm.font-medium.text-slate-700.bg-white.hover:bg-slate-50.focus:outline-none.focus:ring-2.focus:ring-offset-2.focus:ring-blue-500.transition-colors.dark:bg-slate-800.dark:text-slate-300.dark:border-slate-600.dark:hover:bg-slate-700
+          👤 ログイン

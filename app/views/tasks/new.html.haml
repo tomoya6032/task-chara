@@ -76,27 +76,26 @@
 - else
   / 通常のモーダル表示（Turbo Frame使用）
   %turbo-frame#task-modal
-    .fixed.inset-0.bg-black.bg-opacity-30.backdrop-blur-sm.z-50.flex.items-center.justify-center.p-4{
+    .fixed.inset-0.bg-black.bg-opacity-30.backdrop-blur-sm.z-50.flex.items-center.justify-center.p-4.pb-20.lg:pb-4{
       data: { controller: "modal", action: "click->modal#closeOnBackdrop" }
     }
       .bg-white.dark:bg-slate-800.bg-opacity-95.dark:bg-opacity-95.rounded-2xl.shadow-2xl.max-w-lg.w-full.border.border-slate-200.dark:border-slate-600{
-        style: "max-height: 90vh; overflow-y: auto;",
+        style: "max-height: calc(100vh - 8rem); overflow-y: auto;",
         data: { modal_target: "content" }
       }
         / ヘッダー
         .flex.items-center.justify-between.p-6.border-b.border-slate-200.dark:border-slate-600
           %h2.text-xl.font-bold.text-slate-900.dark:text-white
             ✅ 新しいタスクを追加
-          %button.text-slate-400.hover:text-slate-600.dark:hover:text-slate-300.text-2xl.leading-none{
-            data: { action: "click->modal#close" }
-          } ×
+          = link_to root_path, class: "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 text-2xl leading-none", data: { turbo_frame: "_top" } do
+            ×
 
         / フォーム
         = form_with model: @task, 
           url: tasks_path, 
           local: true,
           data: { turbo: false },
-          class: "p-6" do |form|
+          class: "p-6 pb-0" do |form|
           
           - if params[:from_new_window] == 'true'
             = form.hidden_field :from_new_window, value: 'true'
@@ -134,12 +133,9 @@
               %span.text-xs.text-slate-500 😱 大嫌い
 
           / ボタン
-          .flex.gap-3
-            %button.flex-1.bg-slate-200.dark:bg-slate-600.text-slate-700.dark:text-slate-300.font-medium.py-3.px-4.rounded-lg.hover:bg-slate-300.dark:hover:bg-slate-500.transition-colors{
-              type: "button",
-              data: { action: "click->modal#close" }
-            }
+          .flex.flex-col.sm:flex-row.gap-3.pt-4.border-t.border-slate-200.dark:border-slate-600.bg-slate-50.dark:bg-slate-800.px-6.py-4.rounded-b-2xl.mt-4
+            = link_to root_path, class: "w-full sm:flex-1 bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300 font-medium py-6 px-4 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-500 transition-colors text-center", data: { turbo_frame: "_top" } do
               キャンセル
             
             = form.submit "タスクを追加", 
-              class: "flex-1 bg-gradient-to-r from-green-500 to-blue-600 text-white font-medium py-3 px-4 rounded-lg hover:from-green-600 hover:to-blue-700 transition-all transform hover:scale-105 shadow-lg"
+              class: "w-full sm:flex-1 bg-gradient-to-r from-green-500 to-blue-600 text-white font-medium py-6 px-4 rounded-lg hover:from-green-600 hover:to-blue-700 transition-all transform hover:scale-105 shadow-lg"

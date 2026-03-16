@@ -1,0 +1,87 @@
+-# app/views/report_templates/edit.html.haml
+.min-h-screen.bg-gray-50
+  = render 'shared/header'
+  
+  .container.mx-auto.px-4.py-8
+    .max-w-2xl.mx-auto
+      
+      -# ヘッダー部分
+      .flex.items-center.mb-8
+        = link_to @report_template, class: "mr-4 text-gray-600 hover:text-gray-800" do
+          ← 戻る
+        %h1.text-2xl.font-bold.text-gray-900
+          = @report_template.name
+          の編集
+
+      .bg-white.rounded-lg.shadow-sm.border.p-6
+        
+        / エラー表示
+        - if @report_template.errors.any?
+          .mb-6.bg-red-50.border.border-red-200.rounded-lg.p-4
+            %h4.text-red-700.font-medium エラーが発生しました:
+            %ul.mt-2.text-sm.text-red-600
+              - @report_template.errors.full_messages.each do |message|
+                %li= message
+
+        = form_with model: @report_template, local: true, multipart: true, class: "space-y-6" do |form|
+          
+          / テンプレート名
+          .form-group
+            = form.label :name, "テンプレート名", class: "block text-sm font-medium text-gray-700 mb-2"
+            = form.text_field :name, class: "w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500", placeholder: "例: 月次支援報告書"
+
+          / 説明
+          .form-group
+            = form.label :description, "説明（任意）", class: "block text-sm font-medium text-gray-700 mb-2"
+            = form.text_area :description, rows: 3, class: "w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500", placeholder: "このテンプレートの用途や特徴を説明してください"
+
+          / 現在のPDFファイル
+          - if @report_template.pdf_file.attached?
+            .form-group
+              %label.block.text-sm.font-medium.text-gray-700.mb-2 現在のPDFファイル
+              .bg-gray-50.rounded-lg.p-4.mb-4
+                .flex.items-center.justify-between
+                  .flex.items-center
+                    %span.text-sm.text-gray-700 📄 #{@report_template.pdf_file_name}
+                    %span.text-xs.text-gray-500.ml-2 (#{number_to_human_size(@report_template.pdf_file_size)})
+                  = link_to @report_template.pdf_file_url, target: "_blank", class: "text-blue-600 hover:text-blue-800 text-sm" do
+                    プレビュー
+
+          / 新しいPDFファイル
+          .form-group
+            = form.label :pdf_file, "新しいPDFファイル（任意）", class: "block text-sm font-medium text-gray-700 mb-2"
+            = form.file_field :pdf_file, accept: ".pdf", class: "w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            %p.mt-1.text-sm.text-gray-500 
+              新しいPDFファイルをアップロードすると、書式が再解析されます。
+            %p.mt-1.text-xs.text-gray-400 ファイルサイズ: 10MB以下
+
+          / デフォルト設定
+          .form-group
+            .flex.items-center
+              = form.check_box :is_default, class: "h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              = form.label :is_default, "このテンプレートをデフォルトに設定", class: "ml-2 block text-sm text-gray-900"
+            %p.mt-1.text-sm.text-gray-500 報告書生成時にデフォルトで選択されるテンプレートになります
+
+          / フォーマット指示
+          .form-group
+            = form.label :format_instructions, "フォーマット指示", class: "block text-sm font-medium text-gray-700 mb-2"
+            = form.text_area :format_instructions, rows: 8, class: "w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm", placeholder: <<~TEXT
+              AIが報告書を生成する際の書式指示を入力してください
+
+              例:
+              - 見出しは「■」で始める
+              - 日時は「令和○年○月○日」形式で記載
+              - 活動内容は箇条書きで「・」を使用
+              - 最後に「以上」で締める
+            TEXT
+            %p.mt-1.text-sm.text-gray-500 この指示に基づいてAIが報告書を生成します
+
+          / ボタン
+          .flex.justify-between
+            .flex.space-x-4
+              = link_to @report_template, class: "px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50" do
+                キャンセル
+              = form.submit "更新", class: "px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md"
+            
+            = link_to analyze_report_template_path(@report_template), method: :post, class: "px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-md" do
+              🔄 PDF再解析

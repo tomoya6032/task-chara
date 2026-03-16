@@ -110,6 +110,9 @@ GEM
     debug_inspector (1.2.0)
     diff-lcs (1.6.2)
     dotenv (3.2.0)
+    dotenv-rails (3.2.0)
+      dotenv (= 3.2.0)
+      railties (>= 6.1)
     drb (2.2.3)
     ed25519 (1.4.0)
     erb (6.0.1)
@@ -209,6 +212,7 @@ GEM
       net-smtp
     marcel (1.1.0)
     matrix (0.4.3)
+    mini_magick (4.13.2)
     mini_mime (1.1.5)
     minitest (6.0.1)
       prism (~> 1.5)
@@ -469,6 +473,7 @@ DEPENDENCIES
   brakeman
   capybara
   debug
+  dotenv-rails
   factory_bot_rails
   faker
   faraday
@@ -478,6 +483,7 @@ DEPENDENCIES
   kamal
   kaminari
   listen
+  mini_magick (~> 4.11)
   pg (~> 1.1)
   propshaft
   puma (>= 5.0)

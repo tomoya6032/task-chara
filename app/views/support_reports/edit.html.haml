@@ -1,0 +1,157 @@
+/ 支援報告書編集ページ
+.min-h-screen.bg-slate-50.dark:bg-slate-900
+  / デスクトップサイドバー（lg以上で表示）
+  .hidden.lg:fixed.lg:inset-y-0.lg:z-50.lg:flex.lg:w-72.lg:flex-col
+    .flex.grow.flex-col.gap-y-5.overflow-y-auto.bg-white.dark:bg-slate-800.px-6.border-r.border-slate-200.dark:border-slate-700
+      .flex.h-16.shrink-0.items-center
+        %h1.text-lg.font-semibold.text-slate-900.dark:text-white
+          TaskChara
+        %span.ml-2.text-xs.text-slate-500 ✨
+
+      %nav.flex.flex-1.flex-col
+        %ul.flex.flex-1.flex-col.gap-y-7{role: "list"}
+          %li
+            %ul.space-y-1{role: "list"}
+              %li
+                = link_to dashboard_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
+                  📊
+                  ダッシュボード
+              %li
+                = link_to activities_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
+                  = "📖"
+                  日報一覧
+              %li
+                = link_to support_reports_path, class: "bg-slate-50 text-slate-700 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
+                  = "📋"
+                  支援報告書
+              %li
+                = link_to report_templates_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
+                  = "📄"
+                  テンプレート管理
+
+  / メインコンテンツエリア
+  .lg:pl-72.pt-4
+    .px-4.sm:px-6.lg:px-8.py-8
+      / 戻るボタン
+      .mb-6
+        = link_to support_report_path(@support_report), class: "inline-flex items-center text-sm text-slate-500 hover:text-slate-700" do
+          ← 詳細に戻る
+
+      / 編集フォームカード
+      .max-w-4xl
+        .bg-white.dark:bg-slate-800.shadow-xl.rounded-2xl.border.border-slate-200.dark:border-slate-700.overflow-hidden
+          .px-6.py-6.border-b.border-slate-200.dark:border-slate-700
+            %h1.text-2xl.font-bold.text-slate-900.dark:text-white
+              📝 支援報告書の編集
+            %p.mt-2.text-slate-600.dark:text-slate-400
+              報告書の内容を編集できます
+
+          = form_with model: @support_report, local: true, class: "px-6 py-6" do |f|
+            - if @support_report.errors.any?
+              .mb-6.bg-red-50.border.border-red-200.rounded-lg.p-4
+                %h3.text-sm.font-medium.text-red-800.mb-2
+                  入力内容に問題があります：
+                %ul.text-sm.text-red-700.space-y-1
+                  - @support_report.errors.full_messages.each do |message|
+                    %li= message
+
+            .space-y-6
+              / タイトル
+              %div
+                = f.label :title, "タイトル", class: "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
+                = f.text_field :title, 
+                    class: "w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-700 dark:text-white transition-colors"
+
+              / テンプレート選択
+              %div
+                = f.label :report_template_id, "レポートテンプレート", class: "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
+                %p.text-sm.text-slate-500.mb-3
+                  テンプレートを変更すると再生成時に新しい形式で生成されます
+                = f.select :report_template_id, 
+                    options_from_collection_for_select(@available_templates, :id, :name, @support_report.report_template_id),
+                    { prompt: "テンプレートを選択してください" },
+                    { class: "w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-700 dark:text-white transition-colors" }
+
+                / 選択されたテンプレート情報の表示
+                - if @support_report.report_template
+                  .mt-3.bg-blue-50.dark:bg-blue-900.border.border-blue-200.dark:border-blue-700.rounded-lg.p-4
+                    %h4.text-sm.font-medium.text-blue-800.dark:text-blue-200.mb-2
+                      📄 現在のテンプレート: #{@support_report.report_template.name}
+                    - if @support_report.report_template.description.present?
+                      %p.text-sm.text-blue-700.dark:text-blue-300
+                        = @support_report.report_template.description
+                    - if @support_report.report_template.is_default?
+                      %span.inline-flex.items-center.px-2.py-1.rounded-full.text-xs.font-medium.bg-blue-100.text-blue-800.dark:bg-blue-200.dark:text-blue-900.mt-2
+                        デフォルト
+
+                .mt-2
+                  = link_to report_templates_path, target: "_blank", class: "text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400" do
+                    📄 テンプレート管理画面を開く
+                    %span.ml-1 ↗
+
+              / 期間設定（参考表示）
+              .grid.grid-cols-1.md:grid-cols-2.gap-4
+                %div
+                  = f.label :period_start, "開始日", class: "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
+                  = f.date_field :period_start, 
+                      class: "w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-700 dark:text-white transition-colors"
+
+                %div
+                  = f.label :period_end, "終了日", class: "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
+                  = f.date_field :period_end, 
+                      class: "w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-700 dark:text-white transition-colors"
+
+              / 報告書内容
+              %div
+                = f.label :content, "報告書内容", class: "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
+                = f.text_area :content, 
+                    rows: 20,
+                    class: "w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-700 dark:text-white transition-colors font-mono text-sm",
+                    placeholder: "報告書の内容を入力してください..."
+
+              / プレビュー
+              - if @support_report.content.present?
+                %div
+                  %h3.text-sm.font-medium.text-slate-700.dark:text-slate-300.mb-2
+                    プレビュー
+                  .bg-slate-50.dark:bg-slate-700.rounded-lg.p-6.border.border-slate-200.dark:border-slate-600
+                    .prose.max-w-none.text-slate-700.dark:text-slate-300.leading-relaxed.whitespace-pre-wrap
+                      = @support_report.content
+
+          / アクションボタン
+          .px-6.py-4.bg-slate-50.dark:bg-slate-700.border-t.border-slate-200.dark:border-slate-600
+            .flex.justify-between.items-center
+              = link_to support_report_path(@support_report), 
+                  class: "inline-flex items-center px-4 py-2 border border-slate-300 text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors" do
+                ← キャンセル
+              
+              .flex.space-x-2
+                - if @support_report.draft? || @support_report.error?
+                  = link_to generate_support_report_path(@support_report), method: :post,
+                      class: "inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors" do
+                    🤖 AI再生成（現在のテンプレート使用）
+                
+                = f.submit "💾 保存", 
+                    class: "inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+
+  / モバイルナビゲーション（下部固定）
+  .lg:hidden.fixed.bottom-0.left-0.right-0.bg-white.border-t.border-slate-200.dark:bg-slate-800.dark:border-slate-700.px-4
+    .flex.items-center.justify-around.py-2
+      = link_to root_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400" do
+        %span.text-lg= "🏠"
+        %span.text-xs.mt-1 ホーム
+      = link_to new_task_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400" do
+        %span.text-lg= "➕"
+        %span.text-xs.mt-1 タスク
+      = link_to new_activity_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400", data: { "turbo-frame": "activity_form_modal" } do
+        %span.text-lg= "📝"
+        %span.text-xs.mt-1 日報
+      = link_to activities_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400" do
+        %span.text-lg= "📖"
+        %span.text-xs.mt-1 一覧
+      = link_to support_reports_path, class: "flex flex-col items-center py-2 px-1 text-blue-600 dark:text-blue-400" do
+        %span.text-lg= "📋"
+        %span.text-xs.mt-1 報告書
+      %a.flex.flex-col.items-center.py-2.px-1.text-slate-600.dark:text-slate-400{href: "#"}
+        %span.text-lg= "⚙️"
+        %span.text-xs.mt-1 設定

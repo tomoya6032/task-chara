@@ -92,6 +92,103 @@ class ActivitiesController < ApplicationController
     redirect_to activities_path, alert: "指定された日報が見つかりません。"
   end
 
+  # 画像OCR処理の開始
+  def process_image_ocr
+    # 新規作成時と既存編集時の対応
+    if params[:id] == 'new'
+      # 新規作成時は固定IDを使用（フロントエンドと一致させる）
+      activity_id = "new"
+    else
+      @activity = @character.activities.find(params[:id])
+      activity_id = @activity.id
+    end
+    
+    Rails.logger.info "=== OCR Process Started ==="
+    Rails.logger.info "Activity ID: #{activity_id}"
+    Rails.logger.info "Original ID param: #{params[:id]}"
+    
+    if params[:image_file].present?
+      image_file = params[:image_file]
+      Rails.logger.info "Image file received: #{image_file.original_filename}"
+      
+      # 一時ファイルに画像を保存
+      temp_file = Tempfile.new(['ocr_image', File.extname(image_file.original_filename)])
+      temp_file.binmode
+      temp_file.write(image_file.read)
+      temp_file.close
+      
+      Rails.logger.info "Temp file created: #{temp_file.path}"
+      
+      # バックグラウンドジョブを開始
+      ProcessImageOcrJob.perform_later(activity_id, temp_file.path)
+      Rails.logger.info "Background job queued for activity_id: #{activity_id}"
+      
+      render json: { 
+        status: 'processing',
+        message: '画像から文字起こし中です...',
+        activity_id: temp_id
+      }
+    else
+      render json: { 
+        status: 'error',
+        message: '画像ファイルがありません'
+      }, status: :bad_request
+    end
+  rescue => e
+    Rails.logger.error "Image OCR Error: #{e.message}"
+    render json: { 
+      status: 'error',
+      message: "エラーが発生しました: #{e.message}"
+    }, status: :internal_server_error
+  end
+
+  # 音声アップロードと文字起こし処理
+  def process_voice_transcription
+    # 新規作成時と既存編集時の対応
+    if params[:id] == 'new'
+      # 新規作成時は固定IDを使用（フロントエンドと一致させる）
+      activity_id = "new"
+    else
+      @activity = @character.activities.find(params[:id])
+      activity_id = @activity.id
+    end
+    
+    Rails.logger.info "=== Voice Process Started ==="
+    Rails.logger.info "Activity ID: #{activity_id}"
+    
+    if params[:audio_file].present?
+      audio_file = params[:audio_file]
+      Rails.logger.info "Audio file received: #{audio_file.original_filename}"
+      
+      # 一時ファイルに音声を保存
+      temp_file = Tempfile.new(['voice_transcription', File.extname(audio_file.original_filename)])
+      temp_file.binmode
+      temp_file.write(audio_file.read)
+      temp_file.close
+      
+      # バックグラウンドジョブを開始
+      ProcessVoiceTranscriptionJob.perform_later(activity_id, temp_file.path)
+      Rails.logger.info "Voice job queued for activity_id: #{activity_id}"
+      
+      render json: { 
+        status: 'processing',
+        message: '音声から文字起こし中です...',
+        activity_id: activity_id
+      }
+    else
+      render json: { 
+        status: 'error',
+        message: '音声ファイルがありません'
+      }, status: :bad_request
+    end
+  rescue => e
+    Rails.logger.error "Voice Transcription Error: #{e.message}"
+    render json: { 
+      status: 'error',
+      message: "エラーが発生しました: #{e.message}"
+    }, status: :internal_server_error
+  end
+
   private
 
   def set_character

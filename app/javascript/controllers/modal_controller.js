@@ -20,6 +20,11 @@ export default class extends Controller {
     console.log("Modal close called") // デバッグ用
     this.element.innerHTML = ""
     document.body.style.overflow = "auto"
+    
+    // トップページにリダイレクト
+    if (window.location.pathname !== '/') {
+      window.location.href = '/'
+    }
   }
   
   closeOnBackdrop(event) {

@@ -4,9 +4,9 @@
   .hidden.lg:fixed.lg:inset-y-0.lg:z-50.lg:flex.lg:w-72.lg:flex-col
     .flex.grow.flex-col.gap-y-5.overflow-y-auto.bg-white.dark:bg-slate-800.px-6.border-r.border-slate-200.dark:border-slate-700
       .flex.h-16.shrink-0.items-center
-        %h1.text-2xl.font-bold.text-slate-900.dark:text-white
+        %h1.text-lg.font-semibold.text-slate-900.dark:text-white
           TaskChara
-        %span.ml-2.text-sm.text-slate-500 ✨
+        %span.ml-2.text-xs.text-slate-500 ✨
 
       %nav.flex.flex-1.flex-col
         %ul.flex.flex-1.flex-col.gap-y-7{role: "list"}
@@ -37,20 +37,28 @@
                   = "📖"
                   日報一覧
               %li
+                = link_to support_reports_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
+                  = "📋"
+                  支援報告書
+              %li
+                = link_to report_templates_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
+                  = "📄"
+                  テンプレート管理
+              %li
                 %a.text-slate-400.hover:text-slate-700.hover:bg-slate-50.group.flex.gap-x-3.rounded-md.p-2.text-sm.leading-6.font-semibold{href: "#"}
                   = "🛍️"
                   つながるマルシェ
               %li
-                %a.text-slate-400.hover:text-slate-700.hover:bg-slate-50.group.flex.gap-x-3.rounded-md.p-2.text-sm.leading-6.font-semibold{href: "#"}
+                = link_to report_templates_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
                   = "⚙️"
                   設定
 
   / モバイルボトムナビゲーション（lg未満で表示）
   .fixed.bottom-0.left-0.right-0.z-50.bg-white.dark:bg-slate-800.border-t.border-slate-200.dark:border-slate-700.lg:hidden
     .grid.grid-cols-5.py-2
-      = link_to dashboard_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400" do
-        %span.text-lg= "📊"
-        %span.text-xs.mt-1 ホーム
+      -# = link_to dashboard_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400" do
+      -#   %span.text-lg= "📊"
+      -#   %span.text-xs.mt-1 ホーム
       = link_to new_task_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400", data: { "turbo-frame": "task-modal" } do
         %span.text-lg= "✅"
         %span.text-xs.mt-1 タスク
@@ -60,12 +68,15 @@
       = link_to activities_path, class: "flex flex-col items-center py-2 px-1 text-blue-600 dark:text-blue-400" do
         %span.text-lg= "📖"
         %span.text-xs.mt-1 一覧
+      = link_to support_reports_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400" do
+        %span.text-lg= "📋"
+        %span.text-xs.mt-1 報告書
       %a.flex.flex-col.items-center.py-2.px-1.text-slate-600.dark:text-slate-400{href: "#"}
         %span.text-lg= "⚙️"
         %span.text-xs.mt-1 設定
 
   / メインコンテンツエリア
-  .lg:pl-72
+  .lg:pl-72.pt-4
     .px-4.sm:px-6.lg:px-8.py-8
       / モバイルヘッダー
       .lg:hidden.mb-6

@@ -6,7 +6,26 @@ Rails.application.routes.draw do
   root "dashboards#show"
 
   # Activities routes
-  resources :activities, only: [ :index, :new, :create, :show, :edit, :update, :destroy ]
+  resources :activities, only: [ :index, :new, :create, :show, :edit, :update, :destroy ] do
+    member do
+      post :process_image_ocr
+      post :process_voice_transcription
+    end
+  end
+
+  # Support Reports routes
+  resources :support_reports do
+    member do
+      post :generate
+    end
+  end
+
+  # Report Templates routes
+  resources :report_templates do
+    member do
+      post :analyze
+    end
+  end
 
   # Tasks routes
   resources :tasks, only: [ :index, :new, :create, :show ] do
@@ -31,6 +50,9 @@ Rails.application.routes.draw do
   get "up" => "rails/health#show", as: :rails_health_check  # Render dynamic PWA files from app/views/pwa/* (remember to link manifest in application.html.erb)
   # get "manifest" => "rails/pwa#manifest", as: :pwa_manifest
   # get "service-worker" => "rails/pwa#service_worker", as: :pwa_service_worker
+
+  # Mount ActionCable
+  mount ActionCable.server => "/cable"
 
   # Defines the root path route ("/")
   # root "posts#index"

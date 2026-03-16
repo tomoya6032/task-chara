@@ -4,9 +4,9 @@
   .hidden.lg:fixed.lg:inset-y-0.lg:z-50.lg:flex.lg:w-72.lg:flex-col
     .flex.grow.flex-col.gap-y-5.overflow-y-auto.bg-white.dark:bg-slate-800.px-6.border-r.border-slate-200.dark:border-slate-700
       .flex.h-16.shrink-0.items-center
-        %h1.text-2xl.font-bold.text-slate-900.dark:text-white
+        %h1.text-lg.font-semibold.text-slate-900.dark:text-white
           TaskChara
-        %span.ml-2.text-sm.text-slate-500 ✨
+        %span.ml-2.text-xs.text-slate-500 ✨
 
       %nav.flex.flex-1.flex-col
         %ul.flex.flex-1.flex-col.gap-y-7{role: "list"}
@@ -17,16 +17,20 @@
                   📊
                   ダッシュボード
               %li
-                = link_to activities_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
+                = link_to activities_path, class: "bg-slate-50 text-slate-700 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
                   = "📖"
                   日報一覧
+              %li
+                = link_to support_reports_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
+                  = "📋"
+                  支援報告書
               %li  
                 = link_to new_activity_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold", data: { "turbo-frame": "activity_form_modal" } do
                   = "📝"
                   日報投稿
 
   / メインコンテンツエリア
-  .lg:pl-72
+  .lg:pl-72.pt-4
     .px-4.sm:px-6.lg:px-8.py-8
       / 戻るボタン
       .mb-6
@@ -39,7 +43,7 @@
           %h1.text-2xl.font-bold.text-slate-900.dark:text-white.mb-2
             📝 日報を編集
 
-        = form_with model: @activity, local: true, class: "px-6 py-6", data: { controller: "slider character-counter visit-time" } do |form|
+        = form_with model: @activity, local: true, class: "px-6 py-6", data: { controller: "slider character-counter visit-time websocket", websocket_activity_id_value: @activity.id } do |form|
           - if @activity.errors.any?
             .mb-6.bg-red-50.border.border-red-200.rounded-lg.p-4
               %h4.text-red-700.font-medium エラーが発生しました:
@@ -110,7 +114,81 @@
           .mb-6
             = form.label :content, "今日の活動内容", class: "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
             %span.text-red-500.text-sm *必須（最低10文字）
-            = form.text_area :content, rows: 10, placeholder: "今日一日の活動や学んだこと、感じたことを自由に書いてください...", class: "mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white", data: { controller: "character-counter", "character-counter-target": "input", action: "input->character-counter#update" }, required: true, minlength: 10
+            
+            / AI入力支援機能
+            .mb-4.space-y-3
+              .border.border-blue-200.rounded-lg.p-4.bg-blue-50
+                .flex.items-center.mb-3
+                  %i.fas.fa-robot.text-blue-600.mr-2
+                  %span.text-sm.font-medium.text-blue-800 AI入力支援
+                  %span.text-xs.text-blue-600.ml-2 音声ファイルや画像からテキストを作成できます
+                
+                .grid.grid-cols-1.sm:grid-cols-2.gap-3
+                  / 音声ファイルアップロード機能
+                  .bg-white.rounded-md.p-3.border{ data: { controller: "voice-uploader", voice_uploader_activity_id_value: @activity.id } }
+                    .flex.items-center.justify-between.mb-2
+                      %span.text-sm.font-medium.text-gray-700
+                        %i.fas.fa-file-audio.text-purple-500.mr-1
+                        音声ファイル
+                    .space-y-2
+                      %input{ type: "file", accept: "audio/*", class: "hidden", data: { voice_uploader_target: "fileInput", action: "change->voice-uploader#handleFileSelect" } }
+                      %button.bg-purple-500.hover:bg-purple-600.text-white.px-3.py-2.rounded.text-sm.flex.items-center.justify-center.w-full.font-medium{ 
+                        type: "button", 
+                        data: { action: "click->voice-uploader#selectFile" } 
+                      }
+                        %i.fas.fa-file-audio.mr-1
+                        音声ファイルを選択
+                      %div.mt-2{ style: "display: none;", data: { voice_uploader_target: "preview" } }
+                        %audio.w-full{ controls: true, data: { voice_uploader_target: "audio" } }
+                        %p.text-xs.text-gray-600.mt-1{ data: { voice_uploader_target: "fileName" } }
+                      %button.bg-green-500.hover:bg-green-600.text-white.px-3.py-2.rounded.text-sm.flex.items-center.justify-center.w-full.font-medium{ 
+                        type: "button", 
+                        style: "display: none;",
+                        data: { voice_uploader_target: "uploadButton", action: "click->voice-uploader#processAudio" } 
+                      }
+                        %i.fas.fa-magic.mr-1
+                        文字起こしを実行
+                      %button.bg-red-500.hover:bg-red-600.text-white.px-3.py-2.rounded.text-sm.flex.items-center.justify-center.w-full.font-medium{ 
+                        type: "button", 
+                        style: "display: none;",
+                        data: { voice_uploader_target: "cancelButton", action: "click->voice-uploader#cancelProcessing" } 
+                      }
+                        %i.fas.fa-times.mr-1
+                        キャンセル
+                      %div{ data: { voice_uploader_target: "status" } }
+                  
+                  / 画像OCR機能  
+                  .bg-white.rounded-md.p-3.border{ data: { controller: "image-ocr", image_ocr_activity_id_value: @activity.id } }
+                    .flex.items-center.justify-between.mb-2
+                      %span.text-sm.font-medium.text-gray-700
+                        %i.fas.fa-image.text-blue-500.mr-1
+                        画像文字起こし
+                    .space-y-2
+                      %input{ type: "file", accept: "image/*", class: "hidden", data: { image_ocr_target: "fileInput", action: "change->image-ocr#handleFileSelect" } }
+                      %button.bg-blue-500.hover:bg-blue-600.text-white.px-3.py-2.rounded.text-sm.flex.items-center.justify-center.w-full.font-medium{ 
+                        type: "button", 
+                        data: { action: "click->image-ocr#selectFile" } 
+                      }
+                        %i.fas.fa-image.mr-1
+                        画像を選択
+                      %div.mt-2{ style: "display: none;", data: { image_ocr_target: "preview" } }
+                      %button.bg-green-500.hover:bg-green-600.text-white.px-3.py-2.rounded.text-sm.flex.items-center.justify-center.w-full.font-medium{ 
+                        type: "button", 
+                        style: "display: none;",
+                        data: { image_ocr_target: "uploadButton", action: "click->image-ocr#processImage" } 
+                      }
+                        %i.fas.fa-magic.mr-1
+                        文字起こしを実行
+                      %button.bg-red-500.hover:bg-red-600.text-white.px-3.py-2.rounded.text-sm.flex.items-center.justify-center.w-full.font-medium{ 
+                        type: "button", 
+                        style: "display: none;",
+                        data: { image_ocr_target: "cancelButton", action: "click->image-ocr#cancelProcessing" } 
+                      }
+                        %i.fas.fa-times.mr-1
+                        キャンセル
+                      %div{ data: { image_ocr_target: "status" } }
+            
+            = form.text_area :content, rows: 10, placeholder: "今日一日の活動や学んだこと、感じたことを自由に書いてください...", class: "mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white", id: "activity_content", data: { controller: "character-counter", "character-counter-target": "input", action: "input->character-counter#update" }, required: true, minlength: 10
             
             .mt-2.flex.justify-between.items-center
               %span.text-xs.text-slate-500{data: { "character-counter-target": "counter" }}

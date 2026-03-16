@@ -3,6 +3,7 @@ class Character < ApplicationRecord
   belongs_to :user
   has_many :tasks, dependent: :destroy
   has_many :activities, dependent: :destroy
+  has_many :support_reports, dependent: :destroy
 
   validates :name, presence: true
   validates :shave_level, :body_shape, :inner_peace, :intelligence, :toughness,

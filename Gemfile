@@ -33,6 +33,9 @@ gem "kaminari"
 # OpenAI API integration
 gem "ruby-openai"
 
+# Environment variables management
+gem "dotenv-rails", groups: [:development, :test]
+
 # HTTP client
 gem "faraday"
 
@@ -46,6 +49,9 @@ gem "tzinfo-data", platforms: %i[ windows jruby ]
 gem "solid_cache"
 gem "solid_queue"
 gem "solid_cable"
+
+# PDF processing for report templates
+gem "mini_magick", "~> 4.11"
 
 # Reduces boot times through caching; required in config/boot.rb
 gem "bootsnap", require: false

@@ -1,0 +1,94 @@
+-# app/views/report_templates/show.html.haml
+.min-h-screen.bg-gray-50
+  = render 'shared/header'
+  
+  .container.mx-auto.px-4.py-8
+    .max-w-4xl.mx-auto
+      
+      -# ヘッダー部分
+      .flex.items-center.justify-between.mb-8
+        .flex.items-center
+          = link_to report_templates_path, class: "mr-4 text-gray-600 hover:text-gray-800" do
+            ← 戻る
+          %h1.text-2xl.font-bold.text-gray-900= @report_template.name
+          - if @report_template.is_default?
+            %span.ml-3.bg-blue-100.text-blue-800.text-sm.px-3.py-1.rounded-full デフォルト
+          - if @report_template.system_template?
+            %span.ml-3.bg-gray-200.text-gray-600.text-sm.px-3.py-1.rounded-full システム
+
+        - unless @report_template.system_template?
+          .flex.space-x-3
+            = link_to analyze_report_template_path(@report_template), method: :post, class: "bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg" do
+              🔄 PDF再解析
+            = link_to edit_report_template_path(@report_template), class: "bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg" do
+              編集
+            = link_to @report_template, method: :delete, data: { confirm: "本当に削除しますか？" }, class: "bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg" do
+              削除
+
+      .grid.grid-cols-1.lg:grid-cols-3.gap-8
+        
+        -# 左側: テンプレート情報
+        .lg:col-span-1
+          .bg-white.rounded-lg.shadow-sm.border.p-6.space-y-6
+            
+            -# 基本情報
+            .section
+              %h3.text-lg.font-semibold.text-gray-800.mb-4 基本情報
+              
+              .space-y-3
+                .info-item
+                  %dt.text-sm.font-medium.text-gray-500 テンプレート名
+                  %dd.mt-1.text-sm.text-gray-900= @report_template.name
+                
+                - if @report_template.description.present?
+                  .info-item
+                    %dt.text-sm.font-medium.text-gray-500 説明
+                    %dd.mt-1.text-sm.text-gray-900= @report_template.description
+                
+                .info-item
+                  %dt.text-sm.font-medium.text-gray-500 作成日時
+                  %dd.mt-1.text-sm.text-gray-900= @report_template.created_at.strftime('%Y年%m月%d日 %H:%M')
+
+            / PDFファイル情報
+            - if @report_template.pdf_file.attached?
+              .section
+                %h3.text-lg.font-semibold.text-gray-800.mb-4 PDFファイル
+                
+                .space-y-3
+                  .info-item
+                    %dt.text-sm.font-medium.text-gray-500 ファイル名
+                    %dd.mt-1.text-sm.text-gray-900= @report_template.pdf_file_name
+                  
+                  .info-item
+                    %dt.text-sm.font-medium.text-gray-500 ファイルサイズ
+                    %dd.mt-1.text-sm.text-gray-900= number_to_human_size(@report_template.pdf_file_size)
+                  
+                  .mt-4
+                    = link_to @report_template.pdf_file_url, target: "_blank", class: "inline-flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm rounded-lg" do
+                      📄 PDFを開く
+
+        / 右側: フォーマット指示
+        .lg:col-span-2
+          .bg-white.rounded-lg.shadow-sm.border.p-6
+            %h3.text-lg.font-semibold.text-gray-800.mb-4 フォーマット指示
+            
+            - if @report_template.format_instructions.present?
+              .bg-gray-50.rounded-lg.p-4.font-mono.text-sm.text-gray-800.whitespace-pre-wrap
+                = @report_template.format_instructions
+            - else
+              .text-center.py-8
+                .text-gray-400.text-4xl.mb-3 🔄
+                %p.text-gray-600 フォーマット指示がまだ生成されていません
+                %p.text-sm.text-gray-500.mb-4 PDFファイルの解析を実行してください
+                = link_to analyze_report_template_path(@report_template), method: :post, class: "bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg" do
+                  PDFを解析する
+
+      / 使用方法の説明
+      .mt-8.bg-blue-50.border.border-blue-200.rounded-lg.p-6
+        %h3.text-blue-800.font-semibold.mb-3 このテンプレートの使用方法
+        .text-sm.text-blue-700.space-y-2
+          %p • 支援報告書作成時に「テンプレートを選択」でこのテンプレートを指定してください
+          %p • AIがこのフォーマット指示に従って報告書を生成します
+          %p • 生成後も手動で内容を調整することができます
+          - if @report_template.is_default?
+            %p.font-medium • このテンプレートはデフォルトとして自動選択されます
