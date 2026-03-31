@@ -12,6 +12,12 @@ class ActivitiesController < ApplicationController
 
   def new
     @activity = @character.activities.build
+    # AIチャットの会話履歴を取得
+    @ai_conversations = get_ai_conversations
+    # チャット内容をプリセット用にセット（パラメーターで指定されている場合）
+    if params[:from_chat].present?
+      @activity.content = params[:content] if params[:content].present?
+    end
 
     respond_to do |format|
       format.html
@@ -189,6 +195,40 @@ class ActivitiesController < ApplicationController
     }, status: :internal_server_error
   end
 
+  # AIチャット情報から日報を生成
+  def generate_from_chat
+    conversation_id = params[:conversation_id]
+    if conversation_id.blank?
+      render json: { error: "会話IDが指定されていません" }, status: :bad_request
+      return
+    end
+
+    begin
+      # 会話履歴を取得
+      conversation_history = AiChat.conversation_context(conversation_id, limit: 50)
+      
+      if conversation_history.empty?
+        render json: { error: "指定された会話が見つかりません" }, status: :not_found
+        return
+      end
+
+      # AIを使って日報を生成
+      generated_content = generate_daily_report_from_chat(conversation_history)
+      
+      render json: {
+        success: true,
+        content: generated_content,
+        message: "AIチャット情報から日報を生成しました"
+      }
+
+    rescue => e
+      Rails.logger.error "Chat to daily report generation error: #{e.message}"
+      render json: { 
+        error: "日報生成に失敗しました: #{e.message}" 
+      }, status: :internal_server_error
+    end
+  end
+
   private
 
   def set_character
@@ -207,5 +247,113 @@ class ActivitiesController < ApplicationController
 
   def activity_params
     params.require(:activity).permit(:title, :content, :image, :image_url, :category, :mood_level, :fatigue_level, :visit_start_time, :visit_end_time)
+  end
+
+  # AIチャットの会話履歴を取得
+  def get_ai_conversations
+    # 最近の会話の一意な conversation_id を取得
+    conversation_ids = AiChat.where(character: @character)
+                             .select(:conversation_id)
+                             .distinct
+                             .order('MIN(created_at) DESC')
+                             .group(:conversation_id)
+                             .limit(10)
+                             .pluck(:conversation_id)
+    
+    # 各会話の詳細情報を取得
+    conversations = conversation_ids.map do |conv_id|
+      messages = AiChat.for_conversation(conv_id).recent.limit(5)
+      next if messages.empty?
+      
+      {
+        conversation_id: conv_id,
+        created_at: messages.last.created_at,
+        preview: truncate_text(messages.first.content, 100),
+        message_count: AiChat.for_conversation(conv_id).count,
+        last_message_at: messages.first.created_at
+      }
+    end.compact.sort_by { |conv| conv[:last_message_at] }.reverse
+    
+    conversations
+  end
+  
+  # AIチャット履歴から日報を生成
+  def generate_daily_report_from_chat(conversation_history)
+    client = OpenAI::Client.new
+    
+    # チャット履歴をテキストに整形
+    chat_context = conversation_history.map do |msg|
+      role_label = msg[:role] == 'user' ? 'ユーザー' : 'AI秘書'
+      "#{role_label}: #{msg[:content]}"
+    end.join("\n\n")
+    
+    # 日報生成用プロンプト
+    system_prompt = build_daily_report_generation_prompt
+    
+    messages = [
+      { role: "system", content: system_prompt },
+      { role: "user", content: "以下のAI秘書との会話履歴を基に日報を作成してください：\n\n#{chat_context}" }
+    ]
+    
+    response = client.chat(
+      parameters: {
+        model: "gpt-4o-mini",
+        messages: messages,
+        max_tokens: 2000,
+        temperature: 0.3
+      }
+    )
+    
+    response.dig("choices", 0, "message", "content") || "日報の生成に失敗しました。"
+  end
+  
+  # 日報生成用システムプロンプト
+  def build_daily_report_generation_prompt
+    current_date = Time.current.strftime("%Y年%m月%d日")
+    <<~PROMPT
+      あなたは日報作成の専門家です。AI秘書との会話履歴から、業務や活動に関連する情報を抽出し、適切な日報形式で整理してください。
+      
+      【日報の構成】
+      1. 日付・基本情報
+         - 日付: #{current_date}
+         - 作業時間/勤務状況
+         
+      2. 実施した業務・活動内容
+         - 主な業務
+         - 実施した活動
+         - 取り組んだタスク
+         
+      3. 成果・進捗状況
+         - 達成したこと
+         - 進捗した項目
+         - 完了したタスク
+         
+      4. 問題点・課題
+         - 発生した問題
+         - 未解決の課題
+         - 改善が必要な点
+         
+      5. 明日の予定・目標
+         - 予定している業務
+         - 目標や重点項目
+         - 準備が必要なこと
+         
+      6. その他・連絡事項
+         - 特記事項
+         - 連絡・共有事項
+         - 気づきや提案
+      
+      【注意事項】
+      - 会話の文脈から業務性質を推測し、適切な日報として整理してください
+      - 個人情報や機密性の高い内容は適切に匿名化してください
+      - 会話にない情報は推測せず、「（詳細は要確認）」等の注釈を入れてください
+      - 業務的で実用的な日報として作成してください
+    PROMPT
+  end
+  
+  # テキスト切り詰め用ヘルパー
+  def truncate_text(text, length)
+    return "" if text.blank?
+    text.length > length ? "#{text[0...length]}..." : text
   end
 end

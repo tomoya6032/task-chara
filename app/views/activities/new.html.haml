@@ -14,7 +14,7 @@
               %i.fas.fa-times
 
         .p-6.pb-0
-          = form_with model: @activity, url: activities_path, local: false, class: "space-y-4", data: { controller: "slider character-counter image-upload visit-time form-submit websocket", websocket_activity_id_value: "new" } do |form|
+          = form_with model: @activity, url: activities_path, local: false, class: "space-y-4", data: { controller: "slider character-counter image-upload visit-time form-submit websocket generate-from-chat", websocket_activity_id_value: "new" } do |form|
             
             / エラー表示
             - if @activity.errors.any?
@@ -135,6 +135,51 @@
                             デバッグ
                           %div{ data: { image_ocr_target: "status" } }
                 
+                / AIチャット情報を活用
+                - if @ai_conversations&.any?
+                  .border.border-purple-200.rounded-lg.p-4.bg-purple-50.mb-4
+                    .flex.items-center.mb-3
+                      %i.fas.fa-comments.text-purple-600.mr-2
+                      %span.text-sm.font-medium.text-purple-800 AI秘書との会話を活用
+                      %span.text-xs.text-purple-600.ml-2 チャット履歴から日報を生成できます
+                    
+                    .max-h-60.overflow-y-auto.space-y-2
+                      - @ai_conversations.each do |conversation|
+                        .bg-white.border.border-purple-200.rounded-lg.p-3.cursor-pointer.hover:bg-purple-25.transition-colors{ 
+                          data: { 
+                            conversation_id: conversation[:conversation_id],
+                            action: "click->generate-from-chat#selectConversation"
+                          }
+                        }
+                          .flex.items-start.justify-between
+                            .flex-1
+                              .text-xs.text-gray-500.mb-1
+                                = "#{conversation[:last_message_at].strftime('%m/%d %H:%M')} - #{conversation[:message_count]}件のメッセージ"
+                              .text-sm.text-gray-800.line-clamp-2
+                                = conversation[:preview]
+                            %button.ml-2.px-2.py-1.bg-purple-600.text-white.text-xs.rounded.hover:bg-purple-700.transition-colors{ 
+                              type: "button",
+                              data: { 
+                                action: "click->generate-from-chat#generateFromChat",
+                                conversation_id: conversation[:conversation_id]
+                              }
+                            }
+                              %i.fas.fa-magic.mr-1
+                              生成
+                    
+                    / 生成結果エリア
+                    #chat-generation-result.hidden.mt-4.p-3.bg-white.border.border-purple-200.rounded
+                      .flex.items-center.mb-2
+                        %i.fas.fa-check-circle.text-green-600.mr-2
+                        %span.text-sm.font-medium.text-green-800 生成完了
+                      %textarea#generated-content.w-full.h-32.px-3.py-2.border-0.resize-none.text-sm{ readonly: true }
+                      .flex.justify-end.mt-2
+                        %button.px-3.py-1.bg-blue-600.text-white.text-sm.rounded.hover:bg-blue-700{ 
+                          type: "button",
+                          data: { action: "click->generate-from-chat#applyToForm" }
+                        }
+                          内容を適用
+
                 = form.text_area :content, rows: 6, placeholder: "訪問で行った内容、相談内容、気づいたことなどを記録してください", class: "w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none", id: "activity_content", data: { character_counter_target: "textarea", action: "input->character-counter#updateCounter" }, required: true, minlength: 10, maxlength: 5000
                 .flex.justify-between.items-center.mt-2
                   %span.text-sm.text-gray-600{ data: { character_counter_target: "counter" } } 0文字

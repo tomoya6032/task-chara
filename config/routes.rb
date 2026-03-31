@@ -12,6 +12,9 @@ Rails.application.routes.draw do
 
   # Activities routes
   resources :activities, only: [ :index, :new, :create, :show, :edit, :update, :destroy ] do
+    collection do
+      post :generate_from_chat
+    end
     member do
       post :process_image_ocr
       post :process_voice_transcription
@@ -20,6 +23,9 @@ Rails.application.routes.draw do
 
   # Support Reports routes
   resources :support_reports do
+    collection do
+      post :generate_from_chat
+    end
     member do
       post :generate
     end
@@ -30,6 +36,7 @@ Rails.application.routes.draw do
     collection do
       post :process_image_ocr_new
       post :process_voice_transcription_new
+      post :generate_from_chat
     end
     member do
       post :generate

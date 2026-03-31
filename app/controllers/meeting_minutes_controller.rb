@@ -15,6 +15,12 @@ class MeetingMinutesController < ApplicationController
     @meeting_minute.meeting_date = Time.current
     # プロンプトテンプレートのリストを取得
     @prompt_templates = PromptTemplate.active.order(:meeting_type, :prompt_type, :name)
+    # AIチャットの会話履歴を取得
+    @ai_conversations = get_ai_conversations
+    # チャット内容をプリセット用にセット（パラメーターで指定されている場合）
+    if params[:from_chat].present?
+      @meeting_minute.content = params[:content] if params[:content].present?
+    end
   end
 
   def create
@@ -71,6 +77,8 @@ class MeetingMinutesController < ApplicationController
   def edit
     # プロンプトテンプレートのリストを取得
     @prompt_templates = PromptTemplate.active.order(:meeting_type, :prompt_type, :name)
+    # AIチャットの会話履歴を取得
+    @ai_conversations = get_ai_conversations
   end
 
   def update
@@ -297,6 +305,40 @@ class MeetingMinutesController < ApplicationController
     end
   end
 
+  # AIチャット情報から議事録を生成
+  def generate_from_chat
+    conversation_id = params[:conversation_id]
+    if conversation_id.blank?
+      render json: { error: "会話IDが指定されていません" }, status: :bad_request
+      return
+    end
+
+    begin
+      # 会話履歴を取得
+      conversation_history = AiChat.conversation_context(conversation_id, limit: 50)
+      
+      if conversation_history.empty?
+        render json: { error: "指定された会話が見つかりません" }, status: :not_found
+        return
+      end
+
+      # AIを使って議事録を生成
+      generated_content = generate_meeting_minutes_from_chat(conversation_history)
+      
+      render json: {
+        success: true,
+        content: generated_content,
+        message: "AIチャット情報から議事録を生成しました"
+      }
+
+    rescue => e
+      Rails.logger.error "Chat to meeting minutes generation error: #{e.message}"
+      render json: { 
+        error: "議事録生成に失敗しました: #{e.message}" 
+      }, status: :internal_server_error
+    end
+  end
+
   private
 
   def current_user
@@ -326,5 +368,108 @@ class MeetingMinutesController < ApplicationController
 
   def meeting_minute_params
     params.require(:meeting_minute).permit(:title, :meeting_type, :meeting_date, :content, :participants, :location, :prompt_template_id)
+  end
+
+  # AIチャットの会話履歴を取得
+  def get_ai_conversations
+    # 最近の会話の一意な conversation_id を取得
+    conversation_ids = AiChat.where(character: @character)
+                             .select(:conversation_id)
+                             .distinct
+                             .order('MIN(created_at) DESC')
+                             .group(:conversation_id)
+                             .limit(10)
+                             .pluck(:conversation_id)
+    
+    # 各会話の詳細情報を取得
+    conversations = conversation_ids.map do |conv_id|
+      messages = AiChat.for_conversation(conv_id).recent.limit(5)
+      next if messages.empty?
+      
+      {
+        conversation_id: conv_id,
+        created_at: messages.last.created_at,
+        preview: truncate_text(messages.first.content, 100),
+        message_count: AiChat.for_conversation(conv_id).count,
+        last_message_at: messages.first.created_at
+      }
+    end.compact.sort_by { |conv| conv[:last_message_at] }.reverse
+    
+    conversations
+  end
+  
+  # AIチャット履歴から議事録を生成
+  def generate_meeting_minutes_from_chat(conversation_history)
+    client = OpenAI::Client.new
+    
+    # チャット履歴をテキストに整形
+    chat_context = conversation_history.map do |msg|
+      role_label = msg[:role] == 'user' ? 'ユーザー' : 'AI秘書'
+      "#{role_label}: #{msg[:content]}"
+    end.join("\n\n")
+    
+    # 議事録生成用プロンプト
+    system_prompt = build_meeting_minutes_generation_prompt
+    
+    messages = [
+      { role: "system", content: system_prompt },
+      { role: "user", content: "以下のAI秘書との会話履歴を基に議事録を作成してください：\n\n#{chat_context}" }
+    ]
+    
+    response = client.chat(
+      parameters: {
+        model: "gpt-4o-mini",
+        messages: messages,
+        max_tokens: 2000,
+        temperature: 0.3
+      }
+    )
+    
+    response.dig("choices", 0, "message", "content") || "議事録の生成に失敗しました。"
+  end
+  
+  # 議事録生成用システムプロンプト
+  def build_meeting_minutes_generation_prompt
+    <<~PROMPT
+      あなたは会議議事録作成の専門家です。AI秘書との会話履歴から、会議または打ち合わせに関連する情報を抽出し、適切な議事録形式で整理してください。
+      
+      【議事録の構成】
+      1. 会議概要
+         - 会議名/打ち合わせの目的
+         - 日時（推定可能な場合）
+         - 参加者（会話から推測）
+         
+      2. 議題・検討事項
+         - 主要な話題
+         - 検討された課題
+         
+      3. 主な内容・発言
+         - 重要なポイント
+         - 意見や提案
+         
+      4. 決定事項・合意内容
+         - 決まったこと
+         - 合意された内容
+         
+      5. 今後のアクション・課題
+         - 次に行うべきこと
+         - 持ち越し課題
+         
+      6. その他
+         - 補足事項
+         - 参考情報
+      
+      【注意事項】
+      - 会話の文脈から会議の性質を推測し、適切な議事録として整理してください
+      - 個人情報や機密性の高い内容は適切に匿名化してください
+      - 会話にない情報は推測せず、「（詳細は要確認）」等の注釈を入れてください
+      - 読みやすく、実用的な議事録として作成してください
+    PROMPT
+  end
+  
+  # テキスト切り詰め用ヘルパー
+  def truncate_text(text, length)
+    return "" if text.blank?
+    text.length > length ? "#{text[0...length]}..." : text
   end
 end

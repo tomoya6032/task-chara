@@ -13,7 +13,7 @@
             = link_to meeting_minutes_path, class: "text-gray-500 hover:text-gray-700", data: { turbo_frame: "_top" } do
               %i.fas.fa-times
 
-        = form_with model: @meeting_minute, local: true, class: "px-6 py-6", data: { controller: "file-upload", file_upload_meeting_id_value: "new", session_id: session.id } do |form|
+        = form_with model: @meeting_minute, local: true, class: "px-6 py-6", data: { controller: "file-upload generate-from-chat", file_upload_meeting_id_value: "new", session_id: session.id } do |form|
           - if @meeting_minute.errors.any?
             .mb-6.bg-red-50.border.border-red-200.rounded-lg.p-4
               %h4.text-red-700.font-medium エラーが発生しました:
@@ -175,6 +175,51 @@
                   .flex.items-center
                     %i.fas.fa-check-circle.text-green-600.mr-2
                     %span#success-message.text-sm.text-green-800 議事録の生成が完了しました
+
+              / AIチャット情報を活用
+              - if @ai_conversations&.any?
+                .border.border-purple-200.rounded-lg.p-4.bg-purple-50.mb-4
+                  .flex.items-center.mb-3
+                    %i.fas.fa-comments.text-purple-600.mr-2
+                    %span.text-sm.font-medium.text-purple-800 AI秘書との会話を活用
+                    %span.text-xs.text-purple-600.ml-2 チャット履歴から議事録を生成できます
+                  
+                  .space-y-2
+                    - @ai_conversations.each do |conversation|
+                      .bg-white.border.border-purple-200.rounded-lg.p-3.cursor-pointer.hover:bg-purple-25.transition-colors{ 
+                        data: { 
+                          conversation_id: conversation[:conversation_id],
+                          action: "click->generate-from-chat#selectConversation"
+                        }
+                      }
+                        .flex.items-start.justify-between
+                          .flex-1
+                            .text-xs.text-gray-500.mb-1
+                              = "#{conversation[:last_message_at].strftime('%m/%d %H:%M')} - #{conversation[:message_count]}件のメッセージ"
+                            .text-sm.text-gray-800.line-clamp-2
+                              = conversation[:preview]
+                          %button.ml-2.px-3.py-1.bg-purple-600.text-white.text-xs.rounded.hover:bg-purple-700.transition-colors{ 
+                            type: "button",
+                            data: { 
+                              action: "click->generate-from-chat#generateFromChat",
+                              conversation_id: conversation[:conversation_id]
+                            }
+                          }
+                            %i.fas.fa-magic.mr-1
+                            議事録生成
+                  
+                  / 生成結果エリア
+                  #chat-generation-result.hidden.mt-4.p-3.bg-white.border.border-purple-200.rounded
+                    .flex.items-center.mb-2
+                      %i.fas.fa-check-circle.text-green-600.mr-2
+                      %span.text-sm.font-medium.text-green-800 生成完了
+                    %textarea#generated-content.w-full.h-40.px-3.py-2.border-0.resize-none.text-sm{ readonly: true }
+                    .flex.justify-end.mt-2
+                      %button.px-3.py-1.bg-blue-600.text-white.text-sm.rounded.hover:bg-blue-700{ 
+                        type: "button",
+                        data: { action: "click->generate-from-chat#applyToForm" }
+                      }
+                        内容を適用
 
             = form.text_area :content, 
                 rows: 15,
