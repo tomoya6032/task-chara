@@ -1,0 +1,2 @@
+module AiSecretaryHelper
+end

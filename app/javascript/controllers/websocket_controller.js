@@ -358,7 +358,7 @@ export default class extends Controller {
       
       console.log("✅ Text successfully appended to content field")
     } else {
-      console.error("❌ Content field not found! Available textareas:")
+      console.log("❌ Content field not found! Available textareas:")
       const allTextareas = document.querySelectorAll('textarea')
       allTextareas.forEach((textarea, index) => {
         console.log(`Textarea ${index}:`, textarea)
@@ -367,6 +367,21 @@ export default class extends Controller {
         console.log(`  - class: ${textarea.className}`)
       })
     }
+  }
+
+  // デバッグテスト用メソッド（開発環境でのみ使用）
+  debugTest() {
+    console.log('=== DEBUG INFO ===')
+    console.log('Available textareas:', document.querySelectorAll('textarea'))
+    console.log('WebSocket controller:', document.querySelector('[data-controller~="websocket"]'))
+    
+    const testData = {
+      type: 'debug',
+      status: 'completed',
+      content: 'デバッグテスト用のテキストです。'
+    }
+    
+    window.handleAiProcessingResult(testData)
   }
 }
 

@@ -1,0 +1,138 @@
+/ プロンプトテンプレート新規作成ページ
+.min-h-screen.bg-slate-50.dark:bg-slate-900
+  / デスクトップサイドバー（lg以上で表示）
+  .hidden.lg:fixed.lg:inset-y-0.lg:z-50.lg:flex.lg:w-72.lg:flex-col
+    .flex.grow.flex-col.gap-y-5.overflow-y-auto.bg-white.dark:bg-slate-800.px-6.border-r.border-slate-200.dark:border-slate-700
+      .flex.h-16.shrink-0.items-center
+        %h1.text-lg.font-semibold.text-slate-900.dark:text-white
+          TaskChara
+        %span.ml-2.text-xs.text-slate-500 ✨
+
+      %nav.flex.flex-1.flex-col
+        %ul.flex.flex-1.flex-col.gap-y-7{role: "list"}
+          %li.pt-4
+            = link_to prompt_templates_path, class: "text-blue-600 hover:text-blue-800 text-sm flex items-center gap-x-2" do
+              ← プロンプト設定に戻る
+
+  / メインコンテンツ
+  .lg:pl-72
+    .px-4.sm:px-6.lg:px-8.py-8
+      / ページヘッダー
+      .mb-8
+        %h1.text-2xl.font-bold.text-slate-900.dark:text-white
+          ➕ プロンプトテンプレート作成
+        %p.mt-2.text-sm.text-slate-600.dark:text-slate-400
+          新しいプロンプトテンプレートを作成して、AI議事録生成をカスタマイズできます
+
+      / エラー表示
+      - if @prompt_template.errors.any?
+        .mb-6.bg-red-50.border.border-red-200.rounded-lg.p-4
+          %h4.text-red-700.font-medium エラーが発生しました:
+          %ul.mt-2.text-sm.text-red-600
+            - @prompt_template.errors.full_messages.each do |message|
+              %li= message
+
+      / フォーム
+      = form_with model: @prompt_template, local: true, class: "space-y-6" do |form|
+        .bg-white.dark:bg-slate-800.shadow-xl.rounded-2xl.border.border-slate-200.dark:border-slate-700.p-6
+
+          / 基本情報
+          .space-y-4
+            %h3.text-lg.font-medium.text-slate-900.dark:text-white.mb-4
+              📝 基本情報
+
+            / テンプレート名
+            .space-y-2
+              = form.label :name, "テンプレート名", class: "block text-sm font-medium text-slate-700 dark:text-slate-300"
+              %span.text-red-500.text-sm *必須
+              = form.text_field :name, 
+                  class: "w-full px-4 py-3 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500",
+                  placeholder: "例: カスタム支援会議用プロンプト",
+                  maxlength: 100
+
+            / 説明
+            .space-y-2
+              = form.label :description, "説明", class: "block text-sm font-medium text-slate-700 dark:text-slate-300"
+              = form.text_area :description,
+                  rows: 3,
+                  class: "w-full px-4 py-3 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500",
+                  placeholder: "このプロンプトテンプレートの用途や特徴を記述してください",
+                  maxlength: 500
+
+            / 会議タイプ
+            .space-y-2
+              = form.label :meeting_type, "会議タイプ", class: "block text-sm font-medium text-slate-700 dark:text-slate-300"
+              %span.text-red-500.text-sm *必須
+              = form.select :meeting_type, 
+                  [['利用者支援会議', 'support_meeting'], ['専門職団体会議', 'professional_meeting'], ['汎用（全タイプに適用）', 'general']], 
+                  { prompt: '会議タイプを選択してください' }, 
+                  { class: "w-full px-4 py-3 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500", required: true }
+
+            / プロンプトタイプ
+            .space-y-2
+              = form.label :prompt_type, "プロンプトタイプ", class: "block text-sm font-medium text-slate-700 dark:text-slate-300"
+              %span.text-red-500.text-sm *必須
+              = form.select :prompt_type,
+                  [['音声転写用', 'voice_transcription'], ['画像OCR用', 'image_ocr'], ['コンテンツ生成用', 'content_generation']],
+                  { prompt: 'プロンプトタイプを選択してください' },
+                  { class: "w-full px-4 py-3 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500", required: true }
+
+            / 有効化フラグ
+            .flex.items-center.space-x-3
+              = form.check_box :is_active, class: "h-4 w-4 text-blue-600 focus:ring-blue-500 border-slate-300 rounded"
+              = form.label :is_active, "このテンプレートを有効にする", class: "text-sm font-medium text-slate-700 dark:text-slate-300"
+
+        / プロンプト内容
+        .bg-white.dark:bg-slate-800.shadow-xl.rounded-2xl.border.border-slate-200.dark:border-slate-700.p-6.space-y-6
+
+          %h3.text-lg.font-medium.text-slate-900.dark:text-white.mb-4
+            🤖 プロンプト内容
+
+          / システムプロンプト
+          .space-y-2
+            = form.label :system_prompt, "システムプロンプト", class: "block text-sm font-medium text-slate-700 dark:text-slate-300"
+            %span.text-red-500.text-sm *必須
+            %p.text-xs.text-slate-500
+              AIの役割や基本的な指示を記述します（最大2000文字）
+            = form.text_area :system_prompt,
+                rows: 6,
+                class: "w-full px-4 py-3 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm",
+                placeholder: "例: あなたは会議議事録作成のプロフェッショナルです。音声から文字起こしされた内容を、構造化された議事録形式に整理・要約してください。",
+                maxlength: 2000,
+                required: true
+
+          / ユーザープロンプトテンプレート
+          .space-y-2
+            = form.label :user_prompt_template, "ユーザープロンプトテンプレート", class: "block text-sm font-medium text-slate-700 dark:text-slate-300"
+            %span.text-red-500.text-sm *必須
+            %p.text-xs.text-slate-500
+              具体的な指示内容を記述します。{transcribed_text}などの変数が使用できます（最大3000文字）
+            = form.text_area :user_prompt_template,
+                rows: 10,
+                class: "w-full px-4 py-3 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm",
+                placeholder: "以下の音声内容を会議議事録として適切に整理してください：\n\n{transcribed_text}",
+                maxlength: 3000,
+                required: true
+
+        / 変数説明
+        .bg-yellow-50.border.border-yellow-200.rounded-lg.p-6
+          %h4.text-lg.font-medium.text-yellow-900.mb-3
+            💡 使用可能な変数
+          .space-y-2.text-sm.text-yellow-800
+            %p
+              %code.bg-yellow-100.px-2.py-1.rounded {transcribed_text}
+              %span : 音声転写または画像OCRで取得されたテキスト内容
+            %p
+              %code.bg-yellow-100.px-2.py-1.rounded {meeting_type}
+              %span : 会議タイプ（将来実装予定）
+            %p
+              %code.bg-yellow-100.px-2.py-1.rounded {date}
+              %span : 処理日時（将来実装予定）
+
+        / アクションボタン
+        .flex.flex-col.sm:flex-row.justify-end.space-y-2.sm:space-y-0.sm:space-x-3.pt-6
+          = link_to prompt_templates_path, 
+              class: "w-full sm:w-auto px-6 py-3 border border-slate-300 rounded-md text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors text-center" do
+            キャンセル
+          = form.submit "テンプレートを作成", 
+              class: "w-full sm:w-auto px-6 py-3 bg-blue-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"

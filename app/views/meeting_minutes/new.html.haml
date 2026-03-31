@@ -1,0 +1,194 @@
+= turbo_frame_tag "meeting_form_modal" do
+  .fixed.inset-0.bg-black.bg-opacity-50.z-50{ data: { controller: "modal" } }
+    .fixed.inset-0.flex.items-center.justify-center.p-4.pb-20.lg:pb-4
+      .bg-white.rounded-lg.shadow-xl.max-w-2xl.w-full{ 
+        style: "max-height: calc(100vh - 2rem); overflow-y: auto;",
+        data: { modal_target: "content" } 
+      }
+        .bg-blue-50.px-6.py-4.border-b
+          .flex.items-center.justify-between
+            %h2.text-xl.font-semibold.text-gray-800
+              %i.fas.fa-plus.text-blue-500.mr-2
+              会議議事録を作成
+            = link_to meeting_minutes_path, class: "text-gray-500 hover:text-gray-700", data: { turbo_frame: "_top" } do
+              %i.fas.fa-times
+
+        = form_with model: @meeting_minute, local: true, class: "px-6 py-6", data: { controller: "file-upload", file_upload_meeting_id_value: "new", session_id: session.id } do |form|
+          - if @meeting_minute.errors.any?
+            .mb-6.bg-red-50.border.border-red-200.rounded-lg.p-4
+              %h4.text-red-700.font-medium エラーが発生しました:
+              %ul.mt-2.text-sm.text-red-600
+                - @meeting_minute.errors.full_messages.each do |message|
+                  %li= message
+              - if Rails.env.development?
+                %details.mt-3
+                  %summary.text-xs.text-red-500.cursor-pointer デバッグ情報
+                  %pre.text-xs.mt-2.text-red-600
+                    = "Params: #{params.inspect}"
+                    = "Meeting type: '#{@meeting_minute.meeting_type}'"
+                    = "Errors: #{@meeting_minute.errors.messages.inspect}"
+
+          / 会議タイトル
+          .mb-6
+            = form.label :title, "会議名", class: "block text-sm font-medium text-slate-700 mb-2"
+            %span.text-red-500.text-sm *必須
+            = form.text_field :title, 
+                class: "w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500",
+                placeholder: "例: 利用者A様 月次支援会議"
+
+          / 会議タイプ
+          .mb-6
+            = form.label :meeting_type, "会議種別", class: "block text-sm font-medium text-slate-700 mb-2"
+            %span.text-red-500.text-sm *必須
+            = form.select :meeting_type, [['利用者支援会議', 'support_meeting'], ['専門職団体会議', 'professional_meeting']], { prompt: '会議種別を選択してください', selected: @meeting_minute.meeting_type }, { class: "w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500", required: true }
+
+          / プロンプトテンプレート選択
+          .mb-6
+            = form.label :prompt_template_id, "AIプロンプト設定", class: "block text-sm font-medium text-slate-700 mb-2"
+            %span.text-xs.text-slate-500 (音声・画像からの議事録生成時に使用)
+            %br
+            = form.select :prompt_template_id, 
+                options_from_collection_for_select(@prompt_templates, :id, :display_name, @meeting_minute.prompt_template_id), 
+                { prompt: 'デフォルトプロンプトを使用（推奨）' }, 
+                { class: "w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500" }
+            .mt-1.text-xs.text-gray-600
+              カスタムプロンプトを選択すると、AI生成の精度や形式を調整できます
+
+          / 開催日時
+          .mb-6
+            = form.label :meeting_date, "開催日時", class: "block text-sm font-medium text-slate-700 mb-2"
+            %span.text-red-500.text-sm *必須
+            = form.datetime_local_field :meeting_date, 
+                class: "w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+
+          / 開催場所
+          .mb-6
+            = form.label :location, "開催場所", class: "block text-sm font-medium text-slate-700 mb-2"
+            = form.text_field :location, 
+                class: "w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500",
+                placeholder: "例: 会議室A、オンライン（Zoom）"
+
+          / 参加者
+          .mb-6
+            = form.label :participants, "参加者", class: "block text-sm font-medium text-slate-700 mb-2"
+            = form.text_area :participants, 
+                rows: 3,
+                class: "w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500",
+                placeholder: "例: 田中（ケアマネ）、佐藤（ヘルパー）、山田（家族）"
+
+          / 議事録内容
+          .mb-6
+            = form.label :content, "議事録内容", class: "block text-sm font-medium text-slate-700 mb-2"
+            %span.text-sm.text-slate-500 （手動入力またはAI生成）
+            
+            / AI入力支援機能
+            .mb-4.space-y-3
+              .border.border-blue-200.rounded-lg.p-4.bg-blue-50
+                .flex.items-center.mb-3
+                  %i.fas.fa-robot.text-blue-600.mr-2
+                  %span.text-sm.font-medium.text-blue-800 AI入力支援
+                  %span.text-xs.text-blue-600.ml-2 音声ファイルや画像から議事録テキストを作成できます
+                
+                .grid.grid-cols-1.sm:grid-cols-2.gap-3
+                  / 音声ファイルアップロード機能
+                  .bg-white.border.border-gray-200.rounded-lg.p-4#voice-upload-container
+                    .text-center
+                      %i.fas.fa-microphone.text-green-600.text-2xl.mb-2
+                      %h4.text-sm.font-medium.text-gray-900.mb-2 音声から生成
+                      %p.text-xs.text-gray-500.mb-3 会議録音から議事録を自動生成
+                      
+                      / ステップ1: ファイル選択
+                      %input.hidden{ type: "file", accept: "audio/*", id: "meeting-voice-upload", data: { action: "change->file-upload#selectVoiceFile", file_upload_target: "voiceInput" } }
+                      %label.cursor-pointer.inline-flex.items-center.px-3.py-2.bg-green-600.text-white.text-sm.rounded-md.hover:bg-green-700.transition-colors{ for: "meeting-voice-upload", id: "voice-upload-label" }
+                        🎤 音声ファイル選択
+                      
+                      / ファイル選択状況表示
+                      %div#voice-file-status.hidden.mt-3.p-2.bg-green-50.border.border-green-200.rounded{ data: { file_upload_target: "voiceStatusContainer" } }
+                        .flex.items-center.justify-between
+                          .flex.items-center
+                            %i.fas.fa-check-circle.text-green-700.mr-2
+                            %span.text-xs.text-green-700.font-medium ファイル選択完了
+                          %button.text-xs.text-gray-500.hover:text-red-500{ type: "button", data: { action: "click->file-upload#clearVoiceFile" } }
+                            %i.fas.fa-times
+                        %div.mt-1
+                          %span.text-xs.text-gray-600#voice-file-name{ data: { file_upload_target: "voiceFileName" } }
+                          %span.text-xs.text-gray-500.ml-2#voice-file-size{ data: { file_upload_target: "voiceFileSize" } }
+                      
+                      / ステップ2: 解析開始ボタン
+                      %div#voice-analysis-button.hidden.mt-3{ data: { file_upload_target: "voiceAnalysisButtonContainer" } }
+                        %button.w-full.px-3.py-2.bg-blue-600.text-white.text-sm.rounded-md.hover:bg-blue-700.transition-colors.disabled:opacity-50.disabled:cursor-not-allowed{ type: "button", data: { action: "click->file-upload#startVoiceAnalysis", file_upload_target: "voiceAnalysisButton" } }
+                          🚀 音声解析開始
+
+                  / 画像ファイルアップロード機能  
+                  .bg-white.border.border-gray-200.rounded-lg.p-4#image-upload-container
+                    .text-center
+                      %i.fas.fa-camera.text-purple-600.text-2xl.mb-2
+                      %h4.text-sm.font-medium.text-gray-900.mb-2 画像から生成
+                      %p.text-xs.text-gray-500.mb-3 ホワイトボードやメモから議事録を生成
+                      
+                      / ステップ1: ファイル選択
+                      %input.hidden{ type: "file", accept: "image/*", id: "meeting-image-upload", data: { action: "change->file-upload#selectImageFile", file_upload_target: "imageInput" } }
+                      %label.cursor-pointer.inline-flex.items-center.px-3.py-2.bg-purple-600.text-white.text-sm.rounded-md.hover:bg-purple-700.transition-colors{ for: "meeting-image-upload", id: "image-upload-label" }
+                        📷 画像ファイル選択
+                      
+                      / ファイル選択状況表示
+                      %div#image-file-status.hidden.mt-3.p-2.bg-purple-50.border.border-purple-200.rounded{ data: { file_upload_target: "imageStatusContainer" } }
+                        .flex.items-center.justify-between
+                          .flex.items-center
+                            %i.fas.fa-check-circle.text-purple-700.mr-2
+                            %span.text-xs.text-purple-700.font-medium ファイル選択完了
+                          %button.text-xs.text-gray-500.hover:text-red-500{ type: "button", data: { action: "click->file-upload#clearImageFile" } }
+                            %i.fas.fa-times
+                        %div.mt-1
+                          %span.text-xs.text-gray-600#image-file-name{ data: { file_upload_target: "imageFileName" } }
+                          %span.text-xs.text-gray-500.ml-2#image-file-size{ data: { file_upload_target: "imageFileSize" } }
+                      
+                      / ステップ2: 解析開始ボタン
+                      %div#image-analysis-button.hidden.mt-3{ data: { file_upload_target: "imageAnalysisButtonContainer" } }
+                        %button.w-full.px-3.py-2.bg-blue-600.text-white.text-sm.rounded-md.hover:bg-blue-700.transition-colors.disabled:opacity-50.disabled:cursor-not-allowed{ type: "button", data: { action: "click->file-upload#startImageAnalysis", file_upload_target: "imageAnalysisButton" } }
+                          🚀 画像解析開始
+
+                / 処理状況表示（詳細なステータス）- 改善されたローディング
+                #ai-processing-status.hidden.mt-4.p-4.bg-gradient-to-r.from-blue-50.to-purple-50.border-2.border-blue-200.rounded-lg.shadow-inner
+                  .flex.items-center.mb-3
+                    .relative.mr-3
+                      .animate-spin.rounded-full.h-6.w-6.border-3.border-blue-600.border-t-transparent
+                      .absolute.inset-1.animate-pulse.rounded-full.bg-blue-100
+                    .flex-1
+                      %span#processing-message.text-sm.font-semibold.text-blue-800 🤖 AI解析中...
+                      %div#detailed-status.text-xs.text-blue-600.mt-1 音声・画像から議事録を自動生成しています
+                  / 改良されたプログレスバー
+                  .w-full.bg-blue-200.rounded-full.h-2.mt-3.overflow-hidden
+                    .bg-gradient-to-r.from-blue-500.to-purple-500.h-2.rounded-full.transition-all.duration-500.animate-pulse#progress-bar{ style: "width: 0%" }
+                  / 追加の視覚効果
+                  .text-center.mt-3
+                    %span.text-xs.text-blue-500.animate-bounce ⏳ 処理が完了するまでお待ちください...
+
+                / エラー・中断メッセージ表示
+                #upload-error-status.hidden.mt-4.p-3.bg-red-50.border.border-red-200.rounded-lg
+                  .flex.items-center
+                    %i.fas.fa-exclamation-triangle.text-red-600.mr-2
+                    %span#error-message.text-sm.text-red-800 エラーが発生しました
+
+                / 成功メッセージ表示
+                #upload-success-status.hidden.mt-4.p-3.bg-green-50.border.border-green-200.rounded-lg
+                  .flex.items-center
+                    %i.fas.fa-check-circle.text-green-600.mr-2
+                    %span#success-message.text-sm.text-green-800 議事録の生成が完了しました
+
+            = form.text_area :content, 
+                rows: 15,
+                class: "w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500",
+                placeholder: "ここに議事録の内容を入力するか、上記のAI機能で生成してください..."
+
+          / 送信ボタン
+          .flex.justify-between.items-center
+            = link_to meeting_minutes_path, 
+                class: "px-6 py-3 border border-gray-300 bg-white text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors", 
+                data: { turbo_frame: "_top" } do
+              キャンセル
+            = form.submit "💾 議事録を作成", 
+                id: "save-button",
+                class: "px-6 py-3 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-all duration-200 disabled:opacity-75 disabled:cursor-not-allowed shadow-md hover:shadow-lg transform hover:scale-105 active:scale-95",
+                data: { file_upload_target: "saveButton" },
+                style: "min-width: 140px; transition: all 0.3s ease;"

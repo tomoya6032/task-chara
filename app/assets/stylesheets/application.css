@@ -8,3 +8,55 @@
  *
  * Consider organizing styles into separate files for maintainability.
  */
+
+/* ファイルアップロード&AI処理用のカスタムアニメーション */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+.animate-shake {
+  animation: shake 0.5s ease-in-out;
+}
+
+/* AI処理中のスピナー強化 */
+.ai-spinner {
+  border: 3px solid #e0e7ff;
+  border-top: 3px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* プログレスバーのアニメーション */
+.progress-bar-animated {
+  background: linear-gradient(45deg, 
+    #3b82f6 25%, 
+    transparent 25%, 
+    transparent 50%, 
+    #3b82f6 50%, 
+    #3b82f6 75%, 
+    transparent 75%);
+  background-size: 20px 20px;
+  animation: progressMove 1s linear infinite;
+}
+
+@keyframes progressMove {
+  0% { background-position: 0 0; }
+  100% { background-position: 20px 20px; }
+}
+
+/* ボタンの押下禁止アニメーション */
+.button-disabled-shake:hover {
+  animation: buttonShake 0.3s ease-in-out;
+}
+
+@keyframes buttonShake {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(-3px); }
+}

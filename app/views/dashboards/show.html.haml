@@ -16,6 +16,10 @@
                 = link_to dashboard_path, class: "bg-slate-50 text-slate-700 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
                   📊
                   ダッシュボード
+              %li  
+                = link_to ai_secretary_chat_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold", target: "_blank" do
+                  🤖
+                  AI秘書エージェント
               %li
                 = link_to new_task_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold", data: { "turbo-frame": "task-modal" } do
                   = "✅"
@@ -41,6 +45,14 @@
                   = "📋"
                   支援報告書
               %li
+                = link_to meeting_minutes_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
+                  = "📝"
+                  会議議事録
+              %li
+                = link_to prompt_templates_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
+                  🤖
+                  プロンプト設定
+              %li
                 = link_to report_templates_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
                   = "📄"
                   テンプレート管理
@@ -59,18 +71,18 @@
       -# = link_to dashboard_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400" do
       -#   %span.text-lg= "📊"
       -#   %span.text-xs.mt-1 ホーム
-      = link_to new_task_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400", data: { "turbo-frame": "task-modal" } do
-        %span.text-lg= "✅"
-        %span.text-xs.mt-1 タスク
       = link_to new_activity_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400", data: { "turbo-frame": "activity_form_modal" } do
-        %span.text-lg= "📝"
-        %span.text-xs.mt-1 日報
-      = link_to activities_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400" do
         %span.text-lg= "📖"
-        %span.text-xs.mt-1 一覧
+        %span.text-xs.mt-1 日報
       = link_to support_reports_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400" do
         %span.text-lg= "📋"
         %span.text-xs.mt-1 報告書
+      = link_to meeting_minutes_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400" do
+        %span.text-lg= "📝"
+        %span.text-xs.mt-1 議事録
+      = link_to new_task_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400", data: { "turbo-frame": "task-modal" } do
+        %span.text-lg= "✅"
+        %span.text-xs.mt-1 タスク
       = link_to report_templates_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400" do
         %span.text-lg= "⚙️"
         %span.text-xs.mt-1 設定

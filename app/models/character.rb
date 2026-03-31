@@ -4,6 +4,8 @@ class Character < ApplicationRecord
   has_many :tasks, dependent: :destroy
   has_many :activities, dependent: :destroy
   has_many :support_reports, dependent: :destroy
+  has_many :meeting_minutes, dependent: :destroy
+  has_many :ai_chats, dependent: :destroy
 
   validates :name, presence: true
   validates :shave_level, :body_shape, :inner_peace, :intelligence, :toughness,

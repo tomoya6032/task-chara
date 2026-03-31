@@ -1,0 +1,145 @@
+/ プロンプトテンプレート一覧ページ
+.min-h-screen.bg-slate-50.dark:bg-slate-900
+  / デスクトップサイドバー（lg以上で表示）
+  .hidden.lg:fixed.lg:inset-y-0.lg:z-50.lg:flex.lg:w-72.lg:flex-col
+    .flex.grow.flex-col.gap-y-5.overflow-y-auto.bg-white.dark:bg-slate-800.px-6.border-r.border-slate-200.dark:border-slate-700
+      .flex.h-16.shrink-0.items-center
+        %h1.text-lg.font-semibold.text-slate-900.dark:text-white
+          TaskChara
+        %span.ml-2.text-xs.text-slate-500 ✨
+
+      %nav.flex.flex-1.flex-col
+        %ul.flex.flex-1.flex-col.gap-y-7{role: "list"}
+          %li
+            %ul.space-y-1{role: "list"}
+              %li
+                = link_to dashboard_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
+                  📊
+                  ダッシュボード
+              %li
+                = link_to activities_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
+                  📖
+                  日報一覧
+              %li
+                = link_to support_reports_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
+                  📋
+                  支援報告書
+              %li
+                = link_to meeting_minutes_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
+                  📝
+                  会議議事録
+              %li
+                = link_to prompt_templates_path, class: "bg-slate-50 text-slate-700 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
+                  🤖
+                  プロンプト設定
+
+  / メインコンテンツ
+  .lg:pl-72
+    .px-4.sm:px-6.lg:px-8.py-8
+      / ページヘッダー
+      .mb-8
+        %h1.text-2xl.font-bold.text-slate-900.dark:text-white
+          🤖 プロンプトテンプレート管理
+        %p.mt-2.text-sm.text-slate-600.dark:text-slate-400
+          AI議事録生成の精度向上のためのプロンプトを管理できます
+
+      / フィルターとアクション
+      .flex.flex-col.sm:flex-row.justify-between.items-start.sm:items-center.gap-4.mb-6
+        / フィルター
+        .flex.flex-wrap.gap-4
+          = form_with url: prompt_templates_path, method: :get, local: true, class: "flex flex-wrap gap-4 items-center" do |form|
+            = form.select :meeting_type, 
+                options_for_select([['全て', ''], ['利用者支援会議', 'support_meeting'], ['専門職団体会議', 'professional_meeting'], ['汎用', 'general']], params[:meeting_type]), 
+                {}, { class: "px-3 py-2 border border-slate-300 rounded-md text-sm", onchange: "this.form.submit()" }
+            = form.select :prompt_type,
+                options_for_select([['全て', ''], ['音声転写', 'voice_transcription'], ['画像OCR', 'image_ocr'], ['コンテンツ生成', 'content_generation']], params[:prompt_type]),
+                {}, { class: "px-3 py-2 border border-slate-300 rounded-md text-sm", onchange: "this.form.submit()" }
+            = form.check_box :active_only, { checked: params[:active_only] == 'true', onchange: "this.form.submit()" }, "true", ""
+            = form.label :active_only, "有効のみ", class: "text-sm text-slate-700"
+
+        / 新規作成ボタン
+        = link_to new_prompt_template_path,
+            class: "inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors" do
+          ➕ 新規作成
+
+      / プロンプトテンプレート一覧
+      .bg-white.dark:bg-slate-800.shadow-xl.rounded-2xl.border.border-slate-200.dark:border-slate-700.overflow-hidden
+        - if @prompt_templates.any?
+          .divide-y.divide-slate-200.dark:divide-slate-700
+            - @prompt_templates.each do |template|
+              .px-6.py-4{ id: "template_#{template.id}" }
+                .flex.items-start.justify-between
+                  .flex-1.min-w-0
+                    .flex.items-center.space-x-3.mb-2
+                      %span.inline-flex.items-center.px-2.py-1.rounded-full.text-xs.font-medium{
+                        class: case template.meeting_type
+                          when 'support_meeting' then 'bg-blue-100 text-blue-800'
+                          when 'professional_meeting' then 'bg-green-100 text-green-800'
+                          when 'general' then 'bg-purple-100 text-purple-800'
+                        end
+                      }
+                        = template.meeting_type_display
+                      %span.inline-flex.items-center.px-2.py-1.rounded-full.text-xs.font-medium{
+                        class: case template.prompt_type
+                          when 'voice_transcription' then 'bg-orange-100 text-orange-800'
+                          when 'image_ocr' then 'bg-pink-100 text-pink-800'
+                          when 'content_generation' then 'bg-cyan-100 text-cyan-800'
+                        end
+                      }
+                        = template.prompt_type_display
+                      %span.inline-flex.items-center.px-2.py-1.rounded-full.text-xs.font-medium{
+                        class: template.is_active? ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                      }
+                        = template.is_active? ? '✅ 有効' : '❌ 無効'
+
+                    %h3.text-lg.font-semibold.text-slate-900.dark:text-white.truncate.mb-1
+                      = template.name
+                    - if template.description.present?
+                      %p.text-sm.text-slate-600.dark:text-slate-400.mb-2
+                        = template.description
+                    .text-xs.text-slate-500
+                      作成: #{template.created_at.strftime('%Y/%m/%d %H:%M')}
+                      更新: #{template.updated_at.strftime('%Y/%m/%d %H:%M')}
+
+                  .flex-shrink-0.ml-4.flex.space-x-2
+                    = link_to template, class: "text-blue-600 hover:text-blue-800 text-sm" do
+                      👁️ 詳細
+                    = link_to edit_prompt_template_path(template), class: "text-green-600 hover:text-green-800 text-sm" do
+                      ✏️ 編集
+                    = link_to toggle_active_prompt_template_path(template), method: :patch, 
+                        class: "text-yellow-600 hover:text-yellow-800 text-sm",
+                        data: { confirm: "このテンプレートを#{template.is_active? ? '無効' : '有効'}にしますか？" } do
+                      = template.is_active? ? '❌ 無効化' : '✅ 有効化'
+                    = link_to template, method: :delete, 
+                        class: "text-red-600 hover:text-red-800 text-sm",
+                        data: { confirm: "このテンプレートを削除しますか？\n※この操作は取り消せません。" } do
+                      🗑️ 削除
+
+        - else
+          .px-6.py-12.text-center
+            %div.text-slate-400.text-4xl.mb-4 🤖
+            %h3.text-lg.font-medium.text-slate-900.dark:text-white.mb-2
+              プロンプトテンプレートがありません
+            %p.text-slate-600.dark:text-slate-400.mb-4
+              新しいプロンプトテンプレートを作成して、AI議事録生成をカスタマイズしましょう
+            = link_to new_prompt_template_path,
+                class: "inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors" do
+              ➕ 最初のテンプレートを作成
+
+      / 使用方法説明
+      .mt-8.bg-blue-50.border.border-blue-200.rounded-lg.p-6
+        %h3.text-lg.font-medium.text-blue-900.mb-4
+          💡 プロンプトテンプレートについて
+        .space-y-3.text-sm.text-blue-800
+          %p
+            %strong 会議タイプ：
+            利用者支援会議、専門職団体会議、汎用（全てに適用）から選択できます
+          %p
+            %strong プロンプトタイプ：
+            音声転写用（音声ファイルからの議事録生成）、画像OCR用（画像からの議事録生成）があります
+          %p
+            %strong プロンプト変数：
+            ユーザープロンプトテンプレートでは <code>{transcribed_text}</code> のような変数が使用できます
+          %p
+            %strong 優先度：
+            組織固有 > 汎用の順で適用されます。無効なテンプレートは使用されません

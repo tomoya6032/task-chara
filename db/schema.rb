@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_03_13_234340) do
+ActiveRecord::Schema[8.0].define(version: 2026_03_30_234813) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -58,6 +58,18 @@ ActiveRecord::Schema[8.0].define(version: 2026_03_13_234340) do
     t.index ["character_id"], name: "index_activities_on_character_id"
   end
 
+  create_table "ai_chats", force: :cascade do |t|
+    t.bigint "character_id", null: false
+    t.string "conversation_id"
+    t.string "role"
+    t.text "content"
+    t.integer "tokens_used"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["character_id"], name: "index_ai_chats_on_character_id"
+    t.index ["conversation_id"], name: "index_ai_chats_on_conversation_id"
+  end
+
   create_table "characters", force: :cascade do |t|
     t.bigint "user_id", null: false
     t.string "name"
@@ -72,10 +84,43 @@ ActiveRecord::Schema[8.0].define(version: 2026_03_13_234340) do
     t.index ["user_id"], name: "index_characters_on_user_id"
   end
 
+  create_table "meeting_minutes", force: :cascade do |t|
+    t.string "title"
+    t.integer "meeting_type"
+    t.datetime "meeting_date"
+    t.text "content"
+    t.text "participants"
+    t.string "location"
+    t.bigint "character_id", null: false
+    t.integer "status"
+    t.datetime "generated_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "prompt_template_id"
+    t.index ["character_id"], name: "index_meeting_minutes_on_character_id"
+    t.index ["prompt_template_id"], name: "index_meeting_minutes_on_prompt_template_id"
+  end
+
   create_table "organizations", force: :cascade do |t|
     t.string "name"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+  end
+
+  create_table "prompt_templates", force: :cascade do |t|
+    t.string "name", null: false
+    t.integer "meeting_type", null: false
+    t.integer "prompt_type", null: false
+    t.text "system_prompt", null: false
+    t.text "user_prompt_template", null: false
+    t.boolean "is_active", default: true, null: false
+    t.integer "organization_id"
+    t.text "description"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["is_active"], name: "index_prompt_templates_on_is_active"
+    t.index ["meeting_type", "prompt_type", "is_active"], name: "idx_on_meeting_type_prompt_type_is_active_6c738d814c"
+    t.index ["organization_id"], name: "index_prompt_templates_on_organization_id"
   end
 
   create_table "report_templates", force: :cascade do |t|
@@ -253,7 +298,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_03_13_234340) do
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "activities", "characters"
+  add_foreign_key "ai_chats", "characters"
   add_foreign_key "characters", "users"
+  add_foreign_key "meeting_minutes", "characters"
+  add_foreign_key "meeting_minutes", "prompt_templates"
   add_foreign_key "report_templates", "users"
   add_foreign_key "solid_queue_blocked_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_claimed_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade

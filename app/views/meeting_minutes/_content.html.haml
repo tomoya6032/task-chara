@@ -1,0 +1,49 @@
+/ 会議議事録のコンテンツ部分（Turbo Streams用partial）
+- if meeting_minute.content.present?
+  %div
+    %h3.text-lg.font-semibold.text-slate-900.dark:text-white.mb-4
+      📋 議事録内容
+    .prose.max-w-none.bg-slate-50.dark:bg-slate-700.rounded-lg.p-6
+      %div.text-slate-700.dark:text-slate-300.leading-relaxed.whitespace-pre-line
+        = meeting_minute.content
+    / 生成完了通知
+    .mt-4.p-3.bg-green-50.border.border-green-200.rounded-lg
+      .flex.items-center
+        %i.fas.fa-check-circle.text-green-600.mr-2
+        %span.text-sm.text-green-800
+          ✨ AI議事録の生成が完了しました！
+
+- elsif meeting_minute.generating?
+  / 生成中の状態
+  .text-center.py-8
+    .animate-spin.rounded-full.h-12.w-12.border-b-2.border-blue-600.mx-auto.mb-4
+    %h3.text-lg.font-medium.text-slate-900.dark:text-white.mb-2
+      🤖 AIが議事録を生成中です...
+    %p.text-slate-500.dark:text-slate-400
+      数分お待ちください。完成次第、自動で表示されます。
+    %p.text-sm.text-slate-400.mt-2
+      ページを閉じても生成は継続されます
+
+- elsif meeting_minute.error?
+  / エラー状態
+  .text-center.py-8
+    .text-red-500.text-4xl.mb-4 ❌
+    %h3.text-lg.font-medium.text-slate-900.dark:text-white.mb-2
+      生成中にエラーが発生しました
+    %p.text-slate-500.dark:text-slate-400.mb-4
+      APIの制限や一時的な問題が原因の可能性があります
+    = button_to generate_meeting_minute_path(meeting_minute), method: :post,
+        class: "inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors" do
+      🔄 再生成する
+
+- else
+  / 下書き状態
+  .text-center.py-8
+    .text-slate-400.text-4xl.mb-4 📝
+    %h3.text-lg.font-medium.text-slate-900.dark:text-white.mb-2
+      下書き状態です
+    %p.text-slate-500.dark:text-slate-400.mb-4
+      AIによる自動生成を開始してください
+    = button_to generate_meeting_minute_path(meeting_minute), method: :post,
+        class: "inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors" do
+      🤖 AI生成開始

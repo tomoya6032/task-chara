@@ -101,7 +101,7 @@
                             キャンセル
                           / テスト用ボタン（開発環境でのみ表示）
                           - if Rails.env.development?
-                            %button.bg-yellow-500.hover:bg-yellow-600.text-white.px-3.py-2.rounded.text-sm.flex.items-center.justify-center.w-full.font-medium.mt-2{ type: "button", onclick: "window.handleAiProcessingResult({type: 'voice_transcription', status: 'completed', content: '【業務報告】\\n\\n■ 活動概要\\n電話による相談対応を実施。緊急性の高い案件について関係者と連携を図った。\\n\\n■ 相談内容\\n・急な体調変化に対する不安\\n・夜間対応サービスの利用について\\n\\n■ 実施した対応\\n・医療機関への連絡をサポート\\n・緊急時対応マニュアルの説明\\n\\n■ 今後の対応\\n定期的なフォローアップの実施予定'})" }
+                            %button.bg-yellow-500.hover:bg-yellow-600.text-white.px-3.py-2.rounded.text-sm.flex.items-center.justify-center.w-full.font-medium.mt-2{ type: "button", data: { action: "click->voice-uploader#testInsert" } }
                             %i.fas.fa-flask.mr-1
                             テスト挿入
                           %div{ data: { voice_uploader_target: "status" } }
@@ -126,11 +126,11 @@
                             キャンセル
                           / テスト用ボタン（開発環境でのみ表示）
                           - if Rails.env.development?
-                            %button.bg-yellow-500.hover:bg-yellow-600.text-white.px-3.py-2.rounded.text-sm.flex.items-center.justify-center.w-full.font-medium.mt-2{ type: "button", onclick: "window.handleAiProcessingResult({type: 'image_ocr', status: 'completed', content: '【業務報告】\\n\\n■ 活動概要\\n利用者宅への定期訪問を実施。健康状態の確認と生活相談対応を行った。\\n\\n■ 相談内容\\n・日常生活における移動支援について\\n・介護保険サービス利用に関する質問\\n\\n■ 実施した対応\\n・移動時の安全確保についてアドバイス\\n・関係機関との連携について説明\\n\\n■ 今後の課題\\n継続的な見守りとサポート体制の強化が必要'})" }
+                            %button.bg-yellow-500.hover:bg-yellow-600.text-white.px-3.py-2.rounded.text-sm.flex.items-center.justify-center.w-full.font-medium.mt-2{ type: "button", data: { action: "click->image-ocr#testInsert" } }
                             %i.fas.fa-flask.mr-1
                             テスト挿入
                           - if Rails.env.development?
-                            %button.bg-blue-500.hover:bg-blue-600.text-white.px-3.py-2.rounded.text-sm.flex.items-center.justify-center.w-full.font-medium.mt-1{ type: "button", onclick: "console.log('=== DEBUG INFO ==='); console.log('Available textareas:', document.querySelectorAll('textarea')); console.log('WebSocket controller:', document.querySelector('[data-controller~=websocket]')); window.handleAiProcessingResult({type: 'debug', status: 'completed', content: 'デバッグテスト用のテキストです。'});" }
+                            %button.bg-blue-500.hover:bg-blue-600.text-white.px-3.py-2.rounded.text-sm.flex.items-center.justify-center.w-full.font-medium.mt-1{ type: "button", data: { action: "click->websocket#debugTest" } }
                             %i.fas.fa-bug.mr-1
                             デバッグ
                           %div{ data: { image_ocr_target: "status" } }

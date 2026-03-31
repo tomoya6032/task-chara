@@ -1,0 +1,9 @@
+/ プロンプトプレビュー結果（Ajax用パーシャル）
+.bg-blue-50.border.border-blue-200.rounded-lg.p-4
+  %h4.text-md.font-medium.text-blue-900.mb-3
+    🤖 システムプロンプト:
+  %p.text-sm.text-blue-800.mb-4.font-mono.whitespace-pre-wrap= @template.system_prompt
+  
+  %h4.text-md.font-medium.text-blue-900.mb-3
+    📝 生成されたユーザープロンプト:
+  %p.text-sm.text-blue-800.font-mono.whitespace-pre-wrap= @generated_prompt

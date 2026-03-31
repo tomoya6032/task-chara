@@ -1,4 +1,9 @@
 Rails.application.routes.draw do
+  # AI Secretary routes
+  get "ai_secretary/chat"
+  post "ai_secretary/send_message"
+  get "ai_secretary/conversation_history"
+
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
   # Dashboard routes
@@ -20,10 +25,33 @@ Rails.application.routes.draw do
     end
   end
 
+  # Meeting Minutes routes
+  resources :meeting_minutes do
+    collection do
+      post :process_image_ocr_new
+      post :process_voice_transcription_new
+    end
+    member do
+      post :generate
+      post :process_image_ocr
+      post :process_voice_transcription
+    end
+  end
+
   # Report Templates routes
   resources :report_templates do
     member do
       post :analyze
+    end
+  end
+
+  # Prompt Templates routes (AI生成プロンプト管理)
+  resources :prompt_templates do
+    member do
+      patch :toggle_active
+    end
+    collection do
+      get :preview
     end
   end
 

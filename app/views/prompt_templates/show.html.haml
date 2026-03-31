@@ -1,0 +1,155 @@
+/ プロンプトテンプレート詳細ページ
+.min-h-screen.bg-slate-50.dark:bg-slate-900
+  / デスクトップサイドバー（lg以上で表示）
+  .hidden.lg:fixed.lg:inset-y-0.lg:z-50.lg:flex.lg:w-72.lg:flex-col
+    .flex.grow.flex-col.gap-y-5.overflow-y-auto.bg-white.dark:bg-slate-800.px-6.border-r.border-slate-200.dark:border-slate-700
+      .flex.h-16.shrink-0.items-center
+        %h1.text-lg.font-semibold.text-slate-900.dark:text-white
+          TaskChara
+        %span.ml-2.text-xs.text-slate-500 ✨
+
+      %nav.flex.flex-1.flex-col
+        %ul.flex.flex-1.flex-col.gap-y-7{role: "list"}
+          %li.pt-4
+            = link_to prompt_templates_path, class: "text-blue-600 hover:text-blue-800 text-sm flex items-center gap-x-2" do
+              ← プロンプト設定に戻る
+
+  / メインコンテンツ
+  .lg:pl-72
+    .px-4.sm:px-6.lg:px-8.py-8
+      / ページヘッダー
+      .mb-8
+        .flex.justify-between.items-start
+          %div
+            %h1.text-2xl.font-bold.text-slate-900.dark:text-white
+              = @prompt_template.name
+              %span.inline-flex.items-center.px-2.py-1.rounded-full.text-xs.font-medium.ml-3{
+                class: @prompt_template.is_active? ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+              }
+                = @prompt_template.is_active? ? '✅ 有効' : '❌ 無効'
+            %p.mt-2.text-sm.text-slate-600.dark:text-slate-400
+              = @prompt_template.description if @prompt_template.description.present?
+          .flex.space-x-3
+            = link_to edit_prompt_template_path(@prompt_template),
+                class: "inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors" do
+              ✏️ 編集
+            = link_to @prompt_template, method: :delete,
+                class: "inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors",
+                data: { confirm: "このテンプレートを削除しますか？\n※この操作は取り消せません。" } do
+              🗑️ 削除
+
+      / 基本情報カード
+      .bg-white.dark:bg-slate-800.shadow-xl.rounded-2xl.border.border-slate-200.dark:border-slate-700.p-6.mb-6
+        %h2.text-lg.font-semibold.text-slate-900.dark:text-white.mb-4
+          📋 基本情報
+        .grid.grid-cols-1.md:grid-cols-2.gap-6
+          .space-y-3
+            .flex.justify-between
+              %span.text-sm.font-medium.text-slate-500 会議タイプ
+              %span.inline-flex.items-center.px-2.py-1.rounded-full.text-xs.font-medium{
+                class: case @prompt_template.meeting_type
+                  when 'support_meeting' then 'bg-blue-100 text-blue-800'
+                  when 'professional_meeting' then 'bg-green-100 text-green-800'
+                  when 'general' then 'bg-purple-100 text-purple-800'
+                end
+              }
+                = @prompt_template.meeting_type_display
+            .flex.justify-between
+              %span.text-sm.font-medium.text-slate-500 プロンプトタイプ
+              %span.inline-flex.items-center.px-2.py-1.rounded-full.text-xs.font-medium{
+                class: case @prompt_template.prompt_type
+                  when 'voice_transcription' then 'bg-orange-100 text-orange-800'
+                  when 'image_ocr' then 'bg-pink-100 text-pink-800'
+                  when 'content_generation' then 'bg-cyan-100 text-cyan-800'
+                end
+              }
+                = @prompt_template.prompt_type_display
+          .space-y-3
+            .flex.justify-between
+              %span.text-sm.font-medium.text-slate-500 作成日時
+              %span.text-sm.text-slate-900= @prompt_template.created_at.strftime('%Y年%m月%d日 %H:%M')
+            .flex.justify-between
+              %span.text-sm.font-medium.text-slate-500 更新日時
+              %span.text-sm.text-slate-900= @prompt_template.updated_at.strftime('%Y年%m月%d日 %H:%M')
+
+      / システムプロンプト
+      .bg-white.dark:bg-slate-800.shadow-xl.rounded-2xl.border.border-slate-200.dark:border-slate-700.p-6.mb-6
+        %h2.text-lg.font-semibold.text-slate-900.dark:text-white.mb-4
+          🤖 システムプロンプト
+        .bg-slate-50.border.border-slate-200.rounded-lg.p-4
+          %pre.text-sm.text-slate-700.whitespace-pre-wrap.font-mono= @prompt_template.system_prompt
+
+      / ユーザープロンプトテンプレート
+      .bg-white.dark:bg-slate-800.shadow-xl.rounded-2xl.border.border-slate-200.dark:border-slate-700.p-6.mb-6
+        %h2.text-lg.font-semibold.text-slate-900.dark:text-white.mb-4
+          📝 ユーザープロンプトテンプレート
+        .bg-slate-50.border.border-slate-200.rounded-lg.p-4
+          %pre.text-sm.text-slate-700.whitespace-pre-wrap.font-mono= @prompt_template.user_prompt_template
+
+      / プレビュー機能
+      .bg-white.dark:bg-slate-800.shadow-xl.rounded-2xl.border.border-slate-200.dark:border-slate-700.p-6
+        %h2.text-lg.font-semibold.text-slate-900.dark:text-white.mb-4
+          👁️ プロンプトプレビュー
+        %p.text-sm.text-slate-600.mb-4
+          サンプルテキストを使用して、実際に生成されるプロンプトを確認できます
+        
+        = form_with url: preview_prompt_templates_path, method: :get, remote: true, local: false, id: "preview-form", class: "space-y-4" do |form|
+          = form.hidden_field :meeting_type, value: @prompt_template.meeting_type
+          = form.hidden_field :prompt_type, value: @prompt_template.prompt_type
+          
+          .space-y-2
+            = form.label :sample_text, "サンプルテキスト", class: "block text-sm font-medium text-slate-700"
+            = form.text_area :sample_text,
+                rows: 4,
+                value: "本日の利用者支援会議では、A様の介護プラン見直しについて協議しました。参加者は ケアマネージャー、ヘルパー、ご家族の方々でした。主な議論は今後の訪問回数と支援内容について行われ、週3回の訪問継続が合意されました。",
+                class: "w-full px-4 py-3 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500",
+                placeholder: "プレビューしたいサンプルテキストを入力してください"
+          
+          = form.submit "プレビュー生成", 
+              class: "px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors"
+        
+        / プレビュー結果表示エリア
+        #preview-result.mt-6.hidden
+          %h4.text-md.font-medium.text-slate-900.mb-3
+            生成されたプロンプト:
+          .bg-blue-50.border.border-blue-200.rounded-lg.p-4
+            %pre.text-sm.text-blue-800.whitespace-pre-wrap.font-mono#preview-content
+
+      / 使用マニュアル
+      .mt-8.bg-amber-50.border.border-amber-200.rounded-lg.p-6
+        %h3.text-lg.font-medium.text-amber-900.mb-4
+          💡 プロンプト最適化のヒント
+        .space-y-3.text-sm.text-amber-800
+          %ul.space-y-2.list-disc.list-inside
+            %li
+              %strong システムプロンプト：
+              AIの役割と基本方針を明確に定義してください
+            %li
+              %strong ユーザープロンプト：
+              具体的な出力形式と構造を詳細に指定してください
+            %li
+              %strong 変数活用：
+              {transcribed_text}を使用して動的に内容を挿入できます
+            %li
+              %strong 例示効果：
+              期待する出力形式の例を含めると精度が向上します
+            %li
+              %strong 段階的指示：
+              複雑な処理は1, 2, 3...のように段階的に分けて指示してください
+
+%script
+  :javascript
+    document.getElementById('preview-form').addEventListener('ajax:success', function(event) {
+      const data = event.detail[0];
+      const resultDiv = document.getElementById('preview-result');
+      const contentPre = document.getElementById('preview-content');
+      
+      if (data && data.generated_prompt) {
+        contentPre.textContent = data.generated_prompt;
+        resultDiv.classList.remove('hidden');
+      }
+    });
+    
+    document.getElementById('preview-form').addEventListener('ajax:error', function(event) {
+      alert('プレビューの生成に失敗しました。');
+    });
