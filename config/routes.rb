@@ -3,6 +3,8 @@ Rails.application.routes.draw do
   get "ai_secretary/chat"
   post "ai_secretary/send_message"
   get "ai_secretary/conversation_history"
+  get "ai_secretary/conversation_list"
+  post "ai_secretary/new_conversation"
 
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 

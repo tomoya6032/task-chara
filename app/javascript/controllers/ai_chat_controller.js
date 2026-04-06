@@ -54,9 +54,19 @@ export default class extends Controller {
       if (data.status === "success") {
         console.log("✅ AI response received:", data.ai_response)
         this.showAiMessage(data.ai_response.content)
+        
+        // サイドバーの会話履歴を更新
+        if (data.refresh_sidebar) {
+          this.refreshConversationSidebar()
+        }
       } else if (data.status === "document_generated") {
         console.log("📄 Document generated:", data)
         this.showAiMessage(data.ai_response.content, data.actions)
+        
+        // サイドバーの会話履歴を更新
+        if (data.refresh_sidebar) {
+          this.refreshConversationSidebar()
+        }
       } else {
         throw new Error(data.error || "Unknown error occurred")
       }
@@ -195,5 +205,25 @@ export default class extends Controller {
     setTimeout(() => {
       this.messagesContainerTarget.scrollTop = this.messagesContainerTarget.scrollHeight
     }, 100)
+  }
+
+  // サイドバーの会話履歴を更新
+  refreshConversationSidebar() {
+    console.log("🔄 Refreshing conversation sidebar...")
+    
+    // conversation-sidebarコントローラーがあれば履歴をリロード
+    const sidebarController = this.application.getControllerForElementAndIdentifier(
+      document.querySelector('[data-controller*="conversation-sidebar"]'), 
+      "conversation-sidebar"
+    )
+    
+    if (sidebarController && typeof sidebarController.loadConversationList === 'function') {
+      // 少し遅延してからリロード（レスポンス処理が完了してから）
+      setTimeout(() => {
+        sidebarController.loadConversationList()
+      }, 500)
+    } else {
+      console.warn("⚠️ Conversation sidebar controller not found or loadConversationList method missing")
+    }
   }
 }

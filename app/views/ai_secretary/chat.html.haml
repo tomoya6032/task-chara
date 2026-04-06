@@ -1,76 +1,127 @@
-:css
-  .chat-container {
-    height: calc(100vh - 4rem);
-  }
-  
-  .messages-container {
-    height: calc(100vh - 12rem);
-    max-height: 70vh;
-  }
+- content_for :head do
+  :css
+    .chat-sidebar {
+      width: 280px;
+    }
+    .chat-main {
+      width: calc(100% - 280px);
+    }
+    .messages-container {
+      height: calc(100vh - 220px);
+    }
 
 .min-h-screen.bg-slate-50.dark:bg-slate-900
-  .container.mx-auto.px-4.py-6.max-w-4xl
-    / ヘッダー
-    .bg-white.dark:bg-slate-800.rounded-lg.shadow-sm.border.border-slate-200.dark:border-slate-700.p-6.mb-6
-      .flex.items-center.justify-between
-        .flex.items-center.space-x-4
-          .bg-blue-100.dark:bg-blue-900.p-3.rounded-full
-            🤖
-          %div
-            %h1.text-2xl.font-bold.text-slate-900.dark:text-white AI秘書エージェント
-            %p.text-sm.text-slate-600.dark:text-slate-400 あなたの仕事をサポートする賢い秘書です
-        = link_to dashboard_path, class: "inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600 dark:hover:bg-slate-600" do
-          ← ダッシュボードに戻る
+  .flex.h-screen.overflow-hidden
+    / 左サイドバー - 会話履歴
+    .chat-sidebar.bg-white.dark:bg-slate-800.border-r.border-slate-200.dark:border-slate-700.flex.flex-col{ data: { controller: "conversation-sidebar" } }
+      / サイドバーヘッダー
+      .flex-shrink-0.px-4.py-4.border-b.border-slate-200.dark:border-slate-700
+        .flex.items-center.justify-between.mb-3
+          %h2.text-lg.font-semibold.text-slate-900.dark:text-white
+            %i.fas.fa-comments.mr-2
+            チャット履歴
+          %button.p-2.bg-blue-600.text-white.rounded-lg.hover:bg-blue-700.transition-colors{ 
+            data: { action: "click->conversation-sidebar#newConversation" },
+            title: "新しい会話を開始"
+          }
+            %i.fas.fa-plus
 
-    / チャットエリア
-    .bg-white.dark:bg-slate-800.rounded-lg.shadow-sm.border.border-slate-200.dark:border-slate-700.chat-container{data: {controller: "ai-chat", ai_chat_conversation_id_value: @conversation_id}}
-      / メッセージ表示エリア
-      .messages-container.overflow-y-auto.p-4.bg-gray-50.dark:bg-slate-900{data: {ai_chat_target: "messagesContainer"}}
-        %div#chat-messages
-          - if @recent_messages.any?
-            - @recent_messages.each do |message|
-              - if message.role == "user"
-                .flex.justify-end.mb-4
-                  .max-w-xs.lg:max-w-md.px-4.py-2.bg-blue-500.text-white.rounded-lg.shadow
-                    = simple_format(message.content)
-                    .text-xs.text-blue-200.mt-1= message.created_at.strftime("%H:%M")
-              - elsif message.role == "assistant"
-                .flex.justify-start.mb-4
-                  .flex.items-start.space-x-2
-                    .bg-gray-200.dark:bg-slate-700.p-2.rounded-full.flex-shrink-0
-                      🤖
-                    .max-w-xs.lg:max-w-md.px-4.py-2.bg-white.dark:bg-slate-700.text-gray-900.dark:text-slate-100.rounded-lg.shadow.border.border-gray-200.dark:border-slate-600
-                      = simple_format(message.content)
-                      .text-xs.text-gray-500.dark:text-slate-400.mt-1= message.created_at.strftime("%H:%M")
-          - else
-            .text-center.py-8.text-slate-500.dark:text-slate-400
-              .bg-slate-100.dark:bg-slate-800.p-8.rounded-lg.max-w-md.mx-auto
-                .text-6xl.mb-4 🤖
-                %h3.text-lg.font-semibold.mb-2 AI秘書エージェントへようこそ！
-                %p.text-sm.mb-4 
-                  何でもお気軽にご質問ください。議事録作成、スケジュール管理、タスクの整理など、あなたの業務をサポートします。
-                .text-xs.text-slate-400
-                  %p.mb-2 💬 例：「今日のタスクを教えて」「会議の準備について相談したい」
-                  %p.mb-2 📄 文書生成：「この会話を議事録にして」「支援記録として整理して」「日報を作成して」
-                  %p 🚀 チャット内容を元に各種文書を自動生成できます！
+        / 検索フィルター
+        .relative
+          %input.w-full.px-3.py-2.pl-8.text-sm.border.border-slate-300.dark:border-slate-600.rounded-lg.focus:ring-2.focus:ring-blue-500.focus:border-blue-500.dark:bg-slate-700.dark:text-white{ 
+            type: "text", 
+            placeholder: "会話を検索...",
+            data: { conversation_sidebar_target: "searchInput", action: "input->conversation-sidebar#filterConversations" }
+          }
+          %i.fas.fa-search.absolute.left-3.top-3.text-slate-400.text-xs
 
-      / 入力エリア
-      .border-t.border-slate-200.dark:border-slate-700.p-4.bg-white.dark:bg-slate-800
-        = form_with url: ai_secretary_send_message_path, method: :post, local: false, data: { ai_chat_target: "form", action: "submit->ai-chat#sendMessage" }, class: "flex space-x-2" do |form|
-          = hidden_field_tag :conversation_id, @conversation_id
-          = form.text_area :message, 
-              placeholder: "メッセージを入力してください...", 
-              rows: 2,
-              data: { ai_chat_target: "messageInput", action: "keydown->ai-chat#handleKeydown" },
-              class: "flex-1 border border-gray-300 dark:border-slate-600 rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-700 dark:text-slate-100 resize-none"
-          = form.submit "送信", 
-              data: { ai_chat_target: "submitButton" },
-              class: "px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+      / 会話リスト
+      .flex-1.overflow-y-auto.px-2.py-2
+        #conversation-list{ data: { conversation_sidebar_target: "conversationList" } }
+          .flex.items-center.justify-center.py-8.text-slate-500
+            %i.fas.fa-spinner.fa-spin.mr-2
+            読み込み中...
 
-      / ローディング表示
-      %div#loading-indicator.hidden.flex.items-center.justify-center.py-4.border-t.border-slate-200.dark:border-slate-700{data: {ai_chat_target: "loadingIndicator"}}
-        .flex.items-center.space-x-2.text-blue-600.dark:text-blue-400
-          %svg.animate-spin.h-4.w-4{fill: "none", stroke: "currentColor", viewbox: "0 0 24 24"}
-            %circle.opacity-25{cx: "12", cy: "12", r: "10", "stroke-width": "4"}
-            %path.opacity-75{d: "m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"}
+      / サイドバーフッター
+      .flex-shrink-0.px-4.py-3.border-t.border-slate-200.dark:border-slate-700
+        = link_to dashboard_path, class: "inline-flex items-center w-full px-3 py-2 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 hover:bg-slate-100 dark:hover:text-white dark:hover:bg-slate-700 rounded-lg transition-colors" do
+          %i.fas.fa-arrow-left.mr-2
+          ダッシュボードに戻る
+
+    / メインチャットエリア
+    .chat-main.flex.flex-col.overflow-hidden
+      / チャットヘッダー
+      .flex-shrink-0.bg-white.dark:bg-slate-800.border-b.border-slate-200.dark:border-slate-700.px-6.py-4
+        .flex.items-center.justify-between
+          .flex.items-center.space-x-4
+            .bg-blue-100.dark:bg-blue-900.p-3.rounded-full
+              🤖
+            %div
+              %h1.text-xl.font-bold.text-slate-900.dark:text-white
+                AI秘書エージェント
+                %span#conversation-title.ml-2.text-sm.font-normal.text-slate-500{ data: { conversation_sidebar_target: "conversationTitle" } }
+              %p.text-sm.text-slate-600.dark:text-slate-400
+                ネット検索もできる賢い秘書です
+                %span.ml-2.px-2.py-1.bg-green-100.text-green-800.text-xs.rounded-full
+                  🌐 Web検索対応
+          .flex.items-center.space-x-2
+            %button.p-2.text-slate-500.hover:text-slate-700.hover:bg-slate-100.rounded-lg.transition-colors{ 
+              title: "会話をクリア",
+              data: { action: "click->conversation-sidebar#clearConversation" }
+            }
+              %i.fas.fa-trash-alt
+
+      / チャットメッセージエリア
+      .flex-1.overflow-hidden{ data: { controller: "ai-chat", ai_chat_conversation_id_value: @conversation_id } }
+        .h-full.flex.flex-col
+          / メッセージリスト
+          .messages-container.overflow-y-auto.px-6.py-4.bg-slate-50.dark:bg-slate-900{ data: { ai_chat_target: "messagesContainer" } }
+            %div#chat-messages
+              - if @recent_messages.any?
+                - @recent_messages.each do |message|
+                  - if message.role == "user"
+                    .flex.justify-end.mb-4
+                      .max-w-lg.bg-blue-600.text-white.rounded-2xl.px-4.py-3.shadow-sm
+                        = simple_format(message.content, class: "text-sm leading-relaxed")
+                        .text-xs.text-blue-200.mt-2.text-right= message.created_at.strftime("%H:%M")
+                  - elsif message.role == "assistant"
+                    .flex.justify-start.mb-4
+                      .flex.items-start.space-x-3.max-w-lg
+                        .bg-blue-500.p-2.rounded-full.flex-shrink-0.mt-1
+                          %i.fas.fa-robot.text-white.text-sm
+                        %div
+                          .bg-white.dark:bg-slate-700.text-slate-900.dark:text-slate-100.rounded-2xl.px-4.py-3.shadow-sm.border.border-slate-200.dark:border-slate-600
+                            = simple_format(message.content, class: "text-sm leading-relaxed whitespace-pre-wrap")
+                          .text-xs.text-slate-500.dark:text-slate-400.mt-2.ml-1= message.created_at.strftime("%H:%M")
+              - else
+                .flex.flex-col.items-center.justify-center.h-full.text-slate-500.dark:text-slate-400
+                  .bg-slate-100.dark:bg-slate-800.p-12.rounded-2xl.max-w-md.text-center
+                    .text-7xl.mb-6 🤖
+                    %h3.text-lg.font-semibold.mb-2 AI秘書エージェントへようこそ！
+                    %p.text-sm.mb-4 
+                      何でもお気軽にご質問ください。議事録作成、スケジュール管理、タスクの整理など、あなたの業務をサポートします。
+                    .text-xs.text-slate-400
+                      %p.mb-2 💬 例：「今日のタスクを教えて」「会議の準備について相談したい」
+                      %p.mb-2 🔍 ネット検索：「今日の天気は？」「最新のニュースを教えて」
+                      %p 📄 文書生成：各文書作成画面でチャット履歴を活用できます！
+
+          / メッセージ入力エリア
+          .flex-shrink-0.border-t.border-slate-200.dark:border-slate-700.bg-white.dark:bg-slate-800.px-6.py-4
+            = form_with url: ai_secretary_send_message_path, local: false, class: "flex items-end space-x-4", data: { ai_chat_target: "form", action: "submit->ai-chat#sendMessage" } do |form|
+              .flex-1
+                = form.text_area :message, rows: 1, class: "w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-700 dark:text-white resize-none", placeholder: "メッセージを入力してください... （最新情報が必要な場合は「調べて」「検索して」等を含めてください）", data: { ai_chat_target: "messageInput", action: "keypress->ai-chat#handleKeyPress" }
+              = hidden_field_tag :conversation_id, @conversation_id
+              = form.submit "送信", class: "px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-2xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed", data: { ai_chat_target: "submitButton" }
+
+            / 送信状態の表示
+            .mt-2.text-center.hidden{ data: { ai_chat_target: "loadingIndicator" } }
+              %i.fas.fa-spinner.fa-spin.mr-2
+              %span.text-sm.text-slate-500 AI秘書が応答中...
+
+      / 機能案内
+      .flex-shrink-0.bg-slate-100.dark:bg-slate-800.px-6.py-2.text-center
+        .text-xs.text-slate-500.dark:text-slate-400
+          💡 ヒント:
+          %span.font-medium 最新情報
+          が必要な場合は「調べて」「検索して」「最新の〜」等を含めてください
           %span AI秘書が考え中です...

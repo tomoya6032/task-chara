@@ -22,11 +22,11 @@ class SupportReportsController < ApplicationController
     @support_report.period_start = last_month_start
     @support_report.period_end = last_month_end
     @support_report.title = "#{last_month_start.strftime('%Y年%m月')}の支援報告書"
-    
+
     # デフォルトテンプレートを設定
     default_template = @available_templates.find(&:is_default?)
     @support_report.report_template = default_template if default_template
-    
+
     # チャット内容をプリセット用にセット（パラメーターで指定されている場合）
     if params[:from_chat].present?
       @support_report.content = params[:content] if params[:content].present?
@@ -38,7 +38,7 @@ class SupportReportsController < ApplicationController
     @support_report.status = :draft
 
     if @support_report.save
-      if params[:sync_generate] == 'true' && Rails.env.development?
+      if params[:sync_generate] == "true" && Rails.env.development?
         # 開発環境での同期生成（デバッグ用）
         service = SupportReportGeneratorService.new(@support_report)
         if service.generate
@@ -94,8 +94,8 @@ class SupportReportsController < ApplicationController
 
     begin
       # 会話履歴を取得
-      conversation_history = AiChat.conversation_context(conversation_id, limit: 50)
-      
+      conversation_history = AiChat.conversation_context(conversation_id, 50)
+
       if conversation_history.empty?
         render json: { error: "指定された会話が見つかりません" }, status: :not_found
         return
@@ -103,7 +103,7 @@ class SupportReportsController < ApplicationController
 
       # AIを使って支援記録を生成
       generated_content = generate_support_record_from_chat(conversation_history)
-      
+
       render json: {
         success: true,
         content: generated_content,
@@ -112,8 +112,8 @@ class SupportReportsController < ApplicationController
 
     rescue => e
       Rails.logger.error "Chat to support record generation error: #{e.message}"
-      render json: { 
-        error: "支援記録生成に失敗しました: #{e.message}" 
+      render json: {
+        error: "支援記録生成に失敗しました: #{e.message}"
       }, status: :internal_server_error
     end
   end
@@ -155,16 +155,16 @@ class SupportReportsController < ApplicationController
     conversation_ids = AiChat.where(character: @character)
                              .select(:conversation_id)
                              .distinct
-                             .order('MIN(created_at) DESC')
+                             .order("MIN(created_at) DESC")
                              .group(:conversation_id)
                              .limit(10)
                              .pluck(:conversation_id)
-    
+
     # 各会話の詳細情報を取得
     conversations = conversation_ids.map do |conv_id|
       messages = AiChat.for_conversation(conv_id).recent.limit(5)
       next if messages.empty?
-      
+
       {
         conversation_id: conv_id,
         created_at: messages.last.created_at,
@@ -173,28 +173,28 @@ class SupportReportsController < ApplicationController
         last_message_at: messages.first.created_at
       }
     end.compact.sort_by { |conv| conv[:last_message_at] }.reverse
-    
+
     conversations
   end
-  
+
   # AIチャット履歴から支援記録を生成
   def generate_support_record_from_chat(conversation_history)
     client = OpenAI::Client.new
-    
+
     # チャット履歴をテキストに整形
     chat_context = conversation_history.map do |msg|
-      role_label = msg[:role] == 'user' ? 'ユーザー' : 'AI秘書'
+      role_label = msg[:role] == "user" ? "\u30E6\u30FC\u30B6\u30FC" : "AI\u79D8\u66F8"
       "#{role_label}: #{msg[:content]}"
     end.join("\n\n")
-    
+
     # 支援記録生成用プロンプト
     system_prompt = build_support_record_generation_prompt
-    
+
     messages = [
       { role: "system", content: system_prompt },
       { role: "user", content: "以下のAI秘書との会話履歴を基に支援記録を作成してください：\n\n#{chat_context}" }
     ]
-    
+
     response = client.chat(
       parameters: {
         model: "gpt-4o-mini",
@@ -203,46 +203,46 @@ class SupportReportsController < ApplicationController
         temperature: 0.3
       }
     )
-    
+
     response.dig("choices", 0, "message", "content") || "支援記録の生成に失敗しました。"
   end
-  
+
   # 支援記録生成用システムプロンプト
   def build_support_record_generation_prompt
     <<~PROMPT
       あなたは支援記録作成の専門家です。AI秘書との会話履歴から、支援やケアに関連する情報を抽出し、適切な支援記録形式で整理してください。
-      
+
       【支援記録の構成】
       1. 支援対象者情報
          - 対象者(仮名で記載)
          - 支援サービスの種類
          - 支援期間
-         
+      #{'   '}
       2. 支援内容・サービス提供状況
          - 実施した支援内容
          - 提供したサービス
          - 支援の頻度・時間
-         
+      #{'   '}
       3. 利用者の様子・変化
          - 初回時の状況
          - 支援中の変化
          - 現在の状況
-         
+      #{'   '}
       4. 支援成果・課題
          - 成果や改善点
          - 未達成の課題
          - 今後の改善点
-         
+      #{'   '}
       5. 今後の支援方針
          - 継続する支援内容
          - 新たに取り組むべきこと
          - 終了予定や変更点
-         
+      #{'   '}
       6. 特記事項
          - 重要な情報
          - 特別なニーズ
          - 関係機関との連携
-      
+
       【注意事項】
       - 個人情報は必ず仮名化し、プライバシーを守ってください
       - 専門性と客観性を重視した記録として作成してください
@@ -250,7 +250,7 @@ class SupportReportsController < ApplicationController
       - 実用的で継続的な支援に役立つ記録として作成してください
     PROMPT
   end
-  
+
   # テキスト切り詰め用ヘルパー
   def truncate_text(text, length)
     return "" if text.blank?

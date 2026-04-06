@@ -17,7 +17,7 @@ class AiChat < ApplicationRecord
   end
 
   # Get conversation summary for context
-  def self.conversation_context(conversation_id, limit: 10)
+  def self.conversation_context(conversation_id, limit = 10)
     for_conversation(conversation_id)
       .recent
       .limit(limit)

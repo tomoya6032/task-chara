@@ -101,49 +101,49 @@ class ActivitiesController < ApplicationController
   # 画像OCR処理の開始
   def process_image_ocr
     # 新規作成時と既存編集時の対応
-    if params[:id] == 'new'
+    if params[:id] == "new"
       # 新規作成時は固定IDを使用（フロントエンドと一致させる）
       activity_id = "new"
     else
       @activity = @character.activities.find(params[:id])
       activity_id = @activity.id
     end
-    
+
     Rails.logger.info "=== OCR Process Started ==="
     Rails.logger.info "Activity ID: #{activity_id}"
     Rails.logger.info "Original ID param: #{params[:id]}"
-    
+
     if params[:image_file].present?
       image_file = params[:image_file]
       Rails.logger.info "Image file received: #{image_file.original_filename}"
-      
+
       # 一時ファイルに画像を保存
-      temp_file = Tempfile.new(['ocr_image', File.extname(image_file.original_filename)])
+      temp_file = Tempfile.new([ "ocr_image", File.extname(image_file.original_filename) ])
       temp_file.binmode
       temp_file.write(image_file.read)
       temp_file.close
-      
+
       Rails.logger.info "Temp file created: #{temp_file.path}"
-      
+
       # バックグラウンドジョブを開始
       ProcessImageOcrJob.perform_later(activity_id, temp_file.path)
       Rails.logger.info "Background job queued for activity_id: #{activity_id}"
-      
-      render json: { 
-        status: 'processing',
-        message: '画像から文字起こし中です...',
+
+      render json: {
+        status: "processing",
+        message: "\u753B\u50CF\u304B\u3089\u6587\u5B57\u8D77\u3053\u3057\u4E2D\u3067\u3059...",
         activity_id: temp_id
       }
     else
-      render json: { 
-        status: 'error',
-        message: '画像ファイルがありません'
+      render json: {
+        status: "error",
+        message: "\u753B\u50CF\u30D5\u30A1\u30A4\u30EB\u304C\u3042\u308A\u307E\u305B\u3093"
       }, status: :bad_request
     end
   rescue => e
     Rails.logger.error "Image OCR Error: #{e.message}"
-    render json: { 
-      status: 'error',
+    render json: {
+      status: "error",
       message: "エラーが発生しました: #{e.message}"
     }, status: :internal_server_error
   end
@@ -151,46 +151,46 @@ class ActivitiesController < ApplicationController
   # 音声アップロードと文字起こし処理
   def process_voice_transcription
     # 新規作成時と既存編集時の対応
-    if params[:id] == 'new'
+    if params[:id] == "new"
       # 新規作成時は固定IDを使用（フロントエンドと一致させる）
       activity_id = "new"
     else
       @activity = @character.activities.find(params[:id])
       activity_id = @activity.id
     end
-    
+
     Rails.logger.info "=== Voice Process Started ==="
     Rails.logger.info "Activity ID: #{activity_id}"
-    
+
     if params[:audio_file].present?
       audio_file = params[:audio_file]
       Rails.logger.info "Audio file received: #{audio_file.original_filename}"
-      
+
       # 一時ファイルに音声を保存
-      temp_file = Tempfile.new(['voice_transcription', File.extname(audio_file.original_filename)])
+      temp_file = Tempfile.new([ "voice_transcription", File.extname(audio_file.original_filename) ])
       temp_file.binmode
       temp_file.write(audio_file.read)
       temp_file.close
-      
+
       # バックグラウンドジョブを開始
       ProcessVoiceTranscriptionJob.perform_later(activity_id, temp_file.path)
       Rails.logger.info "Voice job queued for activity_id: #{activity_id}"
-      
-      render json: { 
-        status: 'processing',
-        message: '音声から文字起こし中です...',
+
+      render json: {
+        status: "processing",
+        message: "\u97F3\u58F0\u304B\u3089\u6587\u5B57\u8D77\u3053\u3057\u4E2D\u3067\u3059...",
         activity_id: activity_id
       }
     else
-      render json: { 
-        status: 'error',
-        message: '音声ファイルがありません'
+      render json: {
+        status: "error",
+        message: "\u97F3\u58F0\u30D5\u30A1\u30A4\u30EB\u304C\u3042\u308A\u307E\u305B\u3093"
       }, status: :bad_request
     end
   rescue => e
     Rails.logger.error "Voice Transcription Error: #{e.message}"
-    render json: { 
-      status: 'error',
+    render json: {
+      status: "error",
       message: "エラーが発生しました: #{e.message}"
     }, status: :internal_server_error
   end
@@ -205,8 +205,8 @@ class ActivitiesController < ApplicationController
 
     begin
       # 会話履歴を取得
-      conversation_history = AiChat.conversation_context(conversation_id, limit: 50)
-      
+      conversation_history = AiChat.conversation_context(conversation_id, 50)
+
       if conversation_history.empty?
         render json: { error: "指定された会話が見つかりません" }, status: :not_found
         return
@@ -214,7 +214,7 @@ class ActivitiesController < ApplicationController
 
       # AIを使って日報を生成
       generated_content = generate_daily_report_from_chat(conversation_history)
-      
+
       render json: {
         success: true,
         content: generated_content,
@@ -223,8 +223,8 @@ class ActivitiesController < ApplicationController
 
     rescue => e
       Rails.logger.error "Chat to daily report generation error: #{e.message}"
-      render json: { 
-        error: "日報生成に失敗しました: #{e.message}" 
+      render json: {
+        error: "日報生成に失敗しました: #{e.message}"
       }, status: :internal_server_error
     end
   end
@@ -255,16 +255,16 @@ class ActivitiesController < ApplicationController
     conversation_ids = AiChat.where(character: @character)
                              .select(:conversation_id)
                              .distinct
-                             .order('MIN(created_at) DESC')
+                             .order("MIN(created_at) DESC")
                              .group(:conversation_id)
                              .limit(10)
                              .pluck(:conversation_id)
-    
+
     # 各会話の詳細情報を取得
     conversations = conversation_ids.map do |conv_id|
       messages = AiChat.for_conversation(conv_id).recent.limit(5)
       next if messages.empty?
-      
+
       {
         conversation_id: conv_id,
         created_at: messages.last.created_at,
@@ -273,28 +273,28 @@ class ActivitiesController < ApplicationController
         last_message_at: messages.first.created_at
       }
     end.compact.sort_by { |conv| conv[:last_message_at] }.reverse
-    
+
     conversations
   end
-  
+
   # AIチャット履歴から日報を生成
   def generate_daily_report_from_chat(conversation_history)
     client = OpenAI::Client.new
-    
+
     # チャット履歴をテキストに整形
     chat_context = conversation_history.map do |msg|
-      role_label = msg[:role] == 'user' ? 'ユーザー' : 'AI秘書'
+      role_label = msg[:role] == "user" ? "\u30E6\u30FC\u30B6\u30FC" : "AI\u79D8\u66F8"
       "#{role_label}: #{msg[:content]}"
     end.join("\n\n")
-    
+
     # 日報生成用プロンプト
     system_prompt = build_daily_report_generation_prompt
-    
+
     messages = [
       { role: "system", content: system_prompt },
       { role: "user", content: "以下のAI秘書との会話履歴を基に日報を作成してください：\n\n#{chat_context}" }
     ]
-    
+
     response = client.chat(
       parameters: {
         model: "gpt-4o-mini",
@@ -303,46 +303,46 @@ class ActivitiesController < ApplicationController
         temperature: 0.3
       }
     )
-    
+
     response.dig("choices", 0, "message", "content") || "日報の生成に失敗しました。"
   end
-  
+
   # 日報生成用システムプロンプト
   def build_daily_report_generation_prompt
     current_date = Time.current.strftime("%Y年%m月%d日")
     <<~PROMPT
       あなたは日報作成の専門家です。AI秘書との会話履歴から、業務や活動に関連する情報を抽出し、適切な日報形式で整理してください。
-      
+
       【日報の構成】
       1. 日付・基本情報
          - 日付: #{current_date}
          - 作業時間/勤務状況
-         
+      #{'   '}
       2. 実施した業務・活動内容
          - 主な業務
          - 実施した活動
          - 取り組んだタスク
-         
+      #{'   '}
       3. 成果・進捗状況
          - 達成したこと
          - 進捗した項目
          - 完了したタスク
-         
+      #{'   '}
       4. 問題点・課題
          - 発生した問題
          - 未解決の課題
          - 改善が必要な点
-         
+      #{'   '}
       5. 明日の予定・目標
          - 予定している業務
          - 目標や重点項目
          - 準備が必要なこと
-         
+      #{'   '}
       6. その他・連絡事項
          - 特記事項
          - 連絡・共有事項
          - 気づきや提案
-      
+
       【注意事項】
       - 会話の文脈から業務性質を推測し、適切な日報として整理してください
       - 個人情報や機密性の高い内容は適切に匿名化してください
@@ -350,7 +350,7 @@ class ActivitiesController < ApplicationController
       - 業務的で実用的な日報として作成してください
     PROMPT
   end
-  
+
   # テキスト切り詰め用ヘルパー
   def truncate_text(text, length)
     return "" if text.blank?
