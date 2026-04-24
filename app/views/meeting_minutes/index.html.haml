@@ -1,183 +1,120 @@
 / 会議議事録一覧ページ
-.min-h-screen.bg-slate-50.dark:bg-slate-900
-  / デスクトップサイドバー（lg以上で表示）
-  .hidden.lg:fixed.lg:inset-y-0.lg:z-50.lg:flex.lg:w-72.lg:flex-col
-    .flex.grow.flex-col.gap-y-5.overflow-y-auto.bg-white.dark:bg-slate-800.px-6.border-r.border-slate-200.dark:border-slate-700
-      .flex.h-16.shrink-0.items-center
-        %h1.text-lg.font-semibold.text-slate-900.dark:text-white
-          TaskChara
-        %span.ml-2.text-xs.text-slate-500 ✨
+= content_for :page_title, "会議議事録"
 
-      %nav.flex.flex-1.flex-col
-        %ul.flex.flex-1.flex-col.gap-y-7{role: "list"}
-          %li
-            %ul.space-y-1{role: "list"}
-              %li
-                = link_to dashboard_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
-                  📊
-                  ダッシュボード
-              %li
-                = link_to activities_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
-                  = "📖"
-                  日報一覧
-              %li
-                = link_to support_reports_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
-                  = "📋"
-                  支援報告書
-              %li
-                = link_to meeting_minutes_path, class: "bg-slate-50 text-slate-700 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
-                  = "📝"
-                  会議議事録
-              %li
-                = link_to prompt_templates_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
-                  🤖
-                  プロンプト設定
-              %li
-                = link_to report_templates_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
-                  = "📄"
-                  テンプレート管理
+.px-4.sm:px-6.lg:px-8.py-8
+  / ヘッダー
+  .mb-8
+    %h1.text-3xl.font-bold.text-slate-900.dark:text-white
+      📝 会議議事録
+    %p.text-slate-600.dark:text-slate-400.mt-2
+      支援会議や団体会議の議事録を管理・生成できます
 
-  / メインコンテンツエリア
-  .lg:pl-72.pt-4
-    .px-4.sm:px-6.lg:px-8.py-8
-      / デスクトップヘッダー
-      .hidden.lg:block.mb-8
-        %h1.text-3xl.font-bold.text-slate-900.dark:text-white
-          📝 会議議事録
-        %p.text-slate-600.dark:text-slate-400.mt-2
-          支援会議や団体会議の議事録を管理・生成できます
+  / 統計カード
+  .grid.grid-cols-1.md:grid-cols-3.gap-6.mb-8
+    .bg-white.dark:bg-slate-800.overflow-hidden.shadow-xl.rounded-2xl.border.border-slate-200.dark:border-slate-700
+      .px-6.py-4
+        .flex.items-center
+          .flex-shrink-0
+            %span.text-2xl 📝
+          .ml-3
+            %p.text-sm.font-medium.text-slate-500.dark:text-slate-400 総議事録数
+            %p.text-2xl.font-semibold.text-slate-900.dark:text-white
+              = @character.meeting_minutes.count
+              %span.text-sm.font-normal.text-slate-500 件
 
-      / モバイルヘッダー
-      .lg:hidden.mb-6
-        %h1.text-2xl.font-bold.text-slate-900.dark:text-white
-          会議議事録
-          %span.ml-2.text-sm.text-slate-500 📝
+    .bg-white.dark:bg-slate-800.overflow-hidden.shadow-xl.rounded-2xl.border.border-slate-200.dark:border-slate-700
+      .px-6.py-4
+        .flex.items-center
+          .flex-shrink-0
+            %span.text-2xl 👥
+          .ml-3
+            %p.text-sm.font-medium.text-slate-500.dark:text-slate-400 支援会議
+            %p.text-2xl.font-semibold.text-slate-900.dark:text-white
+              = @character.meeting_minutes.support_meeting.count
+              %span.text-sm.font-normal.text-slate-500 件
 
-      / 統計カード
-      .grid.grid-cols-1.md:grid-cols-3.gap-6.mb-8
-        .bg-white.dark:bg-slate-800.overflow-hidden.shadow-xl.rounded-2xl.border.border-slate-200.dark:border-slate-700
-          .px-6.py-4
-            .flex.items-center
-              .flex-shrink-0
-                %span.text-2xl 📝
-              .ml-3
-                %p.text-sm.font-medium.text-slate-500.dark:text-slate-400 総議事録数
-                %p.text-2xl.font-semibold.text-slate-900.dark:text-white
-                  = @character.meeting_minutes.count
-                  %span.text-sm.font-normal.text-slate-500 件
+    .bg-white.dark:bg-slate-800.overflow-hidden.shadow-xl.rounded-2xl.border.border-slate-200.dark:border-slate-700
+      .px-6.py-4
+        .flex.items-center
+          .flex-shrink-0
+            %span.text-2xl 🏢
+          .ml-3
+            %p.text-sm.font-medium.text-slate-500.dark:text-slate-400 団体会議
+            %p.text-2xl.font-semibold.text-slate-900.dark:text-white
+              = @character.meeting_minutes.professional_meeting.count
+              %span.text-sm.font-normal.text-slate-500 件
 
-        .bg-white.dark:bg-slate-800.overflow-hidden.shadow-xl.rounded-2xl.border.border-slate-200.dark:border-slate-700
-          .px-6.py-4
-            .flex.items-center
-              .flex-shrink-0
-                %span.text-2xl 👥
-              .ml-3
-                %p.text-sm.font-medium.text-slate-500.dark:text-slate-400 支援会議
-                %p.text-2xl.font-semibold.text-slate-900.dark:text-white
-                  = @character.meeting_minutes.support_meeting.count
-                  %span.text-sm.font-normal.text-slate-500 件
+  / 新規作成ボタン
+  .flex.justify-between.items-center.mb-6
+    %div
+    = link_to new_meeting_minute_path, 
+        class: "inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors shadow-sm",
+        data: { turbo_frame: "meeting_form_modal" } do
+      ➕ 新しい議事録
 
-        .bg-white.dark:bg-slate-800.overflow-hidden.shadow-xl.rounded-2xl.border.border-slate-200.dark:border-slate-700
-          .px-6.py-4
-            .flex.items-center
-              .flex-shrink-0
-                %span.text-2xl 🏢
-              .ml-3
-                %p.text-sm.font-medium.text-slate-500.dark:text-slate-400 団体会議
-                %p.text-2xl.font-semibold.text-slate-900.dark:text-white
-                  = @character.meeting_minutes.professional_meeting.count
-                  %span.text-sm.font-normal.text-slate-500 件
+  / 議事録リスト
+  .bg-white.dark:bg-slate-800.shadow-xl.rounded-2xl.border.border-slate-200.dark:border-slate-700.overflow-hidden
+    - if @meeting_minutes.any?
+      .divide-y.divide-slate-200.dark:divide-slate-700
+        - @meeting_minutes.each do |meeting_minute|
+          = link_to meeting_minute_path(meeting_minute),
+              class: "block hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors" do
+            .px-6.py-4
+              .flex.items-start.justify-between
+                .flex-1.min-w-0
+                  .flex.items-center.space-x-3.mb-2
+                    %span.inline-flex.items-center.px-2.py-1.rounded-full.text-xs.font-medium{
+                      class: case meeting_minute.meeting_type
+                        when 'support_meeting' then 'bg-blue-100 text-blue-800 dark:bg-blue-200 dark:text-blue-900'
+                        when 'professional_meeting' then 'bg-green-100 text-green-800 dark:bg-green-200 dark:text-green-900'
+                      end
+                    }
+                      = meeting_minute.meeting_type_display
+                    %span.inline-flex.items-center.px-2.py-1.rounded-full.text-xs.font-medium{
+                      class: case meeting_minute.status
+                        when 'draft' then 'bg-gray-100 text-gray-800'
+                        when 'generating' then 'bg-yellow-100 text-yellow-800'
+                        when 'completed' then 'bg-green-100 text-green-800'
+                        when 'error' then 'bg-red-100 text-red-800'
+                      end
+                    }
+                      - case meeting_minute.status
+                        - when 'draft'
+                          📝 下書き
+                        - when 'generating'
+                          ⏳ 生成中
+                        - when 'completed'
+                          ✅ 完成
+                        - when 'error'
+                          ❌ エラー
 
-      / 新規作成ボタン
-      .flex.justify-between.items-center.mb-6
-        %div
+                  %h3.text-lg.font-semibold.text-slate-900.dark:text-white.truncate
+                    = meeting_minute.title
+                  .flex.items-center.space-x-4.text-sm.text-slate-500.dark:text-slate-400
+                    %span
+                      📅 #{meeting_minute.formatted_meeting_date}
+                    - if meeting_minute.location.present?
+                      %span
+                        📍 #{meeting_minute.location}
+                    - if meeting_minute.generated_at
+                      %span
+                        🤖 #{meeting_minute.generated_at.strftime('%m/%d %H:%M')}AI生成
+
+                .flex-shrink-0.ml-4
+                  %svg.h-5.w-5.text-slate-400{fill: "currentColor", viewbox: "0 0 20 20"}
+                    %path{fill_rule: "evenodd", d: "M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z", clip_rule: "evenodd"}
+
+    - else
+      .px-6.py-12.text-center
+        %div.text-slate-400.text-4xl.mb-4 📝
+        %h3.text-lg.font-medium.text-slate-900.dark:text-white.mb-2
+          議事録がありません
+        %p.text-slate-500.dark:text-slate-400.mb-4
+          新しい会議議事録を作成してAIで内容を生成しましょう
         = link_to new_meeting_minute_path, 
-            class: "inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors",
+            class: "inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors shadow-sm",
             data: { turbo_frame: "meeting_form_modal" } do
-          ➕ 新しい議事録
+          ➕ 最初の議事録を作成
 
-      / 議事録リスト
-      .bg-white.dark:bg-slate-800.shadow-xl.rounded-2xl.border.border-slate-200.dark:border-slate-700.overflow-hidden
-        - if @meeting_minutes.any?
-          .divide-y.divide-slate-200.dark:divide-slate-700
-            - @meeting_minutes.each do |meeting_minute|
-              = link_to meeting_minute_path(meeting_minute),
-                  class: "block hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors" do
-                .px-6.py-4
-                  .flex.items-start.justify-between
-                    .flex-1.min-w-0
-                      .flex.items-center.space-x-3.mb-2
-                        %span.inline-flex.items-center.px-2.py-1.rounded-full.text-xs.font-medium{
-                          class: case meeting_minute.meeting_type
-                            when 'support_meeting' then 'bg-blue-100 text-blue-800 dark:bg-blue-200 dark:text-blue-900'
-                            when 'professional_meeting' then 'bg-green-100 text-green-800 dark:bg-green-200 dark:text-green-900'
-                          end
-                        }
-                          = meeting_minute.meeting_type_display
-                        %span.inline-flex.items-center.px-2.py-1.rounded-full.text-xs.font-medium{
-                          class: case meeting_minute.status
-                            when 'draft' then 'bg-gray-100 text-gray-800'
-                            when 'generating' then 'bg-yellow-100 text-yellow-800'
-                            when 'completed' then 'bg-green-100 text-green-800'
-                            when 'error' then 'bg-red-100 text-red-800'
-                          end
-                        }
-                          - case meeting_minute.status
-                            - when 'draft'
-                              📝 下書き
-                            - when 'generating'
-                              ⏳ 生成中
-                            - when 'completed'
-                              ✅ 完成
-                            - when 'error'
-                              ❌ エラー
-
-                      %h3.text-lg.font-semibold.text-slate-900.dark:text-white.truncate
-                        = meeting_minute.title
-                      .flex.items-center.space-x-4.text-sm.text-slate-500.dark:text-slate-400
-                        %span
-                          📅 #{meeting_minute.formatted_meeting_date}
-                        - if meeting_minute.location.present?
-                          %span
-                            📍 #{meeting_minute.location}
-                        - if meeting_minute.generated_at
-                          %span
-                            🤖 #{meeting_minute.generated_at.strftime('%m/%d %H:%M')}AI生成
-
-                    .flex-shrink-0.ml-4
-                      %svg.h-5.w-5.text-slate-400{fill: "currentColor", viewbox: "0 0 20 20"}
-                        %path{fill_rule: "evenodd", d: "M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z", clip_rule: "evenodd"}
-
-        - else
-          .px-6.py-12.text-center
-            %div.text-slate-400.text-4xl.mb-4 📝
-            %h3.text-lg.font-medium.text-slate-900.dark:text-white.mb-2
-              議事録がありません
-            %p.text-slate-500.dark:text-slate-400.mb-4
-              新しい会議議事録を作成してAIで内容を生成しましょう
-            = link_to new_meeting_minute_path, 
-                class: "inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors",
-                data: { turbo_frame: "meeting_form_modal" } do
-              ➕ 最初の議事録を作成
-
-  / Turbo Frame for modal
-  = turbo_frame_tag "meeting_form_modal"
-
-  / モバイルナビゲーション（下部固定）
-  .lg:hidden.fixed.bottom-0.left-0.right-0.bg-white.border-t.border-slate-200.dark:bg-slate-800.dark:border-slate-700.px-4
-    .flex.items-center.justify-around.py-2
-      = link_to root_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400" do
-        %span.text-lg= "🏠"
-        %span.text-xs.mt-1 ホーム
-      = link_to activities_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400" do
-        %span.text-lg= "📖"
-        %span.text-xs.mt-1 日報
-      = link_to support_reports_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400" do
-        %span.text-lg= "📋"
-        %span.text-xs.mt-1 報告書
-      = link_to meeting_minutes_path, class: "flex flex-col items-center py-2 px-1 text-blue-600 dark:text-blue-400" do
-        %span.text-lg= "📝"
-        %span.text-xs.mt-1 議事録
-      = link_to report_templates_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400" do
-        %span.text-lg= "⚙️"
-        %span.text-xs.mt-1 設定
+/ Turbo Frame for modal
+= turbo_frame_tag "meeting_form_modal"

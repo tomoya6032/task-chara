@@ -1,0 +1,1290 @@
+/ TaskChara - カレンダー
+= content_for :page_title, "カレンダー"
+
+.px-4.sm:px-6.lg:px-8.py-8
+  / カレンダーヘッダー
+  .header.bg-white.border-b.border-gray-200.px-2.md:px-6.py-4.rounded-lg.shadow-sm.mb-6
+    .flex.items-center.justify-between.flex-wrap.gap-4
+      %h1.text-xl.md:text-2xl.font-semibold.text-gray-900.dark:text-white
+        📅 カレンダー
+      
+      .flex.items-center.space-x-2.md:space-x-4.flex-wrap.gap-2
+        / 期間ナビゲーション
+        .flex.items-center.space-x-2
+          %button#prev-month.nav-btn{ type: "button" } ←
+          %button#next-month.nav-btn{ type: "button" } →
+          %span#current-month.text-sm.md:text-lg.font-medium.text-gray-900.dark:text-white
+            = @date.strftime("%Y年%m月")
+        
+        / 表示選択
+        .flex.bg-gray-100.dark:bg-slate-700.rounded-md.p-1
+          %button.view-btn.active{ data: { view: "month" } }
+            月
+          %button.view-btn{ data: { view: "week" } }
+            週
+          %button.view-btn{ data: { view: "day" } }
+            日
+        
+        / イベント作成ボタン
+        %button.bg-blue-600.text-white.px-2.md:px-4.py-2.rounded-md.hover:bg-blue-700.transition-colors.text-sm.md:text-base{ onclick: "openNewEventModal()" }
+          + 新しいイベント
+        
+        / 設定ボタン
+        = link_to settings_calendar_index_path, 
+            class: "bg-gray-600.text-white.px-2.md:px-4.py-2.rounded-md.hover:bg-gray-700.transition-colors.text-sm.md:text-base.flex.items-center" do
+          ⚙️ 設定
+
+    / カラーインデックス（凡例）
+    .color-legend.mt-4.p-4.bg-gray-50.rounded-lg.border.border-gray-200
+      .flex.items-center.justify-between.flex-wrap.gap-2
+        %h3.text-sm.font-medium.text-gray-700.mb-2.w-full
+          🎨 カテゴリカラー
+        .legend-items.flex.flex-wrap.gap-3.w-full
+          - @custom_categories.each do |category|
+            .legend-item.flex.items-center.space-x-2.text-xs
+              .legend-color-box.w-4.h-4.rounded.border.border-gray-300{ style: "background-color: #{category[:color] || category['color']}" }
+              %span.text-gray-700.font-medium
+                = category[:name] || category['name']
+
+  / カレンダー本体
+  .calendar-container.flex-1{ data: { current_date: @date.strftime("%Y-%m-%d") } }
+    / 月表示
+    #month-view.calendar-view
+      / 曜日ヘッダー
+      .calendar-header-row
+        - %w[日 月 火 水 木 金 土].each do |day|
+          .calendar-header-cell
+            = day
+      
+      / カレンダーグリッド（完全な格子状レイアウト）
+      .calendar-main-grid
+        - if @calendar_weeks.present?
+          - @calendar_weeks.flatten.each do |day_data|
+            .calendar-day-cell{ 
+              class: [
+                ('calendar-other-month' unless day_data[:current_month]),
+                ('calendar-today' if day_data[:today]),
+                ('calendar-holiday' if day_data[:holiday]),
+                ('calendar-weekend' if day_data[:is_weekend] && @calendar_settings[:show_weekends])
+              ].compact.join(' ')
+            }
+              .calendar-date-header
+                .calendar-date-number{ 
+                  class: [
+                    (day_data[:today] ? 'calendar-today-number' : ''),
+                    (day_data[:holiday] ? 'calendar-holiday-number' : '')
+                  ].compact.join(' ')
+                }
+                  = day_data[:date].day
+                - if day_data[:holiday]
+                  .calendar-holiday-name.text-xs.text-red-600.font-medium.mt-1
+                    = day_data[:holiday].name
+              .calendar-events-area
+                - if day_data[:events].present?
+                  - day_data[:events].each do |event|
+                    .calendar-event{ data: { event_id: event.id, event_type: event.event_type }, onclick: "openEventDetailsModal(#{event.id})" }
+                      = event.title.truncate(15)
+        - else
+          .calendar-no-data
+            %p データが読み込まれていません
+
+    / 週表示（非表示）
+    #week-view.calendar-view.hidden
+      .text-center.text-gray-500.py-8
+        週表示は開発中です
+
+    / 日表示（非表示）
+    #day-view.calendar-view.hidden
+      .text-center.text-gray-500.py-8
+        日表示は開発中です
+
+  / イベント作成モーダル
+  #event-modal.fixed.inset-0.bg-gray-600.bg-opacity-50.hidden.flex.items-center.justify-center
+    .bg-white.rounded-lg.shadow-lg.p-6.w-96
+      %h3.text-lg.font-medium.text-gray-900.mb-4
+        新しいイベント
+
+      / エラーメッセージ表示エリア
+      #error-messages.hidden.mb-4.p-3.bg-red-100.border.border-red-400.text-red-700.rounded-md
+
+      %form#event-form{ action: "/calendar", method: "post" }
+        %input{ type: "hidden", name: "authenticity_token", value: "" }
+
+        .mb-4
+          %label.block.text-sm.font-medium.text-gray-700.mb-2
+            タイトル
+          %input.w-full.border.border-gray-300.rounded-md.px-3.py-2.focus:ring-2.focus:ring-blue-500.focus:border-transparent{ type: "text", name: "event[title]", required: true }
+
+        .mb-4
+          %label.block.text-sm.font-medium.text-gray-700.mb-2
+            開始日時
+          %input.w-full.border.border-gray-300.rounded-md.px-3.py-2{ type: "datetime-local", name: "event[start_time]", required: true, value: @event&.start_time&.strftime("%Y-%m-%dT%H:%M") }
+
+        .mb-4
+          %label.block.text-sm.font-medium.text-gray-700.mb-2
+            終了日時
+          %input.w-full.border.border-gray-300.rounded-md.px-3.py-2{ type: "datetime-local", name: "event[end_time]", required: true, value: @event&.end_time&.strftime("%Y-%m-%dT%H:%M") }
+
+        .mb-4
+          %label.block.text-sm.font-medium.text-gray-700.mb-2
+            種類
+          %select.w-full.border.border-gray-300.rounded-md.px-3.py-2{ name: "event[event_type]" }
+            - @custom_categories.each do |category|
+              %option{ value: category[:id] || category['id'] }
+                = category[:name] || category['name']
+
+        .mb-6
+          %label.block.text-sm.font-medium.text-gray-700.mb-2
+            説明
+          %textarea.w-full.border.border-gray-300.rounded-md.px-3.py-2.h-20{ name: "event[description]" }
+
+        .flex.justify-end.space-x-3
+          %button.bg-gray-200.text-gray-800.px-4.py-2.rounded-md.hover:bg-gray-300.transition-colors{ type: "button", onclick: "closeEventModal()" }
+            キャンセル
+          %button#submit-btn.bg-blue-600.text-white.px-4.py-2.rounded-md.hover:bg-blue-700.transition-colors{ type: "submit" }
+            作成
+
+  / イベント詳細モーダル
+  #event-details-modal.fixed.inset-0.bg-gray-600.bg-opacity-50.hidden.flex.items-center.justify-center
+    .bg-white.rounded-lg.shadow-lg.p-6.w-96
+      %h3.text-lg.font-medium.text-gray-900.mb-4
+        📅 イベント詳細
+
+      #event-details-content
+        .space-y-4
+          .event-detail-row
+            .font-medium.text-gray-700 タイトル:
+            .text-gray-900#event-detail-title
+          .event-detail-row
+            .font-medium.text-gray-700 開始日時:
+            .text-gray-900#event-detail-start
+          .event-detail-row
+            .font-medium.text-gray-700 終了日時:
+            .text-gray-900#event-detail-end
+          .event-detail-row
+            .font-medium.text-gray-700 種類:
+            .text-gray-900#event-detail-type
+          .event-detail-row
+            .font-medium.text-gray-700 説明:
+            .text-gray-900#event-detail-description
+
+      .flex.justify-end.space-x-3.mt-6
+        %button.bg-gray-200.text-gray-800.px-4.py-2.rounded-md.hover:bg-gray-300.transition-colors{ type: "button", onclick: "closeEventDetailsModal()" }
+          閉じる
+        %button#edit-event-btn.bg-blue-600.text-white.px-4.py-2.rounded-md.hover:bg-blue-700.transition-colors{ type: "button", onclick: "openEditEventModal()" }
+          編集
+        %button#delete-event-btn.bg-red-600.text-white.px-4.py-2.rounded-md.hover:bg-red-700.transition-colors{ type: "button", onclick: "openDeleteConfirmModal()" }
+          削除
+
+  / イベント編集モーダル
+  #event-edit-modal.fixed.inset-0.bg-gray-600.bg-opacity-50.hidden.flex.items-center.justify-center
+    .bg-white.rounded-lg.shadow-lg.p-6.w-96
+      %h3.text-lg.font-medium.text-gray-900.mb-4
+        ✏️ イベント編集
+
+      / エラーメッセージ表示エリア
+      #edit-error-messages.hidden.mb-4.p-3.bg-red-100.border.border-red-400.text-red-700.rounded-md
+
+      %form#event-edit-form{ method: "patch" }
+        %input{ type: "hidden", name: "authenticity_token", value: "" }
+        %input#edit-event-id{ type: "hidden", name: "id" }
+
+        .mb-4
+          %label.block.text-sm.font-medium.text-gray-700.mb-2
+            タイトル
+          %input#edit-event-title.w-full.border.border-gray-300.rounded-md.px-3.py-2.focus:ring-2.focus:ring-blue-500.focus:border-transparent{ type: "text", name: "event[title]", required: true }
+
+        .mb-4
+          %label.block.text-sm.font-medium.text-gray-700.mb-2
+            開始日時
+          %input#edit-event-start.w-full.border.border-gray-300.rounded-md.px-3.py-2{ type: "datetime-local", name: "event[start_time]", required: true }
+
+        .mb-4
+          %label.block.text-sm.font-medium.text-gray-700.mb-2
+            終了日時
+          %input#edit-event-end.w-full.border.border-gray-300.rounded-md.px-3.py-2{ type: "datetime-local", name: "event[end_time]", required: true }
+
+        .mb-4
+          %label.block.text-sm.font-medium.text-gray-700.mb-2
+            種類
+          %select#edit-event-type.w-full.border.border-gray-300.rounded-md.px-3.py-2{ name: "event[event_type]" }
+            - @custom_categories.each do |category|
+              %option{ value: category[:id] || category['id'] }
+                = category[:name] || category['name']
+
+        .mb-6
+          %label.block.text-sm.font-medium.text-gray-700.mb-2
+            説明
+          %textarea#edit-event-description.w-full.border.border-gray-300.rounded-md.px-3.py-2.h-20{ name: "event[description]" }
+
+        .flex.justify-end.space-x-3
+          %button.bg-gray-200.text-gray-800.px-4.py-2.rounded-md.hover:bg-gray-300.transition-colors{ type: "button", onclick: "closeEditEventModal()" }
+            キャンセル
+          %button#edit-submit-btn.bg-blue-600.text-white.px-4.py-2.rounded-md.hover:bg-blue-700.transition-colors{ type: "submit" }
+            更新
+
+  / 削除確認モーダル
+  #delete-confirm-modal.fixed.inset-0.bg-gray-600.bg-opacity-50.hidden.flex.items-center.justify-center
+    .bg-white.rounded-lg.shadow-lg.p-6.w-96
+      %h3.text-lg.font-medium.text-red-600.mb-4
+        🗑️ イベント削除確認
+
+      %input#delete-event-id{ type: "hidden" }
+
+      %p.text-gray-700.mb-6
+        このイベントを削除してもよろしいですか？
+        %br
+        %strong#delete-event-title
+
+      .flex.justify-end.space-x-3
+        %button.bg-gray-200.text-gray-800.px-4.py-2.rounded-md.hover:bg-gray-300.transition-colors{ type: "button", onclick: "closeDeleteConfirmModal()" }
+          キャンセル
+        %button#confirm-delete-btn.bg-red-600.text-white.px-4.py-2.rounded-md.hover:bg-red-700.transition-colors{ type: "button", onclick: "confirmDeleteEvent()" }
+          削除
+
+:css
+  .nav-btn {
+    padding: 6px 10px;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    background: white;
+    color: #374151;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 14px;
+    min-width: 36px;
+  }
+  
+  .nav-btn:hover {
+    background: #f3f4f6;
+    border-color: #d1d5db;
+  }
+  
+  .view-btn {
+    padding: 4px 8px;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: #6b7280;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-weight: 500;
+    font-size: 12px;
+    min-width: 32px;
+  }
+  
+  .view-btn.active {
+    background: white;
+    color: #374151;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  }
+  
+  @media (max-width: 768px) {
+    .nav-btn {
+      padding: 4px 8px;
+      font-size: 12px;
+      min-width: 32px;
+    }
+    
+    .view-btn {
+      padding: 3px 6px;
+      font-size: 11px;
+      min-width: 28px;
+    }
+  }
+  
+  /* カレンダー専用グリッドレイアウト */
+  .calendar-header-row {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    background-color: #f9fafb;
+    border-top: 1px solid #d1d5db;
+    border-left: 1px solid #d1d5db;
+    min-width: 100%;
+  }
+  
+  .calendar-header-cell {
+    padding: 8px 4px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: #4b5563;
+    background-color: #f9fafb;
+    border-right: 1px solid #d1d5db;
+    border-bottom: 1px solid #d1d5db;
+    min-width: 0;
+    word-wrap: break-word;
+  }
+  
+  .calendar-main-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    grid-template-rows: repeat(6, minmax(80px, auto));
+    border-left: 1px solid #d1d5db;
+    border-bottom: 1px solid #d1d5db;
+    background-color: white;
+    min-width: 100%;
+    width: 100%;
+  }
+  
+  .calendar-day-cell {
+    border-right: 1px solid #d1d5db;
+    border-top: 1px solid #d1d5db;
+    background-color: white;
+    display: flex;
+    flex-direction: column;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    min-width: 0;
+    min-height: 80px;
+    overflow: hidden;
+  }
+  
+  .calendar-day-cell:hover {
+    background-color: #f8fafc !important;
+  }
+  
+  .calendar-other-month {
+    background-color: #f9fafb !important;
+  }
+  
+  .calendar-today {
+    background-color: #ecfdf5 !important;
+    box-shadow: inset 0 0 0 2px #10b981;
+  }
+  
+  .calendar-date-header {
+    padding: 4px 6px;
+    border-bottom: 1px solid #f3f4f6;
+    flex-shrink: 0;
+    min-height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+  }
+  
+  .calendar-date-number {
+    font-size: 12px;
+    font-weight: 600;
+    color: #374151;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+  }
+  
+  .calendar-today-number {
+    background-color: #10b981;
+    color: white;
+    border-radius: 50%;
+    font-weight: 700;
+    min-width: 24px;
+    min-height: 24px;
+  }
+  
+  .calendar-other-month .calendar-date-number {
+    color: #9ca3af;
+  }
+  
+  .calendar-events-area {
+    flex: 1;
+    padding: 2px 4px 4px 4px;
+    overflow-y: auto;
+    min-height: 0;
+    overflow-x: hidden;
+  }
+  
+  .calendar-event {
+    background: #f3f4f6;
+    border-left: 2px solid #6b7280;
+    padding: 1px 4px;
+    margin-bottom: 1px;
+    border-radius: 2px;
+    font-size: 9px;
+    line-height: 1.2;
+    color: #374151;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    word-break: break-all;
+  }
+  
+  .calendar-event:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  
+  /* 動的に設定される色クラス */
+  .calendar-event.color-dynamic {
+    /* JavaScriptでstyle属性を設定 */
+  }
+  
+  /* モーダル内の表示要素スタイル */
+  .event-detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 8px 0;
+    border-bottom: 1px solid #f3f4f6;
+  }
+  
+  .event-detail-row:last-child {
+    border-bottom: none;
+  }
+  
+  .event-detail-row .font-medium {
+    flex: 0 0 auto;
+    width: 80px;
+    margin-right: 12px;
+  }
+  
+  .event-detail-row .text-gray-900 {
+    flex: 1;
+    word-wrap: break-word;
+    max-width: 250px;
+  }
+  
+  /* 凡例スタイル */
+  .color-legend {
+    border-top: 1px solid #e5e7eb;
+  }
+  
+  .legend-items {
+    max-height: 60px;
+    overflow-y: auto;
+  }
+  
+  .legend-color-box {
+    flex-shrink: 0;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  }
+  
+  @media (max-width: 768px) {
+    .color-legend {
+      padding: 12px;
+    }
+    
+    .legend-items {
+      gap: 8px;
+    }
+    
+    .legend-item {
+      font-size: 10px;
+    }
+    
+    .legend-color-box {
+      width: 12px;
+      height: 12px;
+    }
+  }
+  
+  .calendar-no-data {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    color: #6b7280;
+    background-color: #f9fafb;
+    border-right: 1px solid #d1d5db;
+    border-top: 1px solid #d1d5db;
+  }
+
+  /* モバイル・タブレット対応 */
+  @media (max-width: 768px) {
+    .calendar-header-cell {
+      padding: 6px 2px;
+      font-size: 10px;
+    }
+    
+    .calendar-main-grid {
+      grid-template-rows: repeat(6, minmax(70px, auto));
+    }
+    
+    .calendar-day-cell {
+      min-height: 70px;
+    }
+    
+    .calendar-date-header {
+      padding: 2px 4px;
+      min-height: 28px;
+    }
+    
+    .calendar-date-number {
+      font-size: 11px;
+      width: 20px;
+      height: 20px;
+    }
+    
+    .calendar-today-number {
+      min-width: 20px;
+      min-height: 20px;
+    }
+    
+    .calendar-events-area {
+      padding: 1px 2px 2px 2px;
+    }
+    
+    .calendar-event {
+      font-size: 8px;
+      padding: 1px 2px;
+      border-left-width: 1px;
+      line-height: 1.1;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .calendar-header-cell {
+      padding: 4px 1px;
+      font-size: 9px;
+    }
+    
+    .calendar-main-grid {
+      grid-template-rows: repeat(6, minmax(60px, auto));
+    }
+    
+    .calendar-day-cell {
+      min-height: 60px;
+    }
+    
+    .calendar-date-header {
+      padding: 2px;
+      min-height: 24px;
+    }
+    
+    .calendar-date-number {
+      font-size: 10px;
+      width: 18px;
+      height: 18px;
+    }
+    
+    .calendar-today-number {
+      min-width: 18px;
+      min-height: 18px;
+    }
+    
+    .calendar-event {
+      font-size: 7px;
+      padding: 1px;
+      margin-bottom: 1px;
+    }
+  }
+
+:javascript
+  // Turbo対応のカレンダー機能
+  document.addEventListener('turbo:load', function() {
+    initializeCalendar();
+  });
+
+  document.addEventListener('DOMContentLoaded', function() {
+    if (document.readyState !== 'loading') {
+      initializeCalendar();
+    }
+  });
+
+  // 初期化フラグリセット
+  document.addEventListener('turbo:before-render', function() {
+    window.calendarInitialized = false;
+  });
+
+  // グローバル変数：現在選択されているイベント
+  window.currentEvent = null;
+
+  // カスタムカテゴリの情報をJavaScript変数として定義
+  window.customCategories = #{@custom_categories.to_json.html_safe};
+
+  // カレンダー初期化関数
+  function initializeCalendar() {
+    if (window.calendarInitialized) {
+      console.log('Calendar already initialized, skipping...');
+      return;
+    }
+
+    console.log('=== Initializing Calendar ===');
+    
+    try {
+      // 月表示の更新
+      updateMonthDisplay();
+      
+      // イベントに動的色を適用
+      applyEventColors();
+      
+      // CSRFトークンをフォームに設定
+      setupCSRFToken();
+      
+      // ビュー切り替えボタンの設定
+      setupViewButtons();
+      
+      // フォーム送信の設定
+      setupFormSubmissions();
+      
+      // 開始日時変更時の終了日時自動設定
+      setupDateTimeAutoCalculation();
+      
+      // ナビゲーションボタンの設定
+      setupNavigationButtons();
+      
+      window.calendarInitialized = true;
+      console.log('=== Calendar initialization complete ===');
+      
+    } catch (error) {
+      console.error('Failed to initialize calendar:', error);
+      window.calendarInitialized = false;
+    }
+  }
+
+  // 月表示更新関数
+  function updateMonthDisplay() {
+    const calendarContainer = document.querySelector('.calendar-container');
+    if (!calendarContainer || !calendarContainer.dataset.currentDate) {
+      console.warn('Cannot update month display: calendar container or date not found');
+      return;
+    }
+    
+    try {
+      const currentDate = new Date(calendarContainer.dataset.currentDate);
+      const monthNames = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+      const displayText = `${currentDate.getFullYear()}年${monthNames[currentDate.getMonth()]}`;
+      
+      const monthElement = document.getElementById('current-month');
+      if (monthElement) {
+        monthElement.textContent = displayText;
+        console.log('Month display updated to:', displayText);
+      }
+    } catch (error) {
+      console.error('Error updating month display:', error);
+    }
+  }
+
+  // イベントの動的色適用
+  function applyEventColors() {
+    console.log('Applying dynamic colors to events...');
+    
+    if (!window.customCategories) {
+      console.warn('Custom categories not loaded yet');
+      return;
+    }
+    
+    const eventElements = document.querySelectorAll('.calendar-event');
+    console.log(`Found ${eventElements.length} event elements`);
+    
+    eventElements.forEach(eventElement => {
+      const eventType = eventElement.dataset.eventType;
+      if (!eventType) {
+        console.warn('Event element missing event_type data');
+        return;
+      }
+      
+      // 対応するカテゴリを検索
+      const category = window.customCategories.find(cat => 
+        (cat.id || cat['id']) === eventType
+      );
+      
+      if (category) {
+        const color = category.color || category['color'] || '#6B7280';
+        const colors = calculateEventColors(color);
+        
+        // スタイルを適用
+        eventElement.style.backgroundColor = colors.background;
+        eventElement.style.borderLeftColor = colors.border;
+        eventElement.style.color = colors.text;
+        
+        console.log(`Applied color ${color} to event type ${eventType}`);
+      } else {
+        console.warn(`No category found for event type: ${eventType}`);
+        // デフォルト色を適用
+        eventElement.style.backgroundColor = '#f3f4f6';
+        eventElement.style.borderLeftColor = '#6b7280';
+        eventElement.style.color = '#374151';
+      }
+    });
+  }
+
+  // 色計算関数
+  function calculateEventColors(baseColor) {
+    let r, g, b;
+    if (baseColor.startsWith('#')) {
+      const hex = baseColor.slice(1);
+      r = parseInt(hex.substr(0, 2), 16);
+      g = parseInt(hex.substr(2, 2), 16);
+      b = parseInt(hex.substr(4, 2), 16);
+    } else {
+      return { background: '#f3f4f6', border: '#6b7280', text: '#374151' };
+    }
+    
+    // 薄い背景色を生成
+    const backgroundR = Math.min(255, r + (255 - r) * 0.8);
+    const backgroundG = Math.min(255, g + (255 - g) * 0.8);
+    const backgroundB = Math.min(255, b + (255 - b) * 0.8);
+    const background = `rgba(${backgroundR}, ${backgroundG}, ${backgroundB}, 0.3)`;
+    
+    // 枠線色は元の色
+    const border = baseColor;
+    
+    // 文字色は元の色を暗くしたもの
+    const textR = Math.floor(r * 0.7);
+    const textG = Math.floor(g * 0.7);
+    const textB = Math.floor(b * 0.7);
+    const text = `rgb(${textR}, ${textG}, ${textB})`;
+    
+    return { background, border, text };
+  }
+
+  // CSRFトークン設定
+  function setupCSRFToken() {
+    const token = document.querySelector('meta[name="csrf-token"]');
+    const tokenInput = document.querySelector('input[name="authenticity_token"]');
+    
+    if (tokenInput && token) {
+      tokenInput.value = token.getAttribute('content');
+      console.log('CSRF token set successfully');
+    }
+  }
+
+  // ビュー切り替えボタン設定
+  function setupViewButtons() {
+    document.querySelectorAll('.view-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        
+        const view = this.dataset.view;
+        document.querySelectorAll('.calendar-view').forEach(v => v.classList.add('hidden'));
+        const targetView = document.getElementById(`${view}-view`);
+        if (targetView) {
+          targetView.classList.remove('hidden');
+        }
+      });
+    });
+  }
+
+  // フォーム送信設定
+  function setupFormSubmissions() {
+    const eventForm = document.getElementById('event-form');
+    if (eventForm) {
+      eventForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        submitEventForm();
+      });
+    }
+    
+    const editEventForm = document.getElementById('event-edit-form');
+    if (editEventForm) {
+      editEventForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        submitEditEventForm();
+      });
+    }
+  }
+
+  // 開始日時変更時の終了日時自動設定
+  function setupDateTimeAutoCalculation() {
+    const startTimeInput = document.querySelector('input[name="event[start_time]"]');
+    const endTimeInput = document.querySelector('input[name="event[end_time]"]');
+    
+    if (startTimeInput && endTimeInput) {
+      startTimeInput.addEventListener('change', function() {
+        updateEndTimeOneHourLater(this.value, endTimeInput);
+      });
+    }
+    
+    const editStartTimeInput = document.getElementById('edit-event-start');
+    const editEndTimeInput = document.getElementById('edit-event-end');
+    
+    if (editStartTimeInput && editEndTimeInput) {
+      editStartTimeInput.addEventListener('change', function() {
+        updateEndTimeOneHourLater(this.value, editEndTimeInput);
+      });
+    }
+  }
+
+  // 1時間後の時刻設定
+  function updateEndTimeOneHourLater(startTimeValue, endTimeInput) {
+    if (!startTimeValue || !endTimeInput) return;
+    
+    try {
+      const startDate = new Date(startTimeValue);
+      const endDate = new Date(startDate.getTime() + (60 * 60 * 1000));
+      
+      const year = endDate.getFullYear();
+      const month = String(endDate.getMonth() + 1).padStart(2, '0');
+      const day = String(endDate.getDate()).padStart(2, '0');
+      const hours = String(endDate.getHours()).padStart(2, '0');
+      const minutes = String(endDate.getMinutes()).padStart(2, '0');
+      
+      const formattedEndTime = `${year}-${month}-${day}T${hours}:${minutes}`;
+      endTimeInput.value = formattedEndTime;
+      
+      console.log(`Auto-calculated end time: ${formattedEndTime}`);
+    } catch (error) {
+      console.error('Error calculating end time:', error);
+    }
+  }
+
+  // ナビゲーションボタン設定
+  function setupNavigationButtons() {
+    const prevBtn = document.getElementById('prev-month');
+    const nextBtn = document.getElementById('next-month');
+    
+    if (prevBtn) {
+      prevBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        navigateToMonth(-1);
+      });
+    }
+    
+    if (nextBtn) {
+      nextBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        navigateToMonth(1);
+      });
+    }
+  }
+
+  // ====================
+  // グローバル関数定義
+  // ====================
+
+  // 月ナビゲーション
+  window.navigateToMonth = function(direction) {
+    console.log('=== navigateToMonth START ===', direction);
+    
+    try {
+      const calendarContainer = document.querySelector('.calendar-container');
+      if (!calendarContainer) {
+        alert('カレンダーコンテナが見つかりません');
+        return;
+      }
+      
+      const currentDateString = calendarContainer.dataset.currentDate;
+      if (!currentDateString) {
+        alert('日付データが見つかりません');
+        return;
+      }
+      
+      const currentDate = new Date(currentDateString);
+      currentDate.setMonth(currentDate.getMonth() + direction);
+      
+      const year = currentDate.getFullYear();
+      const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+      const dateParam = `${year}-${month}-01`;
+      
+      const targetUrl = `/calendar?date=${dateParam}`;
+      console.log('Navigating to:', targetUrl);
+      
+      window.location.assign(targetUrl);
+      
+    } catch (error) {
+      console.error('Error in navigateToMonth:', error);
+      alert('月の切り替えでエラーが発生しました: ' + error.message);
+    }
+  };
+
+  // 新規イベントモーダル
+  window.openNewEventModal = function() {
+    const modal = document.getElementById('event-modal');
+    if (modal) {
+      modal.classList.remove('hidden');
+      hideErrorMessages();
+    }
+  };
+
+  window.closeEventModal = function() {
+    const modal = document.getElementById('event-modal');
+    const form = document.getElementById('event-form');
+    if (modal) {
+      modal.classList.add('hidden');
+    }
+    if (form) {
+      form.reset();
+    }
+    hideErrorMessages();
+  };
+
+  // イベント詳細モーダル
+  window.openEventDetailsModal = function(eventId) {
+    console.log('Opening details for event:', eventId);
+    
+    fetch(`/calendar/${eventId}`, {
+      headers: {
+        'Accept': 'application/json',
+        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+      }
+    })
+    .then(response => {
+      if (response.ok) {
+        return response.json();
+      } else {
+        throw new Error('イベント詳細の取得に失敗しました。');
+      }
+    })
+    .then(event => {
+      window.currentEvent = event;
+      
+      // 詳細情報を表示
+      const titleEl = document.getElementById('event-detail-title');
+      const startEl = document.getElementById('event-detail-start');
+      const endEl = document.getElementById('event-detail-end');
+      const typeEl = document.getElementById('event-detail-type');
+      const descEl = document.getElementById('event-detail-description');
+      
+      if (titleEl) titleEl.textContent = event.title || '';
+      if (startEl) startEl.textContent = formatDateTime(event.start_time);
+      if (endEl) endEl.textContent = formatDateTime(event.end_time);
+      if (typeEl) typeEl.textContent = getEventTypeLabel(event.event_type);
+      if (descEl) descEl.textContent = event.description || '説明なし';
+      
+      // モーダルを表示
+      const modal = document.getElementById('event-details-modal');
+      if (modal) {
+        modal.classList.remove('hidden');
+      }
+    })
+    .catch(error => {
+      console.error('Error fetching event details:', error);
+      alert('エラーが発生しました: ' + error.message);
+    });
+  };
+
+  window.closeEventDetailsModal = function() {
+    const modal = document.getElementById('event-details-modal');
+    if (modal) {
+      modal.classList.add('hidden');
+    }
+    window.currentEvent = null;
+  };
+
+  window.openEditEventModal = function() {
+    if (!window.currentEvent) {
+      alert('編集するイベントが選択されていません。');
+      return;
+    }
+    
+    // 編集フォームに現在の値を設定
+    const idInput = document.getElementById('edit-event-id');
+    const titleInput = document.getElementById('edit-event-title');
+    const startInput = document.getElementById('edit-event-start');
+    const endInput = document.getElementById('edit-event-end');
+    const typeInput = document.getElementById('edit-event-type');
+    const descInput = document.getElementById('edit-event-description');
+    
+    if (idInput) idInput.value = window.currentEvent.id;
+    if (titleInput) titleInput.value = window.currentEvent.title || '';
+    if (startInput) startInput.value = formatDateTimeForInput(window.currentEvent.start_time);
+    if (endInput) endInput.value = formatDateTimeForInput(window.currentEvent.end_time);
+    if (typeInput) typeInput.value = window.currentEvent.event_type;
+    if (descInput) descInput.value = window.currentEvent.description || '';
+    
+    // CSRFトークンを設定
+    const token = document.querySelector('meta[name="csrf-token"]');
+    const tokenInput = document.querySelector('#event-edit-form input[name="authenticity_token"]');
+    if (token && tokenInput) {
+      tokenInput.value = token.getAttribute('content');
+    }
+    
+    // 詳細モーダルを閉じて編集モーダルを開く
+    closeEventDetailsModal();
+    const editModal = document.getElementById('event-edit-modal');
+    if (editModal) {
+      editModal.classList.remove('hidden');
+    }
+    hideEditErrorMessages();
+  };
+
+  window.closeEditEventModal = function() {
+    const modal = document.getElementById('event-edit-modal');
+    const form = document.getElementById('event-edit-form');
+    if (modal) {
+      modal.classList.add('hidden');
+    }
+    if (form) {
+      form.reset();
+    }
+    hideEditErrorMessages();
+  };
+
+  window.openDeleteConfirmModal = function() {
+    if (!window.currentEvent) {
+      alert('削除するイベントが選択されていません。');
+      return;
+    }
+    
+    // 削除確認モーダルにイベント名とIDを設定
+    const titleEl = document.getElementById('delete-event-title');
+    const idInput = document.getElementById('delete-event-id');
+    
+    if (titleEl) titleEl.textContent = window.currentEvent.title || '';
+    if (idInput) idInput.value = window.currentEvent.id;
+    
+    // 詳細モーダルを閉じて削除確認モーダルを開く
+    closeEventDetailsModal();
+    const deleteModal = document.getElementById('delete-confirm-modal');
+    if (deleteModal) {
+      deleteModal.classList.remove('hidden');
+    }
+  };
+
+  window.closeDeleteConfirmModal = function() {
+    const modal = document.getElementById('delete-confirm-modal');
+    if (modal) {
+      modal.classList.add('hidden');
+    }
+  };
+
+  window.confirmDeleteEvent = function() {
+    const eventId = document.getElementById('delete-event-id').value;
+    if (!eventId) {
+      alert('削除するイベントIDが見つかりません。');
+      return;
+    }
+    
+    const deleteBtn = document.getElementById('confirm-delete-btn');
+    if (deleteBtn) {
+      deleteBtn.disabled = true;
+      deleteBtn.textContent = '削除中...';
+    }
+    
+    fetch(`/calendar/${eventId}`, {
+      method: 'DELETE',
+      headers: {
+        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+        'Accept': 'application/json'
+      }
+    })
+    .then(response => {
+      if (response.ok) {
+        closeDeleteConfirmModal();
+        window.location.reload();
+      } else {
+        return response.text().then(text => {
+          let errorMessage = 'イベントの削除に失敗しました。';
+          try {
+            const errorData = JSON.parse(text);
+            if (errorData.error) {
+              errorMessage = errorData.error;
+            } else if (errorData.errors && errorData.errors.length > 0) {
+              errorMessage = errorData.errors.join(', ');
+            }
+          } catch (e) {
+            // JSON以外のレスポンス
+          }
+          alert(errorMessage);
+        });
+      }
+    })
+    .catch(error => {
+      console.error('Error deleting event:', error);
+      alert('削除中にエラーが発生しました: ' + error.message);
+    })
+    .finally(() => {
+      if (deleteBtn) {
+        deleteBtn.disabled = false;
+        deleteBtn.textContent = '削除';
+      }
+    });
+  };
+
+  // ====================
+  // ユーティリティ関数
+  // ====================
+
+  function hideErrorMessages() {
+    const errorDiv = document.getElementById('error-messages');
+    if (errorDiv) {
+      errorDiv.classList.add('hidden');
+      errorDiv.innerHTML = '';
+    }
+  }
+
+  function showErrorMessages(errors) {
+    const errorDiv = document.getElementById('error-messages');
+    if (errorDiv) {
+      errorDiv.innerHTML = '<ul>' + errors.map(error => '<li>' + error + '</li>').join('') + '</ul>';
+      errorDiv.classList.remove('hidden');
+    }
+  }
+
+  function hideEditErrorMessages() {
+    const errorDiv = document.getElementById('edit-error-messages');
+    if (errorDiv) {
+      errorDiv.classList.add('hidden');
+      errorDiv.innerHTML = '';
+    }
+  }
+
+  function showEditErrorMessages(errors) {
+    const errorDiv = document.getElementById('edit-error-messages');
+    if (errorDiv) {
+      errorDiv.innerHTML = '<ul>' + errors.map(error => '<li>' + error + '</li>').join('') + '</ul>';
+      errorDiv.classList.remove('hidden');
+    }
+  }
+
+  function formatDateTime(dateTimeString) {
+    if (!dateTimeString) return '';
+    
+    const date = new Date(dateTimeString);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    
+    return `${year}年${month}月${day}日 ${hours}:${minutes}`;
+  }
+
+  function formatDateTimeForInput(dateTimeString) {
+    if (!dateTimeString) return '';
+    
+    const date = new Date(dateTimeString);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  }
+
+  function getEventTypeLabel(eventType) {
+    if (!window.customCategories) return eventType;
+    
+    const category = window.customCategories.find(cat => (cat.id || cat['id']) === eventType);
+    return category ? (category.name || category['name']) : eventType;
+  }
+
+  function submitEventForm() {
+    const form = document.getElementById('event-form');
+    const submitBtn = document.getElementById('submit-btn');
+    
+    if (!form || !submitBtn) return;
+    
+    const formData = new FormData(form);
+    const token = document.querySelector('meta[name="csrf-token"]');
+    
+    if (token) {
+      formData.append('authenticity_token', token.getAttribute('content'));
+    }
+    
+    submitBtn.disabled = true;
+    submitBtn.textContent = '作成中...';
+    
+    fetch('/calendar', {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-CSRF-Token': token ? token.getAttribute('content') : '',
+        'Accept': 'application/json'
+      }
+    })
+    .then(response => {
+      if (response.ok) {
+        closeEventModal();
+        window.location.reload();
+      } else {
+        return response.text().then(text => {
+          let errorMessage = ['予期しないエラーが発生しました。'];
+          try {
+            const errorData = JSON.parse(text);
+            if (errorData.errors) {
+              if (typeof errorData.errors === 'object') {
+                errorMessage = Object.values(errorData.errors).flat();
+              } else if (Array.isArray(errorData.errors)) {
+                errorMessage = errorData.errors;
+              } else {
+                errorMessage = [errorData.errors];
+              }
+            } else if (errorData.error) {
+              errorMessage = [errorData.error];
+            }
+          } catch (e) {
+            errorMessage = [`サーバーエラー: ${response.status} ${response.statusText}`];
+          }
+          showErrorMessages(errorMessage);
+        });
+      }
+    })
+    .catch(error => {
+      console.error('Network error:', error);
+      showErrorMessages(['ネットワークエラーが発生しました: ' + error.message]);
+    })
+    .finally(() => {
+      submitBtn.disabled = false;
+      submitBtn.textContent = '作成';
+    });
+  }
+
+  function submitEditEventForm() {
+    const form = document.getElementById('event-edit-form');
+    const submitBtn = document.getElementById('edit-submit-btn');
+    const eventId = document.getElementById('edit-event-id');
+    
+    if (!form || !submitBtn || !eventId || !eventId.value) {
+      alert('フォームデータが不正です。');
+      return;
+    }
+    
+    const formData = new FormData(form);
+    const token = document.querySelector('meta[name="csrf-token"]');
+    
+    if (token) {
+      formData.append('authenticity_token', token.getAttribute('content'));
+    }
+    
+    submitBtn.disabled = true;
+    submitBtn.textContent = '更新中...';
+    
+    fetch(`/calendar/${eventId.value}`, {
+      method: 'PUT',
+      body: formData,
+      headers: {
+        'X-CSRF-Token': token ? token.getAttribute('content') : '',
+        'Accept': 'application/json'
+      }
+    })
+    .then(response => {
+      if (response.ok) {
+        closeEditEventModal();
+        window.location.reload();
+      } else {
+        return response.text().then(text => {
+          let errorMessage = ['予期しないエラーが発生しました。'];
+          try {
+            const errorData = JSON.parse(text);
+            if (errorData.errors) {
+              if (typeof errorData.errors === 'object') {
+                errorMessage = Object.values(errorData.errors).flat();
+              } else if (Array.isArray(errorData.errors)) {
+                errorMessage = errorData.errors;
+              } else {
+                errorMessage = [errorData.errors];
+              }
+            } else if (errorData.error) {
+              errorMessage = [errorData.error];
+            }
+          } catch (e) {
+            if (text.includes('開始時刻より後である必要があります')) {
+              errorMessage = ['終了時刻は開始時刻より後に設定してください。'];
+            } else {
+              errorMessage = [`サーバーエラー: ${response.status} ${response.statusText}`];
+            }
+          }
+          showEditErrorMessages(errorMessage);
+        });
+      }
+    })
+    .catch(error => {
+      console.error('Edit network error:', error);
+      showEditErrorMessages(['ネットワークエラーが発生しました: ' + error.message]);
+    })
+    .finally(() => {
+      submitBtn.disabled = false;
+      submitBtn.textContent = '更新';
+    });
+  }

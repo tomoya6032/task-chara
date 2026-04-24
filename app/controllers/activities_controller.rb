@@ -12,15 +12,25 @@ class ActivitiesController < ApplicationController
 
   def new
     @activity = @character.activities.build
-    # AIチャットの会話履歴を取得
-    @ai_conversations = get_ai_conversations
+    # AIチャットの会話履歴を取得（エラーハンドリング付き）
+    begin
+      @ai_conversations = get_ai_conversations
+    rescue => e
+      Rails.logger.error "AI conversations fetch error: #{e.message}"
+      @ai_conversations = [] # エラーが発生した場合は空配列を設定
+    end
+
     # チャット内容をプリセット用にセット（パラメーターで指定されている場合）
     if params[:from_chat].present?
       @activity.content = params[:content] if params[:content].present?
     end
 
     respond_to do |format|
-      format.html
+      format.html do
+        if request.headers["Turbo-Frame"]
+          render layout: false
+        end
+      end
       format.turbo_stream
     end
   end
@@ -229,6 +239,78 @@ class ActivitiesController < ApplicationController
     end
   end
 
+  # 日報からタスクを抽出
+  def extract_tasks
+    @activity = @character.activities.find(params[:id])
+
+    if @activity.content.blank?
+      render json: {
+        success: false,
+        message: "日報の内容が空のため、タスクを抽出できません"
+      }, status: :bad_request
+      return
+    end
+
+    begin
+      # タスク抽出サービスを実行
+      extraction_service = ActivityTaskExtractionService.new(activity: @activity)
+      result = extraction_service.extract_and_create_tasks
+
+      respond_to do |format|
+        format.json { render json: result }
+        format.html do
+          if result[:success]
+            draft_tasks = result[:created_tasks]
+            if draft_tasks.present?
+              notice_message = "🤖 AIが#{result[:tasks_count]}件のタスク候補を抽出しました（ドラフト状態）\n"
+              notice_message += "内容を確認してタスクリストに追加してください:\n"
+              draft_tasks.each_with_index do |task, index|
+                notice_message += "#{index + 1}. #{task.title} (#{task.extraction_index})\n"
+              end
+            else
+              notice_message = "タスクの抽出を実行しましたが、具体的な予定・タスクが見つかりませんでした"
+            end
+
+            redirect_to activity_path(@activity), notice: notice_message
+          else
+            redirect_to activity_path(@activity),
+              alert: "エラー: #{result[:message]}"
+          end
+        end
+      end
+
+    rescue => e
+      Rails.logger.error "Task extraction error: #{e.message}"
+      Rails.logger.error e.backtrace.join("\n")
+
+      error_response = {
+        success: false,
+        message: "タスクの抽出処理中にエラーが発生しました: #{e.message}"
+      }
+
+      respond_to do |format|
+        format.json { render json: error_response, status: :internal_server_error }
+        format.html do
+          redirect_to activity_path(@activity),
+            alert: error_response[:message]
+        end
+      end
+    end
+  rescue ActiveRecord::RecordNotFound
+    respond_to do |format|
+      format.json do
+        render json: {
+          success: false,
+          message: "指定された日報が見つかりません"
+        }, status: :not_found
+      end
+      format.html do
+        redirect_to activities_path,
+          alert: "指定された日報が見つかりません"
+      end
+    end
+  end
+
   private
 
   def set_character
@@ -251,30 +333,43 @@ class ActivitiesController < ApplicationController
 
   # AIチャットの会話履歴を取得
   def get_ai_conversations
-    # 最近の会話の一意な conversation_id を取得
-    conversation_ids = AiChat.where(character: @character)
-                             .select(:conversation_id)
-                             .distinct
-                             .order("MIN(created_at) DESC")
-                             .group(:conversation_id)
-                             .limit(10)
-                             .pluck(:conversation_id)
+    return [] unless defined?(AiChat) # AiChatモデルが存在しない場合は空配列を返す
+    return [] unless ActiveRecord::Base.connection.table_exists?("ai_chats") # テーブルが存在しない場合は空配列を返す
 
-    # 各会話の詳細情報を取得
-    conversations = conversation_ids.map do |conv_id|
-      messages = AiChat.for_conversation(conv_id).recent.limit(5)
-      next if messages.empty?
+    begin
+      # PostgreSQLの制約を回避するため、GROUP BYとORDER BYを適切に組み合わせる
+      conversations_data = AiChat.where(character: @character)
+                                 .group(:conversation_id)
+                                 .select("conversation_id, MIN(created_at) as first_created_at, MAX(created_at) as last_created_at, COUNT(*) as message_count")
+                                 .order("last_created_at DESC")
+                                 .limit(10)
 
-      {
-        conversation_id: conv_id,
-        created_at: messages.last.created_at,
-        preview: truncate_text(messages.first.content, 100),
-        message_count: AiChat.for_conversation(conv_id).count,
-        last_message_at: messages.first.created_at
-      }
-    end.compact.sort_by { |conv| conv[:last_message_at] }.reverse
+      # 各会話の詳細情報を取得
+      conversations = conversations_data.map do |conv_data|
+        conv_id = conv_data.conversation_id
+        next if conv_id.blank?
 
-    conversations
+        # 最新のメッセージを取得してプレビューを作成
+        latest_message = AiChat.where(character: @character, conversation_id: conv_id)
+                              .order(created_at: :desc)
+                              .first
+
+        next unless latest_message
+
+        {
+          conversation_id: conv_id,
+          created_at: conv_data.first_created_at,
+          preview: latest_message.content.present? ? latest_message.content.truncate(100) : "会話内容なし",
+          message_count: conv_data.message_count,
+          last_message_at: conv_data.last_created_at
+        }
+      end.compact
+
+      conversations
+    rescue => e
+      Rails.logger.error "Error fetching AI conversations: #{e.message}"
+      [] # エラーの場合は空配列を返す
+    end
   end
 
   # AIチャット履歴から日報を生成

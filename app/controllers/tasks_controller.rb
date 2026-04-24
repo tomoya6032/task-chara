@@ -1,6 +1,6 @@
 class TasksController < ApplicationController
   before_action :set_character
-  before_action :set_task, only: [ :show, :complete, :hide, :unhide, :destroy ]
+  before_action :set_task, only: [ :show, :edit, :update, :complete, :hide, :unhide, :approve, :destroy ]
 
   def index
     sort_by = params[:sort] || "created_date"
@@ -12,9 +12,10 @@ class TasksController < ApplicationController
                @character.tasks.includes(:character).ordered_by_created_date
     end
 
-    @pending_tasks = @tasks.pending
-    @completed_tasks = @tasks.completed
-    @hidden_tasks = @tasks.where(hidden: true)
+    @pending_tasks = @tasks.pending.published
+    @completed_tasks = @tasks.completed.published
+    @hidden_tasks = @tasks.where(hidden: true).published
+    @draft_tasks = @character.tasks.draft.includes(:extracted_from_activity).ordered_by_created_date
     @current_sort = sort_by
   end
 
@@ -89,7 +90,33 @@ class TasksController < ApplicationController
   end
 
   def show
-    # タスク詳細表示
+    respond_to do |format|
+      format.html { redirect_to tasks_path }
+      format.json { render json: @task }
+    end
+  end
+
+  def edit
+    respond_to do |format|
+      format.html
+      format.turbo_stream
+    end
+  end
+
+  def update
+    if @task.update(task_params)
+      respond_to do |format|
+        format.html do
+          redirect_to tasks_path, notice: "✅ タスク「#{@task.title}」を更新しました！"
+        end
+        format.json { render json: { success: true, task: @task } }
+      end
+    else
+      respond_to do |format|
+        format.html { render :edit, status: :unprocessable_entity }
+        format.json { render json: { success: false, errors: @task.errors } }
+      end
+    end
   end
 
   def hidden
@@ -148,6 +175,38 @@ class TasksController < ApplicationController
         ]
       end
       format.html { redirect_to dashboard_path, notice: "タスクを復元しました" }
+    end
+  end
+
+  def approve
+    if @task.draft? && @task.extracted?
+      @task.approve!
+
+      respond_to do |format|
+        format.turbo_stream do
+          render turbo_stream: [
+            turbo_stream.remove("draft-task-#{@task.id}"),
+            turbo_stream.prepend("published-tasks",
+              render_to_string(partial: "tasks/task_card", locals: { task: @task, show_approve_button: false })
+            ),
+            turbo_stream.update("flash-messages",
+              render_to_string(partial: "shared/flash_message", locals: { message: "タスクを承認しました", type: "success" })
+            )
+          ]
+        end
+        format.html { redirect_to tasks_path, notice: "タスク「#{@task.title}」を承認しました" }
+        format.json { render json: { status: "approved", task_id: @task.id, message: "タスクを承認しました" } }
+      end
+    else
+      respond_to do |format|
+        format.turbo_stream do
+          render turbo_stream: turbo_stream.update("flash-messages",
+            render_to_string(partial: "shared/flash_message", locals: { message: "このタスクは承認できません", type: "error" })
+          )
+        end
+        format.html { redirect_to tasks_path, alert: "このタスクは承認できません" }
+        format.json { render json: { error: "Cannot approve this task" }, status: :unprocessable_entity }
+      end
     end
   end
 

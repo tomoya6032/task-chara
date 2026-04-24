@@ -2,35 +2,35 @@
 .min-h-screen.bg-slate-50.dark:bg-slate-900
   / デスクトップサイドバー（lg以上で表示）
   .hidden.lg:fixed.lg:inset-y-0.lg:z-50.lg:flex.lg:w-72.lg:flex-col
-    .flex.grow.flex-col.gap-y-5.overflow-y-auto.bg-white.dark:bg-slate-800.px-6.border-r.border-slate-200.dark:border-slate-700
-      .flex.h-16.shrink-0.items-center
-        %h1.text-lg.font-semibold.text-slate-900.dark:text-white
-          TaskChara
-        %span.ml-2.text-xs.text-slate-500 ✨
+    -# .flex.grow.flex-col.gap-y-5.overflow-y-auto.bg-white.dark:bg-slate-800.px-6.border-r.border-slate-200.dark:border-slate-700
+      -# .flex.h-16.shrink-0.items-center
+      -#   %h1.text-lg.font-semibold.text-slate-900.dark:text-white
+      -#     TaskChara
+      -#   %span.ml-2.text-xs.text-slate-500 ✨
 
-      %nav.flex.flex-1.flex-col
-        %ul.flex.flex-1.flex-col.gap-y-7{role: "list"}
-          %li
-            %ul.space-y-1{role: "list"}
-              %li
-                = link_to dashboard_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
-                  📊
-                  ダッシュボード
-              %li
-                = link_to activities_path, class: "bg-slate-50 text-slate-700 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
-                  = "📖"
-                  日報一覧
-              %li
-                = link_to support_reports_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
-                  = "📋"
-                  支援報告書
-              %li  
-                = link_to new_activity_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold", data: { "turbo-frame": "activity_form_modal" } do
-                  = "📝"
-                  日報投稿
+      -# %nav.flex.flex-1.flex-col
+      -#   %ul.flex.flex-1.flex-col.gap-y-7{role: "list"}
+      -#     %li
+      -#       %ul.space-y-1{role: "list"}
+      -#         %li
+      -#           = link_to dashboard_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
+      -#             📊
+      -#             ダッシュボード
+      -#         %li
+      -#           = link_to activities_path, class: "bg-slate-50 text-slate-700 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
+      -#             = "📖"
+      -#             日報一覧
+      -#         %li
+      -#           = link_to support_reports_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
+      -#             = "📋"
+      -#             支援報告書
+      -#         %li  
+      -#           = link_to new_activity_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold", data: { "turbo-frame": "activity_form_modal" } do
+      -#             = "📝"
+      -#             日報投稿
 
   / メインコンテンツエリア
-  .lg:pl-72.pt-4
+  .pt-4
     .px-4.sm:px-6.lg:px-8.py-8
       / 戻るボタン
       .mb-6
@@ -125,6 +125,12 @@
               ← 一覧に戻る
             
             .flex.space-x-2
+              = button_to extract_tasks_activity_path(@activity),
+                  method: :post,
+                  class: "inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors",
+                  data: { confirm: "この日報から予定・タスクを抽出してタスクリストに追加しますか？", disable_with: "🤖 AIが解析中..." },
+                  id: "extract-tasks-btn" do
+                🤖 予定をタスクに抽出
               = link_to edit_activity_path(@activity), 
                   class: "inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors" do
                 📝 編集

@@ -1,131 +1,79 @@
 / 支援報告書一覧ページ
-.min-h-screen.bg-slate-50.dark:bg-slate-900
-  / デスクトップサイドバー（lg以上で表示）
-  .hidden.lg:fixed.lg:inset-y-0.lg:z-50.lg:flex.lg:w-72.lg:flex-col
-    .flex.grow.flex-col.gap-y-5.overflow-y-auto.bg-white.dark:bg-slate-800.px-6.border-r.border-slate-200.dark:border-slate-700
-      .flex.h-16.shrink-0.items-center
-        %h1.text-lg.font-semibold.text-slate-900.dark:text-white
-          TaskChara
-        %span.ml-2.text-xs.text-slate-500 ✨
+= content_for :page_title, "支援報告書"
 
-      %nav.flex.flex-1.flex-col
-        %ul.flex.flex-1.flex-col.gap-y-7{role: "list"}
-          %li
-            %ul.space-y-1{role: "list"}
-              %li
-                = link_to dashboard_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
-                  📊
-                  ダッシュボード
-              %li
-                = link_to activities_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
-                  = "📖"
-                  日報一覧
-              %li
-                = link_to support_reports_path, class: "bg-slate-50 text-slate-700 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
-                  = "📋"
-                  支援報告書
-              %li
-                = link_to support_reports_path, class: "bg-slate-100 text-slate-700 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
-                  📋
-                  支援報告書
+.px-4.sm:px-6.lg:px-8.py-8
+  / ヘッダー
+  .flex.items-center.justify-between.mb-8
+    %div
+      %h1.text-3xl.font-bold.text-slate-900.dark:text-white
+        📋 支援報告書
+      %p.mt-2.text-slate-600.dark:text-slate-400
+        AI生成による月次支援報告書の管理
+    = link_to new_support_report_path, 
+        class: "inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors shadow-sm" do
+      ➕ 新規作成
 
-  / メインコンテンツエリア
-  .lg:pl-72.pt-4
-    .px-4.sm:px-6.lg:px-8.py-8
-      / ヘッダー
-      .flex.items-center.justify-between.mb-8
-        %div
-          %h1.text-3xl.font-bold.text-slate-900.dark:text-white
-            📋 支援報告書
-          %p.mt-2.text-slate-600.dark:text-slate-400
-            AI生成による月次支援報告書の管理
-        = link_to new_support_report_path, 
-            class: "inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors shadow-sm" do
-          ➕ 新規作成
+  / 支援報告書一覧
+  - if @support_reports.any?
+    .grid.gap-6
+      - @support_reports.each do |report|
+        .bg-white.dark:bg-slate-800.shadow-md.rounded-xl.border.border-slate-200.dark:border-slate-700.overflow-hidden.hover:shadow-lg.transition-shadow
+          .p-6
+            .flex.items-start.justify-between.mb-4
+              %div
+                %h3.text-xl.font-semibold.text-slate-900.dark:text-white.mb-2
+                  = link_to report.title, support_report_path(report), class: "hover:text-blue-600 transition-colors"
+                %p.text-sm.text-slate-500.dark:text-slate-400.mb-2
+                  = report.period_display
+                .flex.items-center.space-x-3.text-sm.text-slate-500
+                  %span
+                    = "#{report.created_at.strftime('%Y年%m月%d日')} 作成"
+                  %span.inline-flex.items-center.px-2.py-1.rounded-full.text-xs.font-medium{
+                    class: case report.status
+                      when 'draft' then 'bg-gray-100 text-gray-800'
+                      when 'generating' then 'bg-yellow-100 text-yellow-800'
+                      when 'completed' then 'bg-green-100 text-green-800'
+                      when 'error' then 'bg-red-100 text-red-800'
+                    end
+                  }
+                    - case report.status
+                      - when 'draft'
+                        📝 下書き
+                      - when 'generating'
+                        ⏳ 生成中
+                      - when 'completed'
+                        ✅ 完成
+                      - when 'error'
+                        ❌ エラー
+              
+              %div.flex.space-x-2
+                = link_to support_report_path(report), 
+                    class: "inline-flex items-center px-3 py-2 border border-slate-300 text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors" do
+                  👁️ 詳細
+                - if report.draft? || report.error?
+                  = link_to generate_support_report_path(report), method: :post,
+                      class: "inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors" do
+                    🤖 AI生成
+            
+            - if report.content.present?
+              .mt-4.pt-4.border-t.border-slate-200.dark:border-slate-600
+                %p.text-slate-600.dark:text-slate-300.line-clamp-3
+                  = truncate(report.content, length: 150)
 
-      / 支援報告書一覧
-      - if @support_reports.any?
-        .grid.gap-6
-          - @support_reports.each do |report|
-            .bg-white.dark:bg-slate-800.shadow-md.rounded-xl.border.border-slate-200.dark:border-slate-700.overflow-hidden.hover:shadow-lg.transition-shadow
-              .p-6
-                .flex.items-start.justify-between.mb-4
-                  %div
-                    %h3.text-xl.font-semibold.text-slate-900.dark:text-white.mb-2
-                      = link_to report.title, support_report_path(report), class: "hover:text-blue-600 transition-colors"
-                    %p.text-sm.text-slate-500.dark:text-slate-400.mb-2
-                      = report.period_display
-                    .flex.items-center.space-x-3.text-sm.text-slate-500
-                      %span
-                        = "#{report.created_at.strftime('%Y年%m月%d日')} 作成"
-                      %span.inline-flex.items-center.px-2.py-1.rounded-full.text-xs.font-medium{
-                        class: case report.status
-                          when 'draft' then 'bg-gray-100 text-gray-800'
-                          when 'generating' then 'bg-yellow-100 text-yellow-800'
-                          when 'completed' then 'bg-green-100 text-green-800'
-                          when 'error' then 'bg-red-100 text-red-800'
-                        end
-                      }
-                        - case report.status
-                          - when 'draft'
-                            📝 下書き
-                          - when 'generating'
-                            ⏳ 生成中
-                          - when 'completed'
-                            ✅ 完成
-                          - when 'error'
-                            ❌ エラー
-                  
-                  %div.flex.space-x-2
-                    = link_to support_report_path(report), 
-                        class: "inline-flex items-center px-3 py-2 border border-slate-300 text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors" do
-                      👁️ 詳細
-                    - if report.draft? || report.error?
-                      = link_to generate_support_report_path(report), method: :post,
-                          class: "inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors" do
-                        🤖 AI生成
-                
-                - if report.content.present?
-                  .mt-4.pt-4.border-t.border-slate-200.dark:border-slate-600
-                    %p.text-slate-600.dark:text-slate-300.line-clamp-3
-                      = truncate(report.content, length: 150)
-
-        / ページネーション
-        - if @support_reports.respond_to?(:current_page)
-          .mt-8.flex.justify-center
-            = paginate @support_reports
-      
-      - else
-        / 空の状態
-        .text-center.py-12
-          .mx-auto.h-24.w-24.text-slate-400.mb-4
-            📋
-          %h3.text-lg.font-medium.text-slate-900.dark:text-white.mb-2
-            支援報告書がありません
-          %p.text-slate-500.dark:text-slate-400.mb-6
-            AIが日報データから自動で支援報告書を生成します
-          = link_to new_support_report_path, 
-              class: "inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors" do
-            ➕ 最初の報告書を作成
-
-  / モバイルナビゲーション（下部固定）
-  .lg:hidden.fixed.bottom-0.left-0.right-0.bg-white.border-t.border-slate-200.dark:bg-slate-800.dark:border-slate-700.px-4
-    .flex.items-center.justify-around.py-2
-      = link_to root_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400" do
-        %span.text-lg= "🏠"
-        %span.text-xs.mt-1 ホーム
-      = link_to new_task_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400" do
-        %span.text-lg= "➕"
-        %span.text-xs.mt-1 タスク
-      = link_to new_activity_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400", data: { "turbo-frame": "activity_form_modal" } do
-        %span.text-lg= "📝"
-        %span.text-xs.mt-1 日報
-      = link_to activities_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400" do
-        %span.text-lg= "📖"
-        %span.text-xs.mt-1 一覧
-      = link_to support_reports_path, class: "flex flex-col items-center py-2 px-1 text-blue-600 dark:text-blue-400" do
-        %span.text-lg= "📋"
-        %span.text-xs.mt-1 報告書
-      %a.flex.flex-col.items-center.py-2.px-1.text-slate-600.dark:text-slate-400{href: "#"}
-        %span.text-lg= "⚙️"
-        %span.text-xs.mt-1 設定
+    / ページネーション
+    - if @support_reports.respond_to?(:current_page)
+      .mt-8.flex.justify-center
+        = paginate @support_reports
+  
+  - else
+    / 空の状態
+    .text-center.py-12
+      .mx-auto.h-24.w-24.text-slate-400.mb-4
+        📋
+      %h3.text-lg.font-medium.text-slate-900.dark:text-white.mb-2
+        支援報告書がありません
+      %p.text-slate-500.dark:text-slate-400.mb-6
+        AIが日報データから自動で支援報告書を生成します
+      = link_to new_support_report_path, 
+          class: "inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors" do
+        ➕ 最初の報告書を作成

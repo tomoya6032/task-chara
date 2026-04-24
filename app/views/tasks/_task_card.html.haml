@@ -1,0 +1,96 @@
+/ タスクカード用パーシャル
+/ local variables: task, show_approve_button (optional, default: true)
+- show_approve_button = local_assigns.fetch(:show_approve_button, true)
+
+- if task.draft?
+  / AI抽出タスク（ドラフト状態）
+  .bg-white.dark:bg-slate-800.rounded-lg.p-4.border.border-purple-200.dark:border-purple-600{id: "draft-task-#{task.id}"}
+    .flex.items-start.justify-between
+      .flex-1
+        .flex.items-center.gap-2.mb-2
+          %span.text-xs.font-mono.px-2.py-1.bg-purple-100.dark:bg-purple-800.text-purple-600.dark:text-purple-300.rounded
+            = task.extraction_index
+          %span.text-xs.px-2.py-1.bg-blue-100.dark:bg-blue-800.text-blue-600.dark:text-blue-300.rounded
+            = task.category_display
+          %span.text-xs.px-2.py-1.bg-yellow-100.dark:bg-yellow-800.text-yellow-600.dark:text-yellow-300.rounded
+            信頼度: #{task.extraction_confidence_display}
+
+        %h3.font-medium.text-slate-900.dark:text-white.mb-1
+          = task.title
+        
+        - if task.extraction_source_text.present?
+          %p.text-xs.text-slate-600.dark:text-slate-400.italic.mb-2
+            抽出元: "#{truncate(task.extraction_source_text, length: 50)}"
+        
+        - if task.due_date.present?
+          %p.text-sm.text-slate-600.dark:text-slate-400
+            期限: #{task.due_date_display}
+        
+        - if task.source_activity.present?
+          %p.text-xs.text-blue-600.dark:text-blue-400
+            = link_to "日報「#{truncate(task.source_activity.title || '無題', length: 20)}」から抽出", activity_path(task.source_activity), class: "hover:underline"
+
+      - if show_approve_button
+        .flex.gap-2
+          = button_to "✅ 承認", approve_task_path(task), method: :patch,
+              class: "px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-sm rounded transition-colors",
+              data: { confirm: "このタスクを正式なタスクとして承認しますか？" }
+          = button_to "❌ 却下", task_path(task), method: :delete,
+              class: "px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm rounded transition-colors",
+              data: { confirm: "このドラフトタスクを削除しますか？" }
+
+- elsif task.completed?
+  / 完了済みタスク
+  .bg-green-50.dark:bg-green-900.rounded-lg.p-3.border.border-green-200.dark:border-green-700{id: "task-#{task.id}"}
+    .flex.items-center.justify-between.w-full
+      .flex.items-center.gap-3.flex-grow.min-w-0
+        %span.text-xl ✅
+        .flex-grow.min-w-0
+          %h4.font-medium.text-slate-900.dark:text-white.truncate
+            = task.title
+          .text-sm.text-green-600.dark:text-green-400
+            完了: #{task.completed_at.strftime("%m/%d %H:%M")} | 
+            獲得強靭さ: +#{(task.dislike_level || 1) * 1.5}pt
+
+- else
+  / 通常の未完了タスク
+  .bg-slate-50.dark:bg-slate-700.rounded-lg.p-3.border.border-slate-200.dark:border-slate-600{id: "task-#{task.id}"}
+    .flex.items-center.justify-between.w-full
+      .flex.items-center.gap-3.flex-grow.min-w-0
+        / カテゴリアイコン
+        - case task.category
+        - when 'welfare'
+          %span.text-xl 🏠
+        - when 'web'
+          %span.text-xl 💻
+        - when 'admin'
+          %span.text-xl 📋
+        - else
+          %span.text-xl ✅
+
+        .flex-grow.min-w-0
+          %h4.font-medium.text-slate-900.dark:text-white.truncate
+            = task.title
+          .text-sm.text-slate-600.dark:text-slate-400
+            嫌い度: #{task.dislike_level}/10 | 
+            作成: #{task.created_at.strftime("%m/%d %H:%M")}
+          - if task.due_date.present?
+            .text-sm{
+              class: case task.due_status
+                     when "期限切れ"
+                       "text-red-600 dark:text-red-400 font-medium"
+                     when "期限間近"
+                       "text-amber-600 dark:text-amber-400 font-medium"
+                     else
+                       "text-slate-500 dark:text-slate-400"
+                     end
+            }
+              ⏰ #{task.due_date_display} (#{task.due_status})
+
+      .flex.gap-2.flex-shrink-0
+        %button.bg-blue-600.hover:bg-blue-700.text-white.px-3.py-1.rounded.text-sm.transition-colors{ type: "button", onclick: "openEditTaskModal(#{task.id})" }
+          ✏️ 編集
+        = button_to complete_task_path(task), method: :patch, class: "bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm transition-colors", data: { confirm: "「#{task.title}」を完了しますか？\n強靭さ+#{(task.dislike_level || 1) * 1.5}pt獲得できます！", turbo: false }, form_class: "inline" do
+          🎯 完了
+        = button_to hide_task_path(task), method: :patch, class: "bg-slate-600 hover:bg-slate-700 text-white px-3 py-1 rounded text-sm transition-colors", data: { turbo: false }, form_class: "inline" do
+          👁️ 非表示

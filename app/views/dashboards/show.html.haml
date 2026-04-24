@@ -1,150 +1,43 @@
 / TaskChara - プロフェッショナルダッシュボード
-.min-h-screen.bg-slate-50.dark:bg-slate-900
-  / デスクトップサイドバー（lg以上で表示）
-  .hidden.lg:fixed.lg:inset-y-0.lg:z-50.lg:flex.lg:w-72.lg:flex-col
-    .flex.grow.flex-col.gap-y-5.overflow-y-auto.bg-white.dark:bg-slate-800.px-6.border-r.border-slate-200.dark:border-slate-700
-      .flex.h-16.shrink-0.items-center
-        %h1.text-lg.font-semibold.text-slate-900.dark:text-white
-          TaskChara
-        %span.ml-2.text-xs.text-slate-500 ✨
+= content_for :page_title, "ダッシュボード"
 
-      %nav.flex.flex-1.flex-col
-        %ul.flex.flex-1.flex-col.gap-y-7{role: "list"}
-          %li
-            %ul.space-y-1{role: "list"}
-              %li
-                = link_to dashboard_path, class: "bg-slate-50 text-slate-700 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
-                  📊
-                  ダッシュボード
-              %li  
-                = link_to ai_secretary_chat_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold", target: "_blank" do
-                  🤖
-                  AI秘書エージェント
-              %li
-                = link_to new_task_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold", data: { "turbo-frame": "task-modal" } do
-                  = "✅"
-                  タスク追加
-              %li
-                = link_to tasks_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
-                  = "📋"
-                  タスク一覧
-              %li
-                = link_to completed_tasks_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
-                  = "🏆"
-                  完了履歴
-              %li  
-                = link_to new_activity_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold", data: { "turbo-frame": "activity_form_modal" } do
-                  = "📝"
-                  日報投稿
-              %li
-                = link_to activities_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
-                  = "📖"
-                  日報一覧
-              %li
-                = link_to support_reports_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
-                  = "📋"
-                  支援報告書
-              %li
-                = link_to meeting_minutes_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
-                  = "📝"
-                  会議議事録
-              %li
-                = link_to prompt_templates_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
-                  🤖
-                  プロンプト設定
-              %li
-                = link_to report_templates_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
-                  = "📄"
-                  テンプレート管理
-              %li
-                %a.text-slate-400.hover:text-slate-700.hover:bg-slate-50.group.flex.gap-x-3.rounded-md.p-2.text-sm.leading-6.font-semibold{href: "#"}
-                  = "🛍️"
-                  つながるマルシェ
-              %li
-                = link_to report_templates_path, class: "text-slate-400 hover:text-slate-700 hover:bg-slate-50 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold" do
-                  = "⚙️"
-                  設定
-
-  / モバイルボトムナビゲーション（lg未満で表示）
-  .fixed.bottom-0.left-0.right-0.z-50.bg-white.dark:bg-slate-800.border-t.border-slate-200.dark:border-slate-700.lg:hidden
-    .grid.grid-cols-5.py-2
-      -# = link_to dashboard_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400" do
-      -#   %span.text-lg= "📊"
-      -#   %span.text-xs.mt-1 ホーム
-      = link_to new_activity_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400", data: { "turbo-frame": "activity_form_modal" } do
-        %span.text-lg= "📖"
-        %span.text-xs.mt-1 日報
-      = link_to support_reports_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400" do
-        %span.text-lg= "📋"
-        %span.text-xs.mt-1 報告書
-      = link_to meeting_minutes_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400" do
-        %span.text-lg= "📝"
-        %span.text-xs.mt-1 議事録
-      = link_to new_task_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400", data: { "turbo-frame": "task-modal" } do
-        %span.text-lg= "✅"
-        %span.text-xs.mt-1 タスク
-      = link_to report_templates_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400" do
-        %span.text-lg= "⚙️"
-        %span.text-xs.mt-1 設定
-
-  / メインコンテンツエリア
-  .lg:pl-72.pt-4
-    .px-4.sm:px-6.lg:px-8.py-8
-      / モバイルヘッダー
-      .lg:hidden.mb-6
-        %h1.text-2xl.font-bold.text-slate-900.dark:text-white
-          TaskChara
-          %span.ml-2.text-sm.text-slate-500 ✨
-      
-      / フラッシュメッセージエリア
-      %div#flash-container.mb-6
-      
-      / キャラクターメインカード
-      %turbo-frame#character-display
-        = render 'dashboards/character_display', character: @character
-
-      / ステータスバーカード
-      %turbo-frame#status-bars
-        = render 'shared/status_bars', character: @character
-
-      / アクションボタンエリア
-      %turbo-frame#action-buttons
-        = render 'shared/action_buttons', character: @character
-
-      / タスク一覧（今日のタスク）
-      %turbo-frame#tasks-list
-        = render 'shared/tasks_overview', character: @character
-
-  / フローティングアクションボタン（モバイル日報投稿）
-  .fixed.bottom-20.right-4.lg:hidden.z-40
-    = link_to new_activity_path, 
-        class: "bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-full w-14 h-14 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200",
-        data: { "turbo-frame": "activity_form_modal" } do
-      %span.text-xl= "📝"
-
-  / モーダルエリア
-  %turbo-frame#task-modal
+.px-4.sm:px-6.lg:px-8.py-8
+  / フラッシュメッセージエリア
+  %div#flash-container.mb-6
   
-  / ローディングオーバーレイ
-  #loading-overlay.fixed.inset-0.bg-black.bg-opacity-30.backdrop-blur-sm.z-60.hidden.flex.items-center.justify-center
-    .bg-white.dark:bg-slate-800.bg-opacity-95.dark:bg-opacity-95.rounded-lg.p-6.text-center.border.border-slate-200.dark:border-slate-600
-      .animate-spin.rounded-full.h-8.w-8.border-b-2.border-blue-600.mx-auto.mb-4
-      %p.text-slate-600.dark:text-slate-400
-        AIが精神保健福祉士の視点で解析中...
+  / キャラクターメインカード
+  %turbo-frame#character-display
+    = render 'dashboards/character_display', character: @character
 
-  / 日報投稿モーダル用のTurbo Frame
-  = turbo_frame_tag "activity_form_modal"
+  / ステータスバーカード
+  %turbo-frame#status-bars
+    = render 'shared/status_bars', character: @character
 
-  / デバッグ情報（開発時のみ）
-  - if Rails.env.development?
-    .lg:pl-72.px-4.py-4
-      .bg-slate-800.text-white.p-4.rounded-lg.text-sm
-        %h3.font-bold.mb-2 デバッグ情報
-        %p Organization: #{@organization.name}
-        %p User: #{@user.email}
-        %p Character: #{@character.name}
-        %p Shave Level: #{@character.shave_level}
-        %p Body Shape: #{@character.body_shape}
-        %p Inner Peace: #{@character.inner_peace}
-        %p Intelligence: #{@character.intelligence}
-        %p Toughness: #{@character.toughness}
+  / アクションボタンエリア
+  %turbo-frame#action-buttons
+    = render 'shared/action_buttons', character: @character
+
+  / タスク一覧（今日のタスク）
+  %turbo-frame#tasks-list
+    = render 'shared/tasks_overview', character: @character
+
+/ ローディングオーバーレイ
+#loading-overlay.fixed.inset-0.bg-black.bg-opacity-30.backdrop-blur-sm.z-60.hidden.flex.items-center.justify-center
+  .bg-white.dark:bg-slate-800.bg-opacity-95.dark:bg-opacity-95.rounded-lg.p-6.text-center.border.border-slate-200.dark:border-slate-600
+    .animate-spin.rounded-full.h-8.w-8.border-b-2.border-blue-600.mx-auto.mb-4
+    %p.text-slate-600.dark:text-slate-400
+      AIが精神保健福祉士の視点で解析中...
+
+/ デバッグ情報（開発時のみ）
+- if Rails.env.development?
+  .px-4.py-4
+    .bg-slate-800.text-white.p-4.rounded-lg.text-sm
+      %h3.font-bold.mb-2 デバッグ情報
+      %p Organization: #{@organization.name}
+      %p User: #{@user.email}
+      %p Character: #{@character.name}
+      %p Shave Level: #{@character.shave_level}
+      %p Body Shape: #{@character.body_shape}
+      %p Inner Peace: #{@character.inner_peace}
+      %p Intelligence: #{@character.intelligence}
+      %p Toughness: #{@character.toughness}

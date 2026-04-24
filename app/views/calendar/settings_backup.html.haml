@@ -1,0 +1,135 @@
+/ カレンダー設定ページ
+= content_for :page_title, "カレンダー設定"
+
+.px-4.sm:px-6.lg:px-8.py-8
+  / ヘッダー
+  .mb-8
+    .flex.items-center.justify-between
+      %div
+        %h1.text-3xl.font-bold.text-slate-900.dark:text-white
+          ⚙️ カレンダー設定
+        %p.text-slate-600.dark:text-slate-400.mt-2
+          カレンダーの表示方法をカスタマイズできます
+      
+      = link_to calendar_index_path, 
+          class: "inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" do
+        ← カレンダーに戻る
+
+  / 設定フォーム
+  .bg-white.dark:bg-slate-800.shadow-xl.rounded-2xl.border.border-slate-200.dark:border-slate-700.overflow-hidden
+    = form_with url: update_settings_calendar_index_path, method: :patch, class: "divide-y divide-gray-200 dark:divide-gray-700" do |form|
+      
+      / 表示設定セクション
+      .px-6.py-4
+        %h3.text-lg.font-medium.text-gray-900.dark:text-white.mb-4
+          📅 表示設定
+        
+        .space-y-4
+          / 祝日表示
+          .flex.items-center.justify-between
+            %div
+              %label.text-sm.font-medium.text-gray-700.dark:text-gray-300{ for: "settings_show_holidays" }
+                祝日を表示
+              %p.text-xs.text-gray-500.dark:text-gray-400
+                日本の祝日を赤色でハイライト表示します
+            = form.check_box :show_holidays, 
+                { checked: @calendar_settings[:show_holidays], id: "settings_show_holidays" },
+                "true", "false",
+                class: "h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+          
+          / 週末表示
+          .flex.items-center.justify-between
+            %div
+              %label.text-sm.font-medium.text-gray-700.dark:text-gray-300{ for: "settings_show_weekends" }
+                週末をハイライト
+              %p.text-xs.text-gray-500.dark:text-gray-400
+                土曜日・日曜日の背景色を変更します
+            = form.check_box :show_weekends,
+                { checked: @calendar_settings[:show_weekends], id: "settings_show_weekends" },
+                "true", "false",
+                class: "h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+          
+          / タスク期限表示
+          .flex.items-center.justify-between
+            %div
+              %label.text-sm.font-medium.text-gray-700.dark:text-gray-300{ for: "settings_show_task_deadlines" }
+                タスクの期限を表示
+              %p.text-xs.text-gray-500.dark:text-gray-400
+                設定したタスクの期限日を自動でカレンダーに表示します
+            = form.check_box :show_task_deadlines,
+                { checked: @calendar_settings[:show_task_deadlines], id: "settings_show_task_deadlines" },
+                "true", "false",
+                class: "h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+
+      / 表示形式設定セクション
+      .px-6.py-4
+        %h3.text-lg.font-medium.text-gray-900.dark:text-white.mb-4
+          🖼️ 表示形式
+        
+        .space-y-4
+          / デフォルト表示
+          %div
+            %label.block.text-sm.font-medium.text-gray-700.dark:text-gray-300.mb-2
+              デフォルト表示
+            = form.select :default_view,
+                options_for_select([
+                  ['月表示', 'month'],
+                  ['週表示', 'week'],
+                  ['日表示', 'day']
+                ], @calendar_settings[:default_view]),
+                {},
+                { class: "block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" }
+          
+          / 週の開始日
+          %div
+            %label.block.text-sm.font-medium.text-gray-700.dark:text-gray-300.mb-2
+              週の開始日
+            = form.select :start_week_on,
+                options_for_select([
+                  ['日曜日', 'sunday'],
+                  ['月曜日', 'monday']
+                ], @calendar_settings[:start_week_on]),
+                {},
+                { class: "block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" }
+          
+          / タイムゾーン
+          %div
+            %label.block.text-sm.font-medium.text-gray-700.dark:text-gray-300.mb-2
+              タイムゾーン
+            = form.select :timezone,
+                options_for_select([
+                  ['日本標準時 (JST)', 'Asia/Tokyo'],
+                  ['協定世界時 (UTC)', 'UTC'],
+                  ['太平洋標準時 (PST)', 'America/Los_Angeles'],
+                  ['東部標準時 (EST)', 'America/New_York']
+                ], @calendar_settings[:timezone]),
+                {},
+                { class: "block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" }
+
+      / 保存ボタン
+      .px-6.py-4.bg-gray-50.dark:bg-slate-700
+        .flex.justify-end.space-x-3
+          = link_to calendar_index_path, 
+              class: "px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" do
+            キャンセル
+          
+          = form.submit "設定を保存",
+              class: "px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+
+  / 説明セクション
+  .mt-8.bg-blue-50.dark:bg-blue-900.border.border-blue-200.dark:border-blue-700.rounded-lg.p-6
+    %h3.text-lg.font-medium.text-blue-900.dark:text-blue-100.mb-4
+      💡 設定について
+    .space-y-3.text-sm.text-blue-800.dark:text-blue-200
+      %p
+        %strong 祝日表示：
+        有効にすると日本の祝日が赤色で表示され、祝日名も確認できます。
+      %p
+        %strong 週末ハイライト：
+        土日の背景色を薄いグレーでハイライト表示します。
+      %p
+        %strong タスク期限表示：
+        タスク管理で設定した期限日を自動的にカレンダーイベントとして表示します。
+      %p
+        %strong 週の開始日：
+        カレンダーの週表示で最初に表示される曜日を選択できます。

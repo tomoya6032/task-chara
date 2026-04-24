@@ -23,7 +23,7 @@ export default class extends Controller {
     this.element.style.opacity = "0"
     
     setTimeout(() => {
-      if (this.element.parentNode) {
+      if (this.element && this.element.parentNode) {
         this.element.parentNode.removeChild(this.element)
       }
     }, 300)

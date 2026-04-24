@@ -122,19 +122,45 @@
             ダッシュボードに戻る
 
     :javascript
-      // フラッシュメッセージの自動非表示
-      document.addEventListener('DOMContentLoaded', function() {
-        const flashMessages = document.querySelectorAll('.flash-message');
-        flashMessages.forEach(function(message) {
-          setTimeout(function() {
-            message.style.transition = 'opacity 0.5s ease-out, transform 0.5s ease-out';
-            message.style.opacity = '0';
-            message.style.transform = 'translateY(-20px)';
+      (function() {
+        'use strict';
+
+        // フラッシュメッセージの自動非表示
+        function initializeFlashMessages() {
+          const flashMessages = document.querySelectorAll('.flash-message');
+          flashMessages.forEach(function(message) {
             setTimeout(function() {
-              if (message.parentNode) {
-                message.parentNode.removeChild(message);
-              }
-            }, 500);
-          }, 8000);
-        });
-      });
+              message.style.transition = 'opacity 0.5s ease-out, transform 0.5s ease-out';
+              message.style.opacity = '0';
+              message.style.transform = 'translateY(-20px)';
+              setTimeout(function() {
+                if (message.parentNode) {
+                  message.parentNode.removeChild(message);
+                }
+              }, 500);
+            }, 8000);
+          });
+        }
+
+        // Turbo対応のイベントリスナー設定（重複防止）
+        function setupCompletedTasksEventListeners() {
+          // 同じイベントリスナーを複数回登録しないよう削除してから追加
+          document.removeEventListener('turbo:load', initializeFlashMessages);
+          document.removeEventListener('DOMContentLoaded', initializeFlashMessages);
+          
+          // Turboのページ読み込み時の処理
+          document.addEventListener('turbo:load', initializeFlashMessages);
+          
+          // 通常のDOM読み込み（Turbo無効時）
+          if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeFlashMessages);
+          } else {
+            // すでにDOMが読み込まれている場合は即座に実行
+            initializeFlashMessages();
+          }
+        }
+
+        // 初期化処理の実行
+        setupCompletedTasksEventListeners();
+
+      })();

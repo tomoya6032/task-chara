@@ -12,6 +12,16 @@ Rails.application.routes.draw do
   get "dashboard", to: "dashboards#show"
   root "dashboards#show"
 
+  # Calendar routes
+  resources :calendar, only: [ :index, :show, :new, :create, :edit, :update, :destroy ] do
+    collection do
+      get :events
+      post :sync_external
+      get :settings
+      patch :update_settings
+    end
+  end
+
   # Activities routes
   resources :activities, only: [ :index, :new, :create, :show, :edit, :update, :destroy ] do
     collection do
@@ -20,6 +30,7 @@ Rails.application.routes.draw do
     member do
       post :process_image_ocr
       post :process_voice_transcription
+      post :extract_tasks
     end
   end
 
@@ -65,11 +76,12 @@ Rails.application.routes.draw do
   end
 
   # Tasks routes
-  resources :tasks, only: [ :index, :new, :create, :show ] do
+  resources :tasks, only: [ :index, :new, :create, :show, :edit, :update ] do
     member do
       patch :complete
       patch :hide
       patch :unhide
+      patch :approve
       delete :destroy
     end
     collection do

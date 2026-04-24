@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_03_30_234813) do
+ActiveRecord::Schema[8.0].define(version: 2026_04_22_064105) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -81,7 +81,46 @@ ActiveRecord::Schema[8.0].define(version: 2026_03_30_234813) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.datetime "last_sauna_at"
+    t.text "calendar_settings"
     t.index ["user_id"], name: "index_characters_on_user_id"
+  end
+
+  create_table "events", force: :cascade do |t|
+    t.string "title", null: false
+    t.text "description"
+    t.datetime "start_time", null: false
+    t.datetime "end_time", null: false
+    t.string "location"
+    t.boolean "all_day", default: false
+    t.integer "status", default: 0
+    t.string "external_id"
+    t.string "external_calendar_id"
+    t.string "google_event_id"
+    t.string "apple_event_id"
+    t.text "attendees"
+    t.string "color"
+    t.text "recurrence_rule"
+    t.bigint "character_id"
+    t.json "metadata"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "event_type"
+    t.index ["character_id"], name: "index_events_on_character_id"
+    t.index ["character_id"], name: "index_events_on_character_id_new"
+    t.index ["end_time"], name: "index_events_on_end_time"
+    t.index ["event_type"], name: "index_events_on_event_type"
+    t.index ["external_id"], name: "index_events_on_external_id", unique: true
+    t.index ["start_time", "end_time"], name: "index_events_on_start_time_and_end_time"
+    t.index ["start_time"], name: "index_events_on_start_time"
+  end
+
+  create_table "holidays", force: :cascade do |t|
+    t.string "name"
+    t.date "date"
+    t.text "description"
+    t.string "country"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
   end
 
   create_table "meeting_minutes", force: :cascade do |t|
@@ -284,6 +323,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_03_30_234813) do
     t.boolean "hidden"
     t.datetime "hidden_at"
     t.datetime "due_date"
+    t.boolean "is_draft"
+    t.integer "extracted_from_activity_id"
+    t.decimal "extraction_confidence"
+    t.text "extraction_source_text"
     t.index ["character_id"], name: "index_tasks_on_character_id"
   end
 
@@ -300,6 +343,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_03_30_234813) do
   add_foreign_key "activities", "characters"
   add_foreign_key "ai_chats", "characters"
   add_foreign_key "characters", "users"
+  add_foreign_key "events", "characters"
   add_foreign_key "meeting_minutes", "characters"
   add_foreign_key "meeting_minutes", "prompt_templates"
   add_foreign_key "report_templates", "users"

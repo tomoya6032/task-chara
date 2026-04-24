@@ -1,0 +1,83 @@
+/ 共通ナビゲーションメニュー
+.hidden.lg:fixed.lg:inset-y-0.lg:z-40.lg:flex.lg:w-72.lg:flex-col.lg:top-16
+  .flex.grow.flex-col.gap-y-5.overflow-y-auto.bg-white.dark:bg-slate-800.px-6.border-r.border-slate-200.dark:border-slate-700.pt-6
+
+    %nav.flex.flex-1.flex-col
+      %ul.flex.flex-1.flex-col.gap-y-7{role: "list"}
+        %li
+          %ul.space-y-1{role: "list"}
+            %li
+              = link_to dashboard_path, class: nav_link_class(dashboard_path, current_page?(dashboard_path)) do
+                📊
+                ダッシュボード
+            %li  
+              = link_to ai_secretary_chat_path, class: nav_link_class(ai_secretary_chat_path), target: "_blank" do
+                🤖
+                AI秘書エージェント
+            %li
+              = link_to calendar_index_path, class: nav_link_class(calendar_index_path, request.path.start_with?('/calendar')) do
+                📅
+                カレンダー
+            %li
+              = link_to new_task_path, class: nav_link_class(new_task_path), data: { "turbo-frame": "task-modal" } do
+                ✅
+                タスク追加
+            %li
+              = link_to tasks_path, class: nav_link_class(tasks_path, request.path.start_with?('/tasks')) do
+                📋
+                タスク一覧
+            %li
+              = link_to completed_tasks_path, class: nav_link_class(completed_tasks_path, request.path.include?('completed')) do
+                🏆
+                完了履歴
+            %li  
+              = link_to new_activity_path, class: nav_link_class(new_activity_path), data: { "turbo-frame": "activity_form_modal" } do
+                📝
+                日報投稿
+            %li
+              = link_to activities_path, class: nav_link_class(activities_path, request.path.start_with?('/activities')) do
+                📖
+                日報一覧
+            %li
+              = link_to support_reports_path, class: nav_link_class(support_reports_path, request.path.include?('support_reports')) do
+                📋
+                支援報告書
+            %li
+              = link_to meeting_minutes_path, class: nav_link_class(meeting_minutes_path, request.path.include?('meeting_minutes')) do
+                📝
+                会議議事録
+            %li
+              = link_to prompt_templates_path, class: nav_link_class(prompt_templates_path, request.path.include?('prompt_templates')) do
+                🤖
+                プロンプト設定
+            %li
+              = link_to report_templates_path, class: nav_link_class(report_templates_path, request.path.include?('report_templates')) do
+                📄
+                テンプレート管理
+            %li
+              %a.text-slate-400.hover:text-slate-700.hover:bg-slate-50.group.flex.gap-x-3.rounded-md.p-2.text-sm.leading-6.font-semibold.dark:text-slate-400.dark:hover:text-slate-200.dark:hover:bg-slate-700{href: "#"}
+                🛍️
+                つながるマルシェ
+            %li
+              = link_to "#", class: nav_link_class("#") do
+                ⚙️
+                設定
+
+/ モバイル用ボトムナビゲーション（lg未満で表示）
+.fixed.bottom-0.left-0.right-0.z-50.bg-white.dark:bg-slate-800.border-t.border-slate-200.dark:border-slate-700.lg:hidden
+  .grid.grid-cols-5.py-2
+    = link_to new_activity_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400", data: { "turbo-frame": "activity_form_modal" } do
+      %span.text-lg 📖
+      %span.text-xs.mt-1 日報
+    = link_to support_reports_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400" do
+      %span.text-lg 📋
+      %span.text-xs.mt-1 報告書
+    = link_to meeting_minutes_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400" do
+      %span.text-lg 📝
+      %span.text-xs.mt-1 議事録
+    = link_to new_task_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400", data: { "turbo-frame": "task-modal" } do
+      %span.text-lg ✅
+      %span.text-xs.mt-1 タスク
+    = link_to "#", class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400" do
+      %span.text-lg ⚙️
+      %span.text-xs.mt-1 設定

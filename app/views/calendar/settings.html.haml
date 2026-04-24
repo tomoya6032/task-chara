@@ -1,0 +1,298 @@
+/ カレンダー設定ページ
+= content_for :page_title, "カレンダー設定"
+
+.px-4.sm:px-6.lg:px-8.py-8
+  / ヘッダー
+  .mb-8
+    .flex.items-center.justify-between
+      %div
+        %h1.text-3xl.font-bold.text-slate-900.dark:text-white
+          ⚙️ カレンダー設定
+        %p.text-slate-600.dark:text-slate-400.mt-2
+          カレンダーの表示方法をカスタマイズできます
+      
+      = link_to calendar_index_path, 
+          class: "inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" do
+        ← カレンダーに戻る
+
+  / 設定フォーム
+  .bg-white.dark:bg-slate-800.shadow-xl.rounded-2xl.border.border-slate-200.dark:border-slate-700.overflow-hidden
+    = form_with url: update_settings_calendar_index_path, method: :patch, class: "divide-y divide-gray-200 dark:divide-gray-700" do |form|
+      
+      / 表示設定セクション
+      .px-6.py-4
+        %h3.text-lg.font-medium.text-gray-900.dark:text-white.mb-4
+          📅 表示設定
+        
+        .space-y-4
+          / 祝日表示
+          .flex.items-center.justify-between
+            %div
+              %label.text-sm.font-medium.text-gray-700.dark:text-gray-300{ for: "settings_show_holidays" }
+                祝日を表示
+              %p.text-xs.text-gray-500.dark:text-gray-400
+                日本の祝日を赤色でハイライト表示します
+            = form.check_box :show_holidays, { checked: @calendar_settings[:show_holidays] }, "true", "false"
+          
+          / 週末表示
+          .flex.items-center.justify-between
+            %div
+              %label.text-sm.font-medium.text-gray-700.dark:text-gray-300{ for: "settings_show_weekends" }
+                週末をハイライト
+              %p.text-xs.text-gray-500.dark:text-gray-400
+                土曜日・日曜日の背景色を変更します
+            = form.check_box :show_weekends, { checked: @calendar_settings[:show_weekends] }, "true", "false"
+          
+          / タスク期限表示
+          .flex.items-center.justify-between
+            %div
+              %label.text-sm.font-medium.text-gray-700.dark:text-gray-300{ for: "settings_show_task_deadlines" }
+                タスクの期限を表示
+              %p.text-xs.text-gray-500.dark:text-gray-400
+                設定したタスクの期限日を自動でカレンダーに表示します
+            = form.check_box :show_task_deadlines, { checked: @calendar_settings[:show_task_deadlines] }, "true", "false"
+
+      / 表示形式設定セクション
+      .px-6.py-4
+        %h3.text-lg.font-medium.text-gray-900.dark:text-white.mb-4
+          🖼️ 表示形式
+        
+        .space-y-4
+          / デフォルト表示
+          %div
+            %label.block.text-sm.font-medium.text-gray-700.dark:text-gray-300.mb-2
+              デフォルト表示
+            = form.select :default_view, [['月表示', 'month'], ['週表示', 'week'], ['日表示', 'day']], { selected: @calendar_settings[:default_view] }, { class: "block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" }
+          
+          / 週の開始日
+          %div
+            %label.block.text-sm.font-medium.text-gray-700.dark:text-gray-300.mb-2
+              週の開始日
+            = form.select :start_week_on, [['日曜日', 'sunday'], ['月曜日', 'monday']], { selected: @calendar_settings[:start_week_on] }, { class: "block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" }
+          
+          / タイムゾーン
+          %div
+            %label.block.text-sm.font-medium.text-gray-700.dark:text-gray-300.mb-2
+              タイムゾーン
+            = form.select :timezone, [['日本標準時 (JST)', 'Asia/Tokyo'], ['協定世界時 (UTC)', 'UTC'], ['太平洋標準時 (PST)', 'America/Los_Angeles'], ['東部標準時 (EST)', 'America/New_York']], { selected: @calendar_settings[:timezone] }, { class: "block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" }
+
+      / カスタムカテゴリ設定セクション
+      .px-6.py-4
+        %h3.text-lg.font-medium.text-gray-900.dark:text-white.mb-4
+          🏷️ イベントカテゴリのカスタマイズ
+        
+        .space-y-4
+          %p.text-sm.text-gray-600.dark:text-gray-400.mb-4
+            イベントの種類を最大10個まで自由にカスタマイズできます。
+          
+          #custom-categories-container{ data: { max_categories: 10 } }
+            - (@calendar_settings[:custom_categories] || []).each_with_index do |category, index|
+              .custom-category-item.flex.items-center.space-x-3.mb-4.p-4.bg-gray-50.rounded-lg.border.border-gray-200{ data: { category_index: index } }
+                .flex-shrink-0
+                  / 色選択ボタンパレット
+                  .color-selector-group{ data: { selected_color: (category['color'] || category[:color] || '#3B82F6') } }
+                    %input.category-color-value.hidden{ type: "hidden", name: "settings[custom_categories][#{index}][color]", value: (category['color'] || category[:color] || '#3B82F6') }
+                    .text-xs.font-medium.text-gray-700.mb-2 カラー:
+                    .grid.grid-cols-5.gap-2.w-32
+                      - @color_options.each do |color_data|
+                        %button.color-option-btn.w-5.h-5.rounded-full.border-2.transition-all.hover:scale-110{ 
+                          type: "button", 
+                          data: { color: color_data[:value] }, 
+                          style: "background-color: #{color_data[:value]}; border-color: #{(category['color'] || category[:color] || '#3B82F6') == color_data[:value] ? '#1F2937' : '#E5E7EB'}", 
+                          class: ((category['color'] || category[:color] || '#3B82F6') == color_data[:value] ? 'ring-2 ring-gray-700' : ''), 
+                          title: color_data[:name] 
+                        }
+                .flex-grow
+                  %input.category-id.hidden{ type: "hidden", name: "settings[custom_categories][#{index}][id]", value: (category['id'] || category[:id] || "custom_#{index}") }
+                  %label.text-xs.font-medium.text-gray-700.mb-1.block カテゴリ名:
+                  %input.category-name.w-full.px-3.py-2.border.border-gray-300.rounded-md.text-sm.focus:ring-2.focus:ring-blue-500.focus:border-transparent{ type: "text", name: "settings[custom_categories][#{index}][name]", value: (category['name'] || category[:name]), placeholder: "カテゴリ名 (例: 運動、勉強、買い物)" }
+                .flex-shrink-0
+                  %button.remove-category-btn.text-red-600.hover:text-red-800.hover:bg-red-50.px-2.py-1.rounded{ type: "button", title: "削除" }
+                    🗑️
+          
+          %button#add-category-btn.flex.items-center.space-x-2.px-4.py-2.text-sm.font-medium.text-blue-600.border.border-blue-300.rounded-md.hover:bg-blue-50{ type: "button" }
+            %span ➕
+            %span カテゴリを追加
+
+      / 保存ボタン
+      .px-6.py-4.bg-gray-50.dark:bg-slate-700
+        .flex.justify-end.space-x-3
+          = link_to calendar_index_path, 
+              class: "px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" do
+            キャンセル
+          
+          = form.submit "設定を保存",
+              class: "px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+
+  / 説明セクション
+  .mt-8.bg-blue-50.dark:bg-blue-900.border.border-blue-200.dark:border-blue-700.rounded-lg.p-6
+    %h3.text-lg.font-medium.text-blue-900.dark:text-blue-100.mb-4
+      💡 設定について
+    .space-y-3.text-sm.text-blue-800.dark:text-blue-200
+      %p
+        %strong 祝日表示：
+        有効にすると日本の祝日が赤色で表示され、祝日名も確認できます。
+      %p
+        %strong 週末ハイライト：
+        土日の背景色を薄いグレーでハイライト表示します。
+      %p
+        %strong タスク期限表示：
+        タスク管理で設定した期限日を自動的にカレンダーイベントとして表示します。
+      %p
+        %strong 週の開始日：
+        カレンダーの週表示で最初に表示される曜日を選択できます。
+      %p
+        %strong カスタムカテゴリ：
+        イベント追加時に表示されるカテゴリを自由に編集できます。10色のカラーパレット（ブルー、グリーン、イエロー、レッド、パープル、ピンク、オレンジ、シアン、グレー、インディゴ）から色を選択し、よく使うカテゴリを作成しましょう。
+
+/ カスタムカテゴリ管理のJavaScript
+:javascript
+  (function() {
+    'use strict';
+
+    function initializeSettingsPage() {
+      const container = document.getElementById('custom-categories-container');
+      const addBtn = document.getElementById('add-category-btn');
+      
+      // 要素が存在しない場合は初期化をスキップ
+      if (!container || !addBtn) {
+        console.log('Settings page elements not found, skipping initialization');
+        return;
+      }
+
+      const maxCategories = parseInt(container.dataset.maxCategories);
+    
+    // カテゴリ追加
+    addBtn.addEventListener('click', function() {
+      const currentItems = container.querySelectorAll('.custom-category-item').length;
+      if (currentItems >= maxCategories) {
+        alert(`カテゴリは最大${maxCategories}個まで追加できます。`);
+        return;
+      }
+      
+      const newIndex = currentItems;
+      const colorOptions = #{@color_options.to_json.html_safe};
+      
+      let colorButtonsHtml = '';
+      colorOptions.forEach((colorData, i) => {
+        const isSelected = i === 0; // 最初の色（ブルー）をデフォルト選択
+        colorButtonsHtml += `
+          <button type="button" 
+                  class="color-option-btn w-5 h-5 rounded-full border-2 transition-all hover:scale-110 ${isSelected ? 'ring-2 ring-gray-700' : ''}"
+                  data-color="${colorData.value}"
+                  style="background-color: ${colorData.value}; border-color: ${isSelected ? '#1F2937' : '#E5E7EB'}"
+                  title="${colorData.name}">
+          </button>
+        `;
+      });
+      
+      const newCategoryHtml = `
+        <div class="custom-category-item flex items-center space-x-3 mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200" data-category-index="${newIndex}">
+          <div class="flex-shrink-0">
+            <div class="color-selector-group" data-selected-color="${colorOptions[0].value}">
+              <input type="hidden" name="settings[custom_categories][${newIndex}][color]" value="${colorOptions[0].value}" class="category-color-value">
+              <div class="text-xs font-medium text-gray-700 mb-2">カラー:</div>
+              <div class="grid grid-cols-5 gap-2 w-32">
+                ${colorButtonsHtml}
+              </div>
+            </div>
+          </div>
+          <div class="flex-grow">
+            <input type="hidden" name="settings[custom_categories][${newIndex}][id]" value="custom_${newIndex}" class="category-id">
+            <label class="text-xs font-medium text-gray-700 mb-1 block">カテゴリ名:</label>
+            <input type="text" name="settings[custom_categories][${newIndex}][name]" placeholder="カテゴリ名 (例: 運動、勉強、買い物)" class="category-name w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+          </div>
+          <div class="flex-shrink-0">
+            <button type="button" class="remove-category-btn text-red-600 hover:text-red-800 hover:bg-red-50 px-2 py-1 rounded" title="削除">🗑️</button>
+          </div>
+        </div>
+      `;
+      container.insertAdjacentHTML('beforeend', newCategoryHtml);
+      updateRemoveButtons();
+      setupColorButtons();
+    });
+    
+    // 削除ボタンのイベント設定
+    function updateRemoveButtons() {
+      const removeButtons = document.querySelectorAll('.remove-category-btn');
+      removeButtons.forEach(btn => {
+        btn.onclick = function() {
+          this.closest('.custom-category-item').remove();
+          reindexCategories();
+        };
+      });
+    }
+    
+    // インデックスを再設定
+    function reindexCategories() {
+      const items = container.querySelectorAll('.custom-category-item');
+      items.forEach((item, index) => {
+        item.dataset.categoryIndex = index;
+        const colorValueInput = item.querySelector('.category-color-value');
+        const idInput = item.querySelector('.category-id');
+        const nameInput = item.querySelector('.category-name');
+        
+        colorValueInput.name = `settings[custom_categories][${index}][color]`;
+        idInput.name = `settings[custom_categories][${index}][id]`;
+        nameInput.name = `settings[custom_categories][${index}][name]`;
+        
+        if (!idInput.value || idInput.value.startsWith('custom_')) {
+          idInput.value = `custom_${index}`;
+        }
+      });
+    }
+    
+    // 色選択ボタンのイベント設定
+    function setupColorButtons() {
+      const colorButtons = document.querySelectorAll('.color-option-btn');
+      colorButtons.forEach(btn => {
+        btn.addEventListener('click', function(e) {
+          e.preventDefault();
+          const selectedColor = this.dataset.color;
+          const colorGroup = this.closest('.color-selector-group');
+          const colorValueInput = colorGroup.querySelector('.category-color-value');
+          
+          // 隠しフィールドの値を更新
+          colorValueInput.value = selectedColor;
+          colorGroup.dataset.selectedColor = selectedColor;
+          
+          // すべてのボタンから選択状態を削除
+          colorGroup.querySelectorAll('.color-option-btn').forEach(button => {
+            button.classList.remove('ring-2', 'ring-gray-700');
+            button.style.borderColor = '#E5E7EB';
+          });
+          
+          // 選択されたボタンに選択状態を追加
+          this.classList.add('ring-2', 'ring-gray-700');
+          this.style.borderColor = '#1F2937';
+        });
+      });
+    }
+    
+      // 初期化
+      updateRemoveButtons();
+      setupColorButtons();
+    }
+
+    // Turbo対応のイベントリスナー設定（重複防止）
+    function setupSettingsEventListeners() {
+      // 同じイベントリスナーを複数回登録しないよう削除してから追加
+      document.removeEventListener('turbo:load', initializeSettingsPage);
+      document.removeEventListener('DOMContentLoaded', initializeSettingsPage);
+      
+      // Turboのページ読み込み時の処理
+      document.addEventListener('turbo:load', initializeSettingsPage);
+      
+      // 通常のDOM読み込み（Turbo無効時）
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeSettingsPage);
+      } else {
+        // すでにDOMが読み込まれている場合は即座に実行
+        initializeSettingsPage();
+      }
+    }
+
+    // 初期化処理の実行
+    setupSettingsEventListeners();
+
+  })();

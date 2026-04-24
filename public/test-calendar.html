@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Calendar Grid Test</title>
+  <style>
+    .calendar-header-row {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      background-color: #f9fafb;
+      border-top: 1px solid #d1d5db;
+      border-left: 1px solid #d1d5db;
+    }
+    
+    .calendar-header-cell {
+      padding: 12px;
+      text-align: center;
+      font-size: 14px;
+      font-weight: 600;
+      color: #4b5563;
+      background-color: #f9fafb;
+      border-right: 1px solid #d1d5db;
+      border-bottom: 1px solid #d1d5db;
+    }
+    
+    .calendar-main-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      grid-template-rows: repeat(6, 120px);
+      border-left: 1px solid #d1d5db;
+      border-bottom: 1px solid #d1d5db;
+      background-color: white;
+    }
+    
+    .calendar-day-cell {
+      border-right: 1px solid #d1d5db;
+      border-top: 1px solid #d1d5db;
+      background-color: white;
+      display: flex;
+      flex-direction: column;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+    
+    .calendar-date-header {
+      padding: 8px;
+      border-bottom: 1px solid #f3f4f6;
+      flex-shrink: 0;
+    }
+    
+    .calendar-date-number {
+      font-size: 14px;
+      font-weight: 600;
+      color: #374151;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+    }
+  </style>
+</head>
+<body>
+  <div style="max-width: 1200px; margin: 0 auto; padding: 20px;">
+    <h1>Calendar Grid Test</h1>
+    
+    <div class="calendar-header-row">
+      <div class="calendar-header-cell">日</div>
+      <div class="calendar-header-cell">月</div>
+      <div class="calendar-header-cell">火</div>
+      <div class="calendar-header-cell">水</div>
+      <div class="calendar-header-cell">木</div>
+      <div class="calendar-header-cell">金</div>
+      <div class="calendar-header-cell">土</div>
+    </div>
+    
+    <div class="calendar-main-grid">
+      <!-- 42 cells for testing -->
+      <div class="calendar-day-cell">
+        <div class="calendar-date-header">
+          <div class="calendar-date-number">1</div>
+        </div>
+      </div>
+      <div class="calendar-day-cell">
+        <div class="calendar-date-header">
+          <div class="calendar-date-number">2</div>
+        </div>
+      </div>
+      <div class="calendar-day-cell">
+        <div class="calendar-date-header">
+          <div class="calendar-date-number">3</div>
+        </div>
+      </div>
+      <div class="calendar-day-cell">
+        <div class="calendar-date-header">
+          <div class="calendar-date-number">4</div>
+        </div>
+      </div>
+      <div class="calendar-day-cell">
+        <div class="calendar-date-header">
+          <div class="calendar-date-number">5</div>
+        </div>
+      </div>
+      <div class="calendar-day-cell">
+        <div class="calendar-date-header">
+          <div class="calendar-date-number">6</div>
+        </div>
+      </div>
+      <div class="calendar-day-cell">
+        <div class="calendar-date-header">
+          <div class="calendar-date-number">7</div>
+        </div>
+      </div>
+      <!-- Add 35 more cells in same pattern -->
+      <div class="calendar-day-cell"><div class="calendar-date-header"><div class="calendar-date-number">8</div></div></div>
+      <div class="calendar-day-cell"><div class="calendar-date-header"><div class="calendar-date-number">9</div></div></div>
+      <div class="calendar-day-cell"><div class="calendar-date-header"><div class="calendar-date-number">10</div></div></div>
+      <div class="calendar-day-cell"><div class="calendar-date-header"><div class="calendar-date-number">11</div></div></div>
+      <div class="calendar-day-cell"><div class="calendar-date-header"><div class="calendar-date-number">12</div></div></div>
+      <div class="calendar-day-cell"><div class="calendar-date-header"><div class="calendar-date-number">13</div></div></div>
+      <div class="calendar-day-cell"><div class="calendar-date-header"><div class="calendar-date-number">14</div></div></div>
+      <div class="calendar-day-cell"><div class="calendar-date-header"><div class="calendar-date-number">15</div></div></div>
+      <div class="calendar-day-cell"><div class="calendar-date-header"><div class="calendar-date-number">16</div></div></div>
+      <div class="calendar-day-cell"><div class="calendar-date-header"><div class="calendar-date-number">17</div></div></div>
+      <div class="calendar-day-cell"><div class="calendar-date-header"><div class="calendar-date-number">18</div></div></div>
+      <div class="calendar-day-cell"><div class="calendar-date-header"><div class="calendar-date-number">19</div></div></div>
+      <div class="calendar-day-cell"><div class="calendar-date-header"><div class="calendar-date-number">20</div></div></div>
+      <div class="calendar-day-cell"><div class="calendar-date-header"><div class="calendar-date-number">21</div></div></div>
+      <div class="calendar-day-cell"><div class="calendar-date-header"><div class="calendar-date-number">22</div></div></div>
+      <div class="calendar-day-cell"><div class="calendar-date-header"><div class="calendar-date-number">23</div></div></div>
+      <div class="calendar-day-cell"><div class="calendar-date-header"><div class="calendar-date-number">24</div></div></div>
+      <div class="calendar-day-cell"><div class="calendar-date-header"><div class="calendar-date-number">25</div></div></div>
+      <div class="calendar-day-cell"><div class="calendar-date-header"><div class="calendar-date-number">26</div></div></div>
+      <div class="calendar-day-cell"><div class="calendar-date-header"><div class="calendar-date-number">27</div></div></div>
+      <div class="calendar-day-cell"><div class="calendar-date-header"><div class="calendar-date-number">28</div></div></div>
+      <div class="calendar-day-cell"><div class="calendar-date-header"><div class="calendar-date-number">29</div></div></div>
+      <div class="calendar-day-cell"><div class="calendar-date-header"><div class="calendar-date-number">30</div></div></div>
+      <div class="calendar-day-cell"><div class="calendar-date-header"><div class="calendar-date-number">31</div></div></div>
+      <div class="calendar-day-cell"><div class="calendar-date-header"><div class="calendar-date-number">1</div></div></div>
+      <div class="calendar-day-cell"><div class="calendar-date-header"><div class="calendar-date-number">2</div></div></div>
+      <div class="calendar-day-cell"><div class="calendar-date-header"><div class="calendar-date-number">3</div></div></div>
+      <div class="calendar-day-cell"><div class="calendar-date-header"><div class="calendar-date-number">4</div></div></div>
+      <div class="calendar-day-cell"><div class="calendar-date-header"><div class="calendar-date-number">5</div></div></div>
+      <div class="calendar-day-cell"><div class="calendar-date-header"><div class="calendar-date-number">6</div></div></div>
+      <div class="calendar-day-cell"><div class="calendar-date-header"><div class="calendar-date-number">7</div></div></div>
+      <div class="calendar-day-cell"><div class="calendar-date-header"><div class="calendar-date-number">8</div></div></div>
+      <div class="calendar-day-cell"><div class="calendar-date-header"><div class="calendar-date-number">9</div></div></div>
+      <div class="calendar-day-cell"><div class="calendar-date-header"><div class="calendar-date-number">10</div></div></div>
+      <div class="calendar-day-cell"><div class="calendar-date-header"><div class="calendar-date-number">11</div></div></div>
+    </div>
+  </div>
+</body>
+</html>

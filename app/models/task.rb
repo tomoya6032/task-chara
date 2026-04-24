@@ -1,12 +1,15 @@
 # app/models/task.rb
 class Task < ApplicationRecord
   belongs_to :character
+  belongs_to :extracted_from_activity, class_name: "Activity", foreign_key: "extracted_from_activity_id", optional: true
 
   after_initialize :set_defaults
+  after_save :manage_calendar_event
 
   validates :title, presence: true
   validates :category, presence: true, inclusion: { in: %w[welfare web admin] }
   validates :dislike_level, presence: true, numericality: { in: 1..10 }
+  validates :extraction_confidence, numericality: { in: 0.0..1.0 }, allow_nil: true
 
   scope :completed, -> { where.not(completed_at: nil) }
   scope :pending, -> { where(completed_at: nil) }
@@ -18,6 +21,12 @@ class Task < ApplicationRecord
   scope :past_due, -> { pending.where("due_date < ?", Time.current) }
   scope :ordered_by_due_date, -> { order(Arel.sql("due_date IS NULL, due_date ASC")) }
   scope :ordered_by_created_date, -> { order(created_at: :desc) }
+
+  # 抽出タスク関連のスコープ
+  scope :draft, -> { where(is_draft: true) }
+  scope :published, -> { where(is_draft: false) }
+  scope :extracted, -> { where.not(extracted_from_activity_id: nil) }
+  scope :manual, -> { where(extracted_from_activity_id: nil) }
 
   # タスク完了時の処理
   def mark_as_completed!
@@ -106,10 +115,73 @@ class Task < ApplicationRecord
     end
   end
 
+  # カレンダーイベントとの同期
+  def sync_calendar_event
+    # ドラフト状態のタスクはカレンダーで同期しない
+    if due_date.present? && !completed? && published?
+      event = Event.find_or_initialize_by(external_id: task_external_id)
+      event.assign_attributes(
+        title: "📋 #{title} (期限)",
+        description: "カテゴリ: #{category_display}\n嫌悪レベル: #{dislike_level_display}",
+        start_time: due_date.beginning_of_day,
+        end_time: due_date.end_of_day,
+        all_day: true,
+        event_type: "task_deadline",
+        character: character
+      )
+      event.save!
+    elsif due_date.blank? || completed?
+      # 期限がなくなった、またはタスクが完了した場合、イベントを削除
+      existing_event = Event.find_by(external_id: task_external_id)
+      existing_event&.destroy
+    end
+  end
+
+  def task_external_id
+    "task_#{id}"
+  end
+
+  # 抽出タスク関連のメソッド
+  def extracted?
+    extracted_from_activity_id.present?
+  end
+
+  def draft?
+    is_draft == true
+  end
+
+  def published?
+    !draft?
+  end
+
+  def approve!
+    update!(is_draft: false)
+    sync_calendar_event if due_date.present?
+  end
+
+  def extraction_index
+    return nil unless extracted?
+    "AI-#{extracted_from_activity_id}-#{id}"
+  end
+
+  def extraction_confidence_display
+    return "未設定" unless extraction_confidence.present?
+    "#{(extraction_confidence * 100).round}%"
+  end
+
+  def source_activity
+    extracted_from_activity
+  end
+
   private
 
   def set_defaults
     self.hidden = false if hidden.nil?
+    self.is_draft = false if is_draft.nil?
+  end
+
+  def manage_calendar_event
+    sync_calendar_event if saved_change_to_due_date? || saved_change_to_title? || saved_change_to_completed_at?
   end
 
   def polish_character_from_completion

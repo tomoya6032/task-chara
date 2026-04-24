@@ -1,171 +1,193 @@
-/ app/views/tasks/index.html.haml
-%html{lang: "ja"}
-  %head
-    %meta{charset: "UTF-8"}
-    %meta{name: "viewport", content: "width=device-width, initial-scale=1.0"}
-    %title タスク一覧 - TaskChara
-    = csrf_meta_tags
-    = csp_meta_tag
-    = stylesheet_link_tag "tailwind"
-    = javascript_importmap_tags
+/ TaskChara - タスク一覧
+= content_for :page_title, "タスク一覧"
 
-  %body.bg-slate-50.dark:bg-slate-900.min-h-screen
-    / フラッシュメッセージ表示領域（画面中央）
-    #flash-container.fixed.inset-0.flex.items-start.justify-center.pt-20.z-50.pointer-events-none
-      - flash.each do |type, message|
-        .flash-message.border.rounded-xl.p-6.mb-4.animate-bounce.bg-white.border-green-300.text-green-800.shadow-2xl.max-w-md.mx-4.pointer-events-auto{
-          data: { controller: "flash", flash_timeout_value: 8000 }
-        }
-          .flex.items-center.justify-between
-            .flex.items-center.gap-3
-              %span.text-2xl 🎉
-              .text-left
-                %div.text-lg.font-bold お疲れさま！
-                %div.text-sm= message
-            %button.text-lg.opacity-70.hover:opacity-100.transition-opacity.ml-4{
-              data: { action: "click->flash#close" }
-            } ×
+.px-4.sm:px-6.lg:px-8.py-8
 
-    .max-w-4xl.mx-auto.px-4.py-6
+  / Turbo Stream更新用フラッシュメッセージエリア
+  #flash-messages.fixed.inset-0.flex.items-start.justify-center.pt-20.z-50.pointer-events-none
 
-      / ヘッダー
-      .flex.items-center.justify-between.mb-6
-        .flex.items-center.gap-3
-          = link_to dashboard_path, class: "text-slate-600 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200" do
-            %svg.w-6.h-6{fill: "none", stroke: "currentColor", viewbox: "0 0 24 24"}
-              %path{d: "M15 19l-7-7 7-7", "stroke-linecap": "round", "stroke-linejoin": "round", "stroke-width": "2"}
-          %h1.text-2xl.font-bold.text-slate-900.dark:text-white
-            📋 全タスク一覧
+  / フラッシュメッセージ表示領域（画面中央）
+  #flash-container.fixed.inset-0.flex.items-start.justify-center.pt-20.z-50.pointer-events-none
+    - flash.each do |type, message|
+      .flash-message.border.rounded-xl.p-6.mb-4.bg-white.border-green-300.text-green-800.shadow-2xl.max-w-md.mx-4.pointer-events-auto{
+        data: { controller: "flash", timeout_value: 5000 }
+      }
+        .flex.items-center.justify-between
+          .flex.items-center.gap-3
+            %span.text-2xl ✅
+            .text-left
+              %div.text-lg.font-bold= message
+          %button.text-lg.opacity-70.hover:opacity-100.transition-opacity.ml-4.cursor-pointer{
+            data: { action: "click->flash#close" }
+          } ×
 
-        .flex.gap-2
-          = link_to completed_tasks_path, class: "bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200 px-4 py-2 rounded-lg hover:bg-green-300 dark:hover:bg-green-700 transition-colors" do
-            ✅ 完了済み
-          = link_to hidden_tasks_path, class: "bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 px-4 py-2 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors" do
-            👁️ 非表示
+  / ヘッダー
+  .flex.items-center.justify-between.mb-6
+    %h1.text-2xl.font-bold.text-slate-900.dark:text-white
+      📋 全タスク一覧
 
-      / 統計情報
-      .bg-white.dark:bg-slate-800.rounded-xl.shadow-sm.p-6.mb-6
-        .grid.grid-cols-1.sm:grid-cols-3.gap-4
-          .text-center
-            .text-2xl.font-bold.text-blue-600.dark:text-blue-400
-              = @pending_tasks.count
-            .text-sm.text-slate-600.dark:text-slate-400
-              未完了タスク
+    .flex.gap-2
+      = link_to completed_tasks_path, class: "bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200 px-4 py-2 rounded-lg hover:bg-green-300 dark:hover:bg-green-700 transition-colors" do
+        ✅ 完了済み
+      = link_to hidden_tasks_path, class: "bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 px-4 py-2 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors" do
+        👁️ 非表示
 
-          .text-center
-            .text-2xl.font-bold.text-green-600.dark:text-green-400
-              = @completed_tasks.count
-            .text-sm.text-slate-600.dark:text-slate-400
-              完了済みタスク
+  / 統計情報
+  .bg-white.dark:bg-slate-800.rounded-xl.shadow-sm.p-6.mb-6
+    .grid.grid-cols-1.sm:grid-cols-4.gap-4
+      .text-center
+        .text-2xl.font-bold.text-blue-600.dark:text-blue-400
+          = @pending_tasks.count
+        .text-sm.text-slate-600.dark:text-slate-400
+          未完了タスク
 
-          .text-center
-            .text-2xl.font-bold.text-slate-600.dark:text-slate-400
-              = @hidden_tasks.count
-            .text-sm.text-slate-600.dark:text-slate-400
-              非表示タスク
+      .text-center
+        .text-2xl.font-bold.text-green-600.dark:text-green-400
+          = @completed_tasks.count
+        .text-sm.text-slate-600.dark:text-slate-400
+          完了済みタスク
 
-      / タブナビゲーション
-      .bg-white.dark:bg-slate-800.rounded-xl.shadow-sm.overflow-hidden.mb-6
-        .flex.border-b.border-slate-200.dark:border-slate-600
-          %button.flex-1.py-3.px-4.text-center.font-medium.transition-colors{
-            class: "bg-blue-50 dark:bg-blue-900 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600",
-            onclick: "showTab('pending')"
-          }
-            未完了 (#{@pending_tasks.count})
-          %button.flex-1.py-3.px-4.text-center.font-medium.text-slate-600.dark:text-slate-400.hover:bg-slate-50.dark:hover:bg-slate-700.transition-colors{
-            onclick: "showTab('completed')"
-          }
-            完了済み (#{@completed_tasks.count})
+      .text-center
+        .text-2xl.font-bold.text-purple-600.dark:text-purple-400
+          = @draft_tasks.count
+        .text-sm.text-slate-600.dark:text-slate-400
+          承認待ちドラフト
 
-        / 並び替えオプション
-        .flex.justify-between.items-center.p-4.bg-slate-50.dark:bg-slate-700
-          %span.text-sm.font-medium.text-slate-700.dark:text-slate-300
-            並び替え:
-          .flex.gap-2
-            = link_to tasks_path(sort: 'due_date'), 
-                class: "px-3 py-1 rounded-md text-xs font-medium transition-colors #{'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300' if @current_sort == 'due_date'} #{'bg-white dark:bg-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-500' unless @current_sort == 'due_date'}" do
-              ⏰ 期限順
-            = link_to tasks_path(sort: 'created_date'), 
-                class: "px-3 py-1 rounded-md text-xs font-medium transition-colors #{'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300' if @current_sort == 'created_date'} #{'bg-white dark:bg-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-500' unless @current_sort == 'created_date'}" do
-              📅 作成日順
+      .text-center
+        .text-2xl.font-bold.text-slate-600.dark:text-slate-400
+          = @hidden_tasks.count
+        .text-sm.text-slate-600.dark:text-slate-400
+          非表示タスク
 
-        / 未完了タスク
-        #pending-tab.p-6
-          - if @pending_tasks.any?
-            .space-y-4
-              - @pending_tasks.each do |task|
-                .bg-slate-50.dark:bg-slate-700.rounded-lg.p-4.border.border-slate-200.dark:border-slate-600
-                  .flex.items-center.justify-between
-                    .flex.items-center.gap-3
-                      / カテゴリアイコン
-                      - case task.category
-                      - when 'welfare'
-                        %span.text-xl 🏠
-                      - when 'web'
-                        %span.text-xl 💻
-                      - when 'admin'
-                        %span.text-xl 📋
-                      - else
-                        %span.text-xl ✅
+  / ドラフトタスク（AI抽出）セクション
+  - if @draft_tasks.any?
+    .bg-purple-50.dark:bg-purple-900.rounded-xl.shadow-sm.p-6.mb-6.border.border-purple-200.dark:border-purple-700
+      .flex.items-center.justify-between.mb-4
+        %h2.text-lg.font-bold.text-purple-800.dark:text-purple-200
+          🤖 AI抽出タスク（承認待ち）
+        %span.text-sm.text-purple-600.dark:text-purple-300
+          = "#{@draft_tasks.count}件"
 
-                      .flex-1
-                        %h4.font-medium.text-slate-900.dark:text-white
-                          = task.title
-                        .text-sm.text-slate-600.dark:text-slate-400.mt-1
-                          嫌い度: #{task.dislike_level}/10 | 
-                          作成: #{task.created_at.strftime("%m/%d %H:%M")}
-                        - if task.due_date.present?
-                          .text-sm.mt-1{
-                            class: case task.due_status
-                                   when "期限切れ"
-                                     "text-red-600 dark:text-red-400 font-medium"
-                                   when "期限間近"
-                                     "text-amber-600 dark:text-amber-400 font-medium"
-                                   else
-                                     "text-slate-500 dark:text-slate-400"
-                                   end
-                          }
-                            ⏰ #{task.due_date_display} (#{task.due_status})
+      .space-y-3
+        - @draft_tasks.each do |task|
+          = render partial: 'task_card', locals: { task: task }
 
-                    .flex.gap-2
-                      = button_to complete_task_path(task), method: :patch, class: "bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm transition-colors", data: { confirm: "「#{task.title}」を完了しますか？\n強靭さ+#{(task.dislike_level || 1) * 1.5}pt獲得できます！", turbo: false }, form_class: "inline" do
-                        🎯 完了
-                      = button_to hide_task_path(task), method: :patch, class: "bg-slate-600 hover:bg-slate-700 text-white px-3 py-1 rounded text-sm transition-colors", data: { turbo: false }, form_class: "inline" do
-                        👁️ 非表示
-          - else
-            .text-center.py-8
-              .text-4xl.mb-2 🎉
-              %p.text-slate-600.dark:text-slate-400
-                すべてのタスクが完了しています！
+  / タブナビゲーション
+  .bg-white.dark:bg-slate-800.rounded-xl.shadow-sm.overflow-hidden.mb-6
+    .flex.border-b.border-slate-200.dark:border-slate-600
+      %button.flex-1.py-3.px-4.text-center.font-medium.transition-colors{
+        class: "bg-blue-50 dark:bg-blue-900 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600",
+        onclick: "showTab('pending')"
+      }
+        未完了 (#{@pending_tasks.count})
+      %button.flex-1.py-3.px-4.text-center.font-medium.text-slate-600.dark:text-slate-400.hover:bg-slate-50.dark:hover:bg-slate-700.transition-colors{
+        onclick: "showTab('completed')"
+      }
+        完了済み (#{@completed_tasks.count})
 
-        / 完了済みタスク
-        #completed-tab.p-6.hidden
-          - if @completed_tasks.any?
-            .space-y-4
-              - @completed_tasks.limit(10).each do |task|
-                .bg-green-50.dark:bg-green-900.rounded-lg.p-4.border.border-green-200.dark:border-green-700
-                  .flex.items-center.gap-3
-                    %span.text-xl ✅
-                    .flex-1
-                      %h4.font-medium.text-slate-900.dark:text-white
-                        = task.title
-                      .text-sm.text-green-600.dark:text-green-400.mt-1
-                        完了: #{task.completed_at.strftime("%m/%d %H:%M")} | 
-                        獲得強靭さ: +#{(task.dislike_level || 1) * 1.5}pt
-            
-            - if @completed_tasks.count > 10
-              .text-center.mt-6
-                = link_to completed_tasks_path, class: "text-blue-600 dark:text-blue-400 hover:underline" do
-                  すべての完了タスクを見る (#{@completed_tasks.count}件)
-          - else
-            .text-center.py-8
-              .text-4xl.mb-2 🎯
-              %p.text-slate-600.dark:text-slate-400
-                まだ完了したタスクがありません
+    / 並び替えオプション
+    .flex.justify-between.items-center.p-4.bg-slate-50.dark:bg-slate-700
+      %span.text-sm.font-medium.text-slate-700.dark:text-slate-300
+        並び替え:
+      .flex.gap-2
+        = link_to tasks_path(sort: 'due_date'), 
+            class: "px-3 py-1 rounded-md text-xs font-medium transition-colors #{'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300' if @current_sort == 'due_date'} #{'bg-white dark:bg-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-500' unless @current_sort == 'due_date'}" do
+          ⏰ 期限順
+        = link_to tasks_path(sort: 'created_date'), 
+            class: "px-3 py-1 rounded-md text-xs font-medium transition-colors #{'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300' if @current_sort == 'created_date'} #{'bg-white dark:bg-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-500' unless @current_sort == 'created_date'}" do
+          📅 作成日順
 
-    :javascript
+    / 未完了タスク
+    #pending-tab.p-6
+      - if @pending_tasks.any?
+        #published-tasks.space-y-3
+          - @pending_tasks.each do |task|
+            = render partial: 'task_card', locals: { task: task }
+      - else
+        .text-center.py-8
+          .text-4xl.mb-2 🎉
+          %p.text-slate-600.dark:text-slate-400
+            すべてのタスクが完了しています！
+
+    / 完了済みタスク
+    #completed-tab.p-6.hidden
+      - if @completed_tasks.any?
+        .space-y-3
+          - @completed_tasks.limit(10).each do |task|
+            = render partial: 'task_card', locals: { task: task }
+        
+        - if @completed_tasks.count > 10
+          .text-center.mt-6
+            = link_to completed_tasks_path, class: "text-blue-600 dark:text-blue-400 hover:underline" do
+              すべての完了タスクを見る (#{@completed_tasks.count}件)
+      - else
+        .text-center.py-8
+          .text-4xl.mb-2 🎯
+          %p.text-slate-600.dark:text-slate-400
+            まだ完了したタスクがありません
+
+  / タスク編集モーダル
+  #task-edit-modal.fixed.inset-0.bg-gray-600.bg-opacity-50.hidden.flex.items-center.justify-center.z-50
+    .bg-white.dark:bg-slate-800.rounded-lg.shadow-lg.p-6.w-96.mx-4
+      %h3.text-lg.font-medium.text-slate-900.dark:text-white.mb-4
+        ✏️ タスク編集
+
+      / エラーメッセージ表示エリア
+      #edit-task-error-messages.hidden.mb-4.p-3.bg-red-100.border.border-red-400.text-red-700.rounded-md
+
+      %form#task-edit-form{ method: "patch" }
+        = csrf_meta_tags
+        %input#edit-task-id{ type: "hidden", name: "id" }
+
+        .mb-4
+          %label.block.text-sm.font-medium.text-slate-700.dark:text-slate-300.mb-2
+            タスク名
+          %input#edit-task-title.w-full.border.border-slate-300.dark:border-slate-600.rounded-md.px-3.py-2.bg-white.dark:bg-slate-700.text-slate-900.dark:text-white.focus:ring-2.focus:ring-blue-500.focus:border-transparent{ type: "text", name: "task[title]", required: true, placeholder: "タスク名を入力" }
+
+        .mb-4
+          %label.block.text-sm.font-medium.text-slate-700.dark:text-slate-300.mb-2
+            カテゴリ
+          %select#edit-task-category.w-full.border.border-slate-300.dark:border-slate-600.rounded-md.px-3.py-2.bg-white.dark:bg-slate-700.text-slate-900.dark:text-white{ name: "task[category]", required: true }
+            %option{ value: "welfare" } 🏠 訪問福祉
+            %option{ value: "web" } 💻 Web制作
+            %option{ value: "admin" } 📋 事務作業
+
+        .mb-4
+          %label.block.text-sm.font-medium.text-slate-700.dark:text-slate-300.mb-2
+            嫌い度 (1-10)
+          %select#edit-task-dislike-level.w-full.border.border-slate-300.dark:border-slate-600.rounded-md.px-3.py-2.bg-white.dark:bg-slate-700.text-slate-900.dark:text-white{ name: "task[dislike_level]", required: true }
+            - (1..10).each do |level|
+              %option{ value: level }
+                = level
+                - case level
+                - when 1..3
+                  = " - やや苦手 😅"
+                - when 4..6
+                  = " - 苦手 😰"
+                - when 7..8
+                  = " - かなり苦手 😨"
+                - when 9..10
+                  = " - 大嫌い 😱"
+
+        .mb-6
+          %label.block.text-sm.font-medium.text-slate-700.dark:text-slate-300.mb-2
+            期限日時 (任意)
+          %input#edit-task-due-date.w-full.border.border-slate-300.dark:border-slate-600.rounded-md.px-3.py-2.bg-white.dark:bg-slate-700.text-slate-900.dark:text-white{ type: "datetime-local", name: "task[due_date]" }
+          %small.text-xs.text-slate-500.dark:text-slate-400
+            期限を設定するとカレンダーにも自動で追加されます
+
+        .flex.justify-end.space-x-3
+          %button.bg-slate-200.hover:bg-slate-300.text-slate-800.px-4.py-2.rounded-md.transition-colors{ type: "button", onclick: "closeEditTaskModal()" }
+            キャンセル
+          %button#edit-task-submit-btn.bg-blue-600.hover:bg-blue-700.text-white.px-4.py-2.rounded-md.transition-colors{ type: "submit" }
+            更新
+
+  :javascript
+    (function() {
+      'use strict';
+
       // フラッシュメッセージの自動非表示
-      document.addEventListener('DOMContentLoaded', function() {
+      function initializeFlashMessages() {
         const flashMessages = document.querySelectorAll('.flash-message');
         flashMessages.forEach(function(message) {
           setTimeout(function() {
@@ -179,8 +201,9 @@
             }, 500);
           }, 8000);
         });
-      });
+      }
 
+      // タブ切り替え関数
       function showTab(tabName) {
         // すべてのタブを非表示
         document.getElementById('pending-tab').classList.add('hidden');
@@ -198,3 +221,170 @@
         // 選択されたボタンをアクティブに
         event.target.className = 'flex-1 py-3 px-4 text-center font-medium bg-blue-50 dark:bg-blue-900 text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 transition-colors';
       }
+      
+      // タスク編集モーダルの処理
+      async function openEditTaskModal(taskId) {
+        console.log('Opening edit modal for task:', taskId);
+        
+        try {
+          // タスクの詳細情報を取得
+          const response = await fetch(`/tasks/${taskId}`, {
+            headers: {
+              'Accept': 'application/json',
+              'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            }
+          });
+          
+          if (response.ok) {
+            const task = await response.json();
+            
+            // フォームに現在の値を設定
+            document.getElementById('edit-task-id').value = task.id;
+            document.getElementById('edit-task-title').value = task.title || '';
+            document.getElementById('edit-task-category').value = task.category || '';
+            document.getElementById('edit-task-dislike-level').value = task.dislike_level || 1;
+            document.getElementById('edit-task-due-date').value = formatDateTimeForInput(task.due_date);
+            
+            // モーダルを表示
+            document.getElementById('task-edit-modal').classList.remove('hidden');
+            hideEditTaskErrorMessages();
+          } else {
+            alert('タスク詳細の取得に失敗しました。');
+          }
+        } catch (error) {
+          console.error('Error fetching task details:', error);
+          alert('エラーが発生しました: ' + error.message);
+        }
+      }
+      
+      function closeEditTaskModal() {
+        document.getElementById('task-edit-modal').classList.add('hidden');
+        document.getElementById('task-edit-form').reset();
+        hideEditTaskErrorMessages();
+      }
+      
+      function hideEditTaskErrorMessages() {
+        document.getElementById('edit-task-error-messages').classList.add('hidden');
+        document.getElementById('edit-task-error-messages').innerHTML = '';
+      }
+      
+      function showEditTaskErrorMessages(errors) {
+        const errorDiv = document.getElementById('edit-task-error-messages');
+        errorDiv.innerHTML = '<ul>' + errors.map(error => '<li>' + error + '</li>').join('') + '</ul>';
+        errorDiv.classList.remove('hidden');
+      }
+      
+      function formatDateTimeForInput(dateTimeString) {
+        if (!dateTimeString) return '';
+        
+        const date = new Date(dateTimeString);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+      }
+
+      // グローバル関数をwindowオブジェクトに設定（onclick用）
+      window.showTab = showTab;
+      window.openEditTaskModal = openEditTaskModal;
+      window.closeEditTaskModal = closeEditTaskModal;
+
+      // 編集フォーム送信処理
+      document.addEventListener('DOMContentLoaded', function() {
+        const editForm = document.getElementById('task-edit-form');
+        if (editForm) {
+          editForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const taskId = document.getElementById('edit-task-id').value;
+            if (!taskId) {
+              alert('タスクIDが見つかりません。');
+              return;
+            }
+            
+            const submitBtn = document.getElementById('edit-task-submit-btn');
+            const formData = new FormData(editForm);
+            
+            // CSRFトークンを追加
+            const token = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            formData.append('authenticity_token', token);
+            
+            submitBtn.disabled = true;
+            submitBtn.textContent = '更新中...';
+            
+            try {
+              const response = await fetch(`/tasks/${taskId}`, {
+                method: 'PUT',
+                body: formData,
+                headers: {
+                  'X-CSRF-Token': token,
+                  'Accept': 'application/json'
+                }
+              });
+              
+              if (response.ok) {
+                // 成功時はページをリロード
+                closeEditTaskModal();
+                window.location.reload();
+              } else {
+                // エラー時はメッセージを表示
+                let errorMessage = ['予期しないエラーが発生しました。'];
+                
+                try {
+                  const errorData = await response.json();
+                  console.log('Edit error response:', errorData);
+                  if (errorData.errors) {
+                    if (typeof errorData.errors === 'object') {
+                      errorMessage = Object.values(errorData.errors).flat();
+                    } else if (Array.isArray(errorData.errors)) {
+                      errorMessage = errorData.errors;
+                    } else {
+                      errorMessage = [errorData.errors];
+                    }
+                  } else if (errorData.error) {
+                    errorMessage = [errorData.error];
+                  }
+                } catch (parseError) {
+                  const textResponse = await response.text();
+                  console.error('Edit response parsing error:', parseError, 'Response:', textResponse);
+                  errorMessage = [`サーバーエラー: ${response.status} ${response.statusText}`];
+                }
+                
+                showEditTaskErrorMessages(errorMessage);
+              }
+            } catch (error) {
+              console.error('Edit network error:', error);
+              showEditTaskErrorMessages(['ネットワークエラーが発生しました: ' + error.message]);
+            } finally {
+              submitBtn.disabled = false;
+              submitBtn.textContent = '更新';
+            }
+          });
+        }
+
+        // Turbo対応のイベントリスナー設定（重複防止）
+        function setupTasksEventListeners() {
+          // 同じイベントリスナーを複数回登録しないよう削除してから追加
+          document.removeEventListener('turbo:load', initializeFlashMessages);
+          document.removeEventListener('DOMContentLoaded', initializeFlashMessages);
+          
+          // Turboのページ読み込み時の処理
+          document.addEventListener('turbo:load', initializeFlashMessages);
+          
+          // 通常のDOM読み込み（Turbo無効時）
+          if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeFlashMessages);
+          } else {
+            // すでにDOMが読み込まれている場合は即座に実行
+            initializeFlashMessages();
+          }
+        }
+
+        // 初期化処理の実行
+        setupTasksEventListeners();
+      });
+
+    })();
