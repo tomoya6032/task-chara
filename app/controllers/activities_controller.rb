@@ -3,6 +3,8 @@ class ActivitiesController < ApplicationController
 
   def index
     @activities = @character.activities.order(created_at: :desc).limit(50)
+    @draft_extracted_tasks = @character.tasks.draft.extracted.includes(:extracted_from_activity).order(created_at: :desc).limit(20)
+    @draft_extracted_schedules = @character.tasks.draft.extracted.includes(:extracted_from_activity).where.not(due_date: nil).order(due_date: :asc).limit(20)
 
     respond_to do |format|
       format.html
@@ -12,18 +14,6 @@ class ActivitiesController < ApplicationController
 
   def new
     @activity = @character.activities.build
-    # AIチャットの会話履歴を取得（エラーハンドリング付き）
-    begin
-      @ai_conversations = get_ai_conversations
-    rescue => e
-      Rails.logger.error "AI conversations fetch error: #{e.message}"
-      @ai_conversations = [] # エラーが発生した場合は空配列を設定
-    end
-
-    # チャット内容をプリセット用にセット（パラメーターで指定されている場合）
-    if params[:from_chat].present?
-      @activity.content = params[:content] if params[:content].present?
-    end
 
     respond_to do |format|
       format.html do
@@ -176,10 +166,20 @@ class ActivitiesController < ApplicationController
       audio_file = params[:audio_file]
       Rails.logger.info "Audio file received: #{audio_file.original_filename}"
 
+      max_upload_size = 50.megabytes
+      if audio_file.size > max_upload_size
+        render json: {
+          status: "error",
+          message: "音声ファイルは50MB以下にしてください"
+        }, status: :unprocessable_entity
+        return
+      end
+
       # 一時ファイルに音声を保存
       temp_file = Tempfile.new([ "voice_transcription", File.extname(audio_file.original_filename) ])
       temp_file.binmode
-      temp_file.write(audio_file.read)
+      audio_file.tempfile.rewind
+      IO.copy_stream(audio_file.tempfile, temp_file)
       temp_file.close
 
       # バックグラウンドジョブを開始
@@ -259,6 +259,8 @@ class ActivitiesController < ApplicationController
       respond_to do |format|
         format.json { render json: result }
         format.html do
+          redirect_path = params[:redirect_to] == "activities_index" ? activities_path : activity_path(@activity)
+
           if result[:success]
             draft_tasks = result[:created_tasks]
             if draft_tasks.present?
@@ -271,9 +273,9 @@ class ActivitiesController < ApplicationController
               notice_message = "タスクの抽出を実行しましたが、具体的な予定・タスクが見つかりませんでした"
             end
 
-            redirect_to activity_path(@activity), notice: notice_message
+            redirect_to redirect_path, notice: notice_message
           else
-            redirect_to activity_path(@activity),
+            redirect_to redirect_path,
               alert: "エラー: #{result[:message]}"
           end
         end
@@ -291,7 +293,8 @@ class ActivitiesController < ApplicationController
       respond_to do |format|
         format.json { render json: error_response, status: :internal_server_error }
         format.html do
-          redirect_to activity_path(@activity),
+          redirect_path = params[:redirect_to] == "activities_index" ? activities_path : activity_path(@activity)
+          redirect_to redirect_path,
             alert: error_response[:message]
         end
       end

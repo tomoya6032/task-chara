@@ -108,3 +108,9 @@
   justify-content: center;
   margin: 0 auto;
 }
+
+.back-to-index-button,
+.back-to-index-button:hover,
+.back-to-index-button:focus {
+  cursor: pointer !important;
+}

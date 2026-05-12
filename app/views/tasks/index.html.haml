@@ -148,9 +148,8 @@
           %label.block.text-sm.font-medium.text-slate-700.dark:text-slate-300.mb-2
             カテゴリ
           %select#edit-task-category.w-full.border.border-slate-300.dark:border-slate-600.rounded-md.px-3.py-2.bg-white.dark:bg-slate-700.text-slate-900.dark:text-white{ name: "task[category]", required: true }
-            %option{ value: "welfare" } 🏠 訪問福祉
-            %option{ value: "web" } 💻 Web制作
-            %option{ value: "admin" } 📋 事務作業
+            - (@task_categories || []).each do |label, value|
+              %option{ value: value }= label
 
         .mb-4
           %label.block.text-sm.font-medium.text-slate-700.dark:text-slate-300.mb-2
@@ -172,9 +171,23 @@
         .mb-6
           %label.block.text-sm.font-medium.text-slate-700.dark:text-slate-300.mb-2
             期限日時 (任意)
-          %input#edit-task-due-date.w-full.border.border-slate-300.dark:border-slate-600.rounded-md.px-3.py-2.bg-white.dark:bg-slate-700.text-slate-900.dark:text-white{ type: "datetime-local", name: "task[due_date]" }
+          %input#edit-task-due-date-hidden{ type: "hidden", name: "task[due_date]" }
+          .flex.items-center.gap-1.flex-wrap
+            %input.rounded-md.border-slate-300.dark:border-slate-600.dark:bg-slate-700.dark:text-white.text-sm{ type: "date", id: "edit-task-due-date-part", onchange: "syncEditTaskDueDate()" }
+            %select.rounded-md.border-slate-300.dark:border-slate-600.dark:bg-slate-700.dark:text-white.text-sm.px-2.py-2{ id: "edit-task-due-hour-part", onchange: "syncEditTaskDueDate()" }
+              - (0..23).each do |h|
+                %option{ value: h.to_s.rjust(2,'0') }= "#{h.to_s.rjust(2,'0')}時"
+            %select.rounded-md.border-slate-300.dark:border-slate-600.dark:bg-slate-700.dark:text-white.text-sm.px-2.py-2{ id: "edit-task-due-min-part", onchange: "syncEditTaskDueDate()" }
+              - [0, 15, 30, 45].each do |m|
+                %option{ value: m.to_s.rjust(2,'0') }= "#{m.to_s.rjust(2,'0')}分"
+            %button.text-xs.text-slate-400.dark:text-slate-500.underline{ type: "button", onclick: "clearEditTaskDueDate()" } クリア
           %small.text-xs.text-slate-500.dark:text-slate-400
             期限を設定するとカレンダーにも自動で追加されます
+
+        .mb-6
+          %label.block.text-sm.font-medium.text-slate-700.dark:text-slate-300.mb-2
+            説明
+          %textarea#edit-task-description.w-full.border.border-slate-300.dark:border-slate-600.rounded-md.px-3.py-2.bg-white.dark:bg-slate-700.text-slate-900.dark:text-white{ name: "task[description]", rows: 3, placeholder: "タスクの詳細や備考を入力（任意）" }
 
         .flex.justify-end.space-x-3
           %button.bg-slate-200.hover:bg-slate-300.text-slate-800.px-4.py-2.rounded-md.transition-colors{ type: "button", onclick: "closeEditTaskModal()" }
@@ -243,7 +256,8 @@
             document.getElementById('edit-task-title').value = task.title || '';
             document.getElementById('edit-task-category').value = task.category || '';
             document.getElementById('edit-task-dislike-level').value = task.dislike_level || 1;
-            document.getElementById('edit-task-due-date').value = formatDateTimeForInput(task.due_date);
+            document.getElementById('edit-task-description').value = task.description || '';
+            setEditTaskDueDateParts(task.due_date);
             
             // モーダルを表示
             document.getElementById('task-edit-modal').classList.remove('hidden');
@@ -276,21 +290,63 @@
       
       function formatDateTimeForInput(dateTimeString) {
         if (!dateTimeString) return '';
-        
         const date = new Date(dateTimeString);
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
         const hours = String(date.getHours()).padStart(2, '0');
         const minutes = String(date.getMinutes()).padStart(2, '0');
-        
         return `${year}-${month}-${day}T${hours}:${minutes}`;
+      }
+
+      // 日時を各セレクトに展開（15分単位に丸め）
+      function setEditTaskDueDateParts(dateTimeString) {
+        const datePart = document.getElementById('edit-task-due-date-part');
+        const hourPart = document.getElementById('edit-task-due-hour-part');
+        const minPart  = document.getElementById('edit-task-due-min-part');
+        const hidden   = document.getElementById('edit-task-due-date-hidden');
+        if (!dateTimeString) {
+          if (datePart) datePart.value = '';
+          if (hidden) hidden.value = '';
+          return;
+        }
+        const d = new Date(dateTimeString);
+        const snappedMin = Math.round(d.getMinutes() / 15) * 15;
+        const extraHour  = snappedMin >= 60 ? 1 : 0;
+        const finalMin   = snappedMin >= 60 ? 0 : snappedMin;
+        const finalHour  = d.getHours() + extraHour;
+        const yyyy = d.getFullYear();
+        const mm   = String(d.getMonth() + 1).padStart(2, '0');
+        const dd   = String(d.getDate()).padStart(2, '0');
+        if (datePart) datePart.value = `${yyyy}-${mm}-${dd}`;
+        if (hourPart) hourPart.value = String(Math.min(finalHour, 23)).padStart(2, '0');
+        if (minPart)  minPart.value  = String(finalMin).padStart(2, '0');
+        syncEditTaskDueDate();
+      }
+
+      function syncEditTaskDueDate() {
+        const datePart = document.getElementById('edit-task-due-date-part')?.value;
+        const hourPart = document.getElementById('edit-task-due-hour-part')?.value;
+        const minPart  = document.getElementById('edit-task-due-min-part')?.value;
+        const hidden   = document.getElementById('edit-task-due-date-hidden');
+        if (!hidden) return;
+        if (!datePart) { hidden.value = ''; return; }
+        hidden.value = `${datePart}T${hourPart}:${minPart}`;
+      }
+
+      function clearEditTaskDueDate() {
+        const datePart = document.getElementById('edit-task-due-date-part');
+        const hidden   = document.getElementById('edit-task-due-date-hidden');
+        if (datePart) datePart.value = '';
+        if (hidden)   hidden.value   = '';
       }
 
       // グローバル関数をwindowオブジェクトに設定（onclick用）
       window.showTab = showTab;
       window.openEditTaskModal = openEditTaskModal;
       window.closeEditTaskModal = closeEditTaskModal;
+      window.syncEditTaskDueDate = syncEditTaskDueDate;
+      window.clearEditTaskDueDate = clearEditTaskDueDate;
 
       // 編集フォーム送信処理
       document.addEventListener('DOMContentLoaded', function() {

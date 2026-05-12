@@ -32,9 +32,11 @@ class Event < ApplicationRecord
 
   # 色の設定（カスタムカテゴリ対応）
   def display_color
+    settings = character&.calendar_settings_hash || {}
+
     # カスタムカテゴリの色を取得
-    if event_type.to_s.start_with?("custom_") && character&.calendar_settings&.dig("custom_categories")
-      custom_categories = character.calendar_settings["custom_categories"]
+    if event_type.to_s.start_with?("custom_") && settings["custom_categories"].present?
+      custom_categories = settings["custom_categories"]
       if custom_categories.is_a?(Array)
         category = custom_categories.find { |cat| cat["id"] == event_type.to_s }
         return category["color"] if category&.dig("color")
@@ -62,9 +64,11 @@ class Event < ApplicationRecord
 
   # カテゴリ名の取得（カスタムカテゴリ対応）
   def display_category_name
+    settings = character&.calendar_settings_hash || {}
+
     # カスタムカテゴリの名前を取得
-    if event_type.to_s.start_with?("custom_") && character&.calendar_settings&.dig("custom_categories")
-      custom_categories = character.calendar_settings["custom_categories"]
+    if event_type.to_s.start_with?("custom_") && settings["custom_categories"].present?
+      custom_categories = settings["custom_categories"]
       if custom_categories.is_a?(Array)
         category = custom_categories.find { |cat| cat["id"] == event_type.to_s }
         return category["name"] if category&.dig("name")

@@ -231,7 +231,8 @@ class MeetingMinutesController < ApplicationController
       temp_file.binmode
 
       Rails.logger.info "📁 Creating temporary file: #{temp_file.path}"
-      temp_file.write(voice_file.read)
+      voice_file.tempfile.rewind
+      IO.copy_stream(voice_file.tempfile, temp_file)
       temp_file.close
 
       Rails.logger.info "💾 Temporary file saved successfully"

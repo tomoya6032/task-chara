@@ -38,14 +38,22 @@
           
           .mb-6
             = form.label :category, "カテゴリ", class: "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
-            = form.select :category, options_for_select([['訪問福祉 🏠', 'welfare'], ['Web制作 💻', 'web'], ['事務作業 📋', 'admin']], @task.category), {}, class: "w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            = form.select :category, options_for_select((@task_categories || []), @task.category), {}, class: "w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
           
           .mb-6
             = form.label :due_date, "期限", class: "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
             %div.text-xs.text-slate-500.dark:text-slate-400.mb-2
               ※ 年月日と時間を設定してください（未設定も可能）
-            = form.datetime_local_field :due_date, 
-              class: "w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            = form.hidden_field :due_date, id: "task-due-date-hidden-a"
+            .flex.items-center.gap-1.flex-wrap
+              %input.rounded-lg.border-slate-300.dark:border-slate-600.dark:bg-slate-700.dark:text-white.shadow-sm.text-sm{ type: "date", id: "task-due-date-part-a", onchange: "syncTaskDueDate('a')" }
+              %select.rounded-lg.border-slate-300.dark:border-slate-600.dark:bg-slate-700.dark:text-white.shadow-sm.text-sm{ id: "task-due-hour-part-a", onchange: "syncTaskDueDate('a')" }
+                - (0..23).each do |h|
+                  %option{ value: h.to_s.rjust(2,'0') }= "#{h.to_s.rjust(2,'0')}時"
+              %select.rounded-lg.border-slate-300.dark:border-slate-600.dark:bg-slate-700.dark:text-white.shadow-sm.text-sm{ id: "task-due-min-part-a", onchange: "syncTaskDueDate('a')" }
+                - [0, 15, 30, 45].each do |m|
+                  %option{ value: m.to_s.rjust(2,'0') }= "#{m.to_s.rjust(2,'0')}分"
+              %button.text-xs.text-slate-400.dark:text-slate-500.underline{ type: "button", onclick: "clearTaskDueDate('a')" } クリア
           
           .mb-6
             = form.label :dislike_level, "嫌い度（1-10）", class: "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
@@ -61,6 +69,10 @@
                 data: { "range-slider-target": "display" }
               } 5
               %span.text-xs.text-slate-500 😱 大嫌い
+
+          .mb-6
+            = form.label :description, "説明", class: "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
+            = form.text_area :description, placeholder: "タスクの詳細や備考を入力（任意）", rows: 3, class: "w-full rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 px-3 py-2"
 
           / ボタン
           .flex.gap-3
@@ -108,14 +120,22 @@
           
           .mb-6
             = form.label :category, "カテゴリ", class: "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
-            = form.select :category, options_for_select([['訪問福祉 🏠', 'welfare'], ['Web制作 💻', 'web'], ['事務作業 📋', 'admin']], @task.category), {}, class: "w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            = form.select :category, options_for_select((@task_categories || []), @task.category), {}, class: "w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
           
           .mb-6
             = form.label :due_date, "期限", class: "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
             %div.text-xs.text-slate-500.dark:text-slate-400.mb-2
               ※ 年月日と時間を設定してください（未設定も可能）
-            = form.datetime_local_field :due_date, 
-              class: "w-full rounded-lg border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            = form.hidden_field :due_date, id: "task-due-date-hidden-b"
+            .flex.items-center.gap-1.flex-wrap
+              %input.rounded-lg.border-slate-300.dark:border-slate-600.dark:bg-slate-700.dark:text-white.shadow-sm.text-sm{ type: "date", id: "task-due-date-part-b", onchange: "syncTaskDueDate('b')" }
+              %select.rounded-lg.border-slate-300.dark:border-slate-600.dark:bg-slate-700.dark:text-white.shadow-sm.text-sm{ id: "task-due-hour-part-b", onchange: "syncTaskDueDate('b')" }
+                - (0..23).each do |h|
+                  %option{ value: h.to_s.rjust(2,'0') }= "#{h.to_s.rjust(2,'0')}時"
+              %select.rounded-lg.border-slate-300.dark:border-slate-600.dark:bg-slate-700.dark:text-white.shadow-sm.text-sm{ id: "task-due-min-part-b", onchange: "syncTaskDueDate('b')" }
+                - [0, 15, 30, 45].each do |m|
+                  %option{ value: m.to_s.rjust(2,'0') }= "#{m.to_s.rjust(2,'0')}分"
+              %button.text-xs.text-slate-400.dark:text-slate-500.underline{ type: "button", onclick: "clearTaskDueDate('b')" } クリア
           
           .mb-6
             = form.label :dislike_level, "嫌い度（1-10）", class: "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
@@ -131,6 +151,10 @@
                 data: { "range-slider-target": "display" }
               } 5
               %span.text-xs.text-slate-500 😱 大嫌い
+
+          .mb-6
+            = form.label :description, "説明", class: "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
+            = form.text_area :description, placeholder: "タスクの詳細や備考を入力（任意）", rows: 3, class: "w-full rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 px-3 py-2"
 
           / ボタン
           .flex.flex-col.sm:flex-row.gap-3.pt-4.border-t.border-slate-200.dark:border-slate-600.bg-slate-50.dark:bg-slate-800.px-6.py-4.rounded-b-2xl.mt-4

@@ -47,7 +47,7 @@ class CalendarController < ApplicationController
     Rails.logger.info "📝 Params: #{params.inspect}"
     Rails.logger.info "📝 Event params: #{event_params.inspect}"
 
-    @event = Event.new(event_params)
+    @event = Event.new(normalized_event_attributes)
     @event.character = @character
 
     Rails.logger.info "📝 Event object: #{@event.inspect}"
@@ -91,8 +91,18 @@ class CalendarController < ApplicationController
     Rails.logger.info "📝 Event update started for ID: #{@event.id}"
     Rails.logger.info "📝 Update params: #{event_params.inspect}"
 
-    if @event.update(event_params)
+    if @event.update(normalized_event_attributes)
       Rails.logger.info "📝 Event updated successfully: #{@event.id}"
+      # タスク期限イベントの場合、対応するタスクのdescriptionも更新（逆方向同期）
+      if @event.task_deadline? && @event.external_id&.start_with?("task_")
+        task_id = @event.external_id.sub("task_", "").to_i
+        task = @character&.tasks&.find_by(id: task_id)
+        if task
+          event_desc = @event.description.to_s
+          custom_desc = event_desc.include?("\n\n") ? event_desc.split("\n\n", 2).last.presence : nil
+          task.update_columns(description: custom_desc)
+        end
+      end
       respond_to do |format|
         format.html { redirect_to calendar_index_path(date: @event.start_time.to_date), notice: "イベントが更新されました。" }
         format.json { render json: { success: true, event: @event }, status: :ok }
@@ -199,6 +209,63 @@ class CalendarController < ApplicationController
     end
 
     redirect_to calendar_index_path, notice: "#{sync_type.capitalize}カレンダーとの同期を開始しました。"
+  end
+
+  # 単一イベントを手動でLINE通知
+  def notify_line
+    event = Event.includes(character: :user).find(params[:id])
+    user = event.character&.user
+
+    if user.nil? || user.line_user_id.blank?
+      respond_to do |format|
+        format.html { redirect_to calendar_index_path(date: event.start_time.to_date), alert: "LINE連携されていないため通知できません。" }
+        format.json { render json: { success: false, error: "LINE連携されていないため通知できません。" }, status: :unprocessable_entity }
+      end
+      return
+    end
+
+    message = <<~TEXT.strip
+      📅 予定の通知
+      件名: #{event.title}
+      開始: #{event.start_time.strftime("%m月%d日 %H:%M")}
+      終了: #{event.end_time.strftime("%m月%d日 %H:%M")}
+      内容: #{event.description.present? ? event.description : "(説明なし)"}
+    TEXT
+
+    success = ::LineBotService.new.send_message(user.line_user_id, message)
+
+    respond_to do |format|
+      if success
+        format.html { redirect_to calendar_index_path(date: event.start_time.to_date), notice: "LINEへ通知を送信しました。" }
+        format.json { render json: { success: true, message: "LINEへ通知を送信しました。" }, status: :ok }
+      else
+        format.html { redirect_to calendar_index_path(date: event.start_time.to_date), alert: "LINE通知の送信に失敗しました。" }
+        format.json { render json: { success: false, error: "LINE通知の送信に失敗しました。" }, status: :unprocessable_entity }
+      end
+    end
+  rescue ActiveRecord::RecordNotFound
+    respond_to do |format|
+      format.html { redirect_to calendar_index_path, alert: "イベントが見つかりません。" }
+      format.json { render json: { success: false, error: "イベントが見つかりません。" }, status: :not_found }
+    end
+  rescue LoadError => e
+    Rails.logger.error("[Calendar#notify_line] LoadError: #{e.class} - #{e.message}")
+    respond_to do |format|
+      format.html { redirect_to calendar_index_path, alert: "LINEライブラリの読み込みに失敗しました。" }
+      format.json { render json: { success: false, error: "LINEライブラリの読み込みに失敗しました。", details: e.message }, status: :internal_server_error }
+    end
+  rescue NameError => e
+    Rails.logger.error("[Calendar#notify_line] NameError: #{e.class} - #{e.message}")
+    respond_to do |format|
+      format.html { redirect_to calendar_index_path, alert: "LINE通知中に定数エラーが発生しました。" }
+      format.json { render json: { success: false, error: "LINE通知中に定数エラーが発生しました。", details: e.message }, status: :internal_server_error }
+    end
+  rescue StandardError => e
+    Rails.logger.error("[Calendar#notify_line] Error: #{e.class} - #{e.message}")
+    respond_to do |format|
+      format.html { redirect_to calendar_index_path, alert: "LINE通知の処理中にエラーが発生しました。" }
+      format.json { render json: { success: false, error: "LINE通知の処理中にエラーが発生しました。", details: e.message }, status: :internal_server_error }
+    end
   end
 
   private
@@ -403,7 +470,102 @@ class CalendarController < ApplicationController
 
   def event_params
     params.require(:event).permit(:title, :description, :start_time, :end_time, :location,
-                                  :all_day, :event_type, :status, :color, :attendees)
+                                  :all_day, :event_type, :status, :color, :attendees,
+                                  :start_date_part, :start_hour_part, :start_min_part,
+                                  :end_date_part, :end_hour_part, :end_min_part)
+  end
+
+  def normalized_event_attributes
+    attrs = event_params.to_h
+    all_day = ActiveModel::Type::Boolean.new.cast(attrs["all_day"])
+
+    attrs["start_time"] = normalize_datetime_attribute(
+      attrs["start_time"],
+      date_part: attrs["start_date_part"],
+      hour_part: attrs["start_hour_part"],
+      min_part: attrs["start_min_part"],
+      fallback: Time.zone.now.beginning_of_hour,
+      all_day: all_day,
+      ending: false
+    )
+
+    attrs["end_time"] = normalize_datetime_attribute(
+      attrs["end_time"],
+      date_part: attrs["end_date_part"],
+      hour_part: attrs["end_hour_part"],
+      min_part: attrs["end_min_part"],
+      fallback: attrs["start_time"].present? ? coerce_datetime_value(attrs["start_time"]) + 1.hour : Time.zone.now.beginning_of_hour + 1.hour,
+      all_day: all_day,
+      ending: true
+    )
+
+    attrs.except!("start_date_part", "start_hour_part", "start_min_part", "end_date_part", "end_hour_part", "end_min_part")
+    attrs
+  end
+
+  def normalize_datetime_attribute(value, date_part:, hour_part:, min_part:, fallback:, all_day:, ending:)
+    parsed_value = coerce_datetime_value(value)
+    return parsed_value if parsed_value.present?
+
+    if date_part.present?
+      return build_datetime_from_parts(date_part, hour_part, min_part, all_day: all_day, ending: ending)
+    end
+
+    fallback
+  end
+
+  def coerce_datetime_value(value)
+    return nil if value.blank?
+
+    case value
+    when ActiveSupport::TimeWithZone
+      value.in_time_zone
+    when Time
+      value.in_time_zone
+    when DateTime
+      value.in_time_zone
+    when Date
+      Time.zone.local(value.year, value.month, value.day)
+    when String
+      Time.zone.parse(value)
+    else
+      if value.respond_to?(:to_time)
+        value.to_time.in_time_zone
+      elsif value.respond_to?(:to_date)
+        date = value.to_date
+        Time.zone.local(date.year, date.month, date.day)
+      end
+    end
+  rescue ArgumentError, TypeError
+    nil
+  end
+
+  def build_datetime_from_parts(date_part, hour_part, min_part, all_day:, ending:)
+    date =
+      case date_part
+      when Date
+        date_part
+      when String
+        Date.parse(date_part)
+      else
+        date_part.to_date
+      end
+
+    if all_day
+      hour = ending ? 23 : 0
+      minute = ending ? 59 : 0
+      return Time.zone.local(date.year, date.month, date.day, hour, minute)
+    end
+
+    if hour_part.present? && min_part.present?
+      return Time.zone.local(date.year, date.month, date.day, hour_part.to_i, min_part.to_i)
+    end
+
+    hour = ending ? 23 : 0
+    minute = ending ? 59 : 0
+    Time.zone.local(date.year, date.month, date.day, hour, minute)
+  rescue ArgumentError, TypeError
+    nil
   end
   # カレンダー設定関連
   def load_calendar_settings
@@ -424,11 +586,12 @@ class CalendarController < ApplicationController
 
     # ユーザーの設定があれば読み込み
     if @character&.calendar_settings.present?
-      user_settings = JSON.parse(@character.calendar_settings)
+      user_settings = @character.calendar_settings_hash
       # 文字列キーのハッシュをシンボルキーに変換（ただしcustom_categoriesは文字列キーのまま保持）
       user_settings.each do |key, value|
-        unless key == "custom_categories"
-          settings[key.to_sym] = value
+        key_str = key.to_s
+        unless key_str == "custom_categories"
+          settings[key_str.to_sym] = value
         else
           # custom_categoriesがハッシュ（インデックス付き）の場合は配列に変換
           if value.is_a?(Hash) && value.keys.all? { |k| k =~ /^\d+$/ }
@@ -442,7 +605,7 @@ class CalendarController < ApplicationController
     end
 
     settings
-  rescue JSON::ParserError
+  rescue StandardError
     # JSON解析エラーの場合はデフォルト設定を返す
     {
       show_holidays: true,

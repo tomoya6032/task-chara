@@ -1,6 +1,5 @@
 // app/javascript/controllers/voice_uploader_controller.js
 import { Controller } from "@hotwired/stimulus"
-import consumer from "channels/consumer"
 
 // Connects to data-controller="voice-uploader"
 export default class extends Controller {
@@ -12,73 +11,6 @@ export default class extends Controller {
     console.log("Activity ID:", this.activityIdValue)
     console.log("Targets available:", this.targets)
     this.isProcessing = false
-    
-    // WebSocket接続のセットアップ
-    this.setupWebSocket()
-  }
-  
-  // WebSocket接続をセットアップ
-  setupWebSocket() {
-    if (!consumer) {
-      console.warn('ActionCable consumer not available')
-      return
-    }
-    
-    const activityId = this.activityIdValue || 'new'
-    
-    this.channel = consumer.subscriptions.create(
-      { channel: "AiProcessingChannel", activity_id: activityId },
-      {
-        received: (data) => this.handleWebSocketMessage(data),
-        connected: () => console.log(`WebSocket connected to activity: ${activityId}`),
-        disconnected: () => console.log(`WebSocket disconnected from activity: ${activityId}`)
-      }
-    )
-  }
-  
-  // WebSocketメッセージを処理
-  handleWebSocketMessage(data) {
-    console.log('WebSocket message received:', data)
-    
-    if (data.type === 'voice_transcription') {
-      if (data.status === 'completed') {
-        this.hideLoading()
-        this.statusTarget.textContent = '✅ 音声を文字に変換しました'
-        this.statusTarget.className = 'text-sm text-green-600 font-medium'
-        
-        // テキストエリアに結果を追加
-        this.appendContentToTextarea(data.content)
-        this.resetUI()
-        
-        setTimeout(() => {
-          this.statusTarget.textContent = ''
-          this.previewTarget.style.display = 'none'
-          this.fileInputTarget.value = ''
-        }, 3000)
-        
-      } else if (data.status === 'error') {
-        this.showError('音声解析エラー: ' + data.error)
-        this.resetUI()
-      }
-    }
-  }
-  
-  // テキストエリアに内容を追加
-  appendContentToTextarea(content) {
-    const textarea = document.getElementById('activity_content')
-    if (textarea) {
-      if (textarea.value.trim()) {
-        textarea.value += '\n\n' + content
-      } else {
-        textarea.value = content
-      }
-      
-      // character-counterがある場合は更新をトリガー
-      textarea.dispatchEvent(new Event('input', { bubbles: true }))
-      console.log('Content added to textarea successfully')
-    } else {
-      console.error('Textarea not found for content insertion')
-    }
   }
 
   selectFile() {
@@ -134,9 +66,9 @@ export default class extends Controller {
       console.log('🎵 M4A file confirmed - processing regardless of MIME type')
     }
 
-    // ファイルサイズをチェック (25MB制限 - OpenAI Whisperの制限)
-    if (file.size > 25 * 1024 * 1024) {
-      alert(`ファイルサイズは25MB以下にしてください\n現在のサイズ：${(file.size/1024/1024).toFixed(2)}MB`)
+    // ファイルサイズをチェック (50MBまで受付、25MB超はサーバー側で分割処理)
+    if (file.size > 50 * 1024 * 1024) {
+      alert(`ファイルサイズは50MB以下にしてください\n現在のサイズ：${(file.size/1024/1024).toFixed(2)}MB`)
       return
     }
 
@@ -232,7 +164,15 @@ export default class extends Controller {
       <div class="bg-white rounded-lg p-6 max-w-sm mx-4">
         <div class="flex items-center space-x-3">
           <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-          <span class="text-gray-700">${message}</span>
+          <div class="min-w-0 flex-1">
+            <div id="voice-upload-loading-message" class="text-gray-700 text-sm font-medium">${message}</div>
+            <div id="voice-upload-loading-progress" class="mt-2 hidden">
+              <div class="h-2 w-full rounded-full bg-gray-200 overflow-hidden">
+                <div id="voice-upload-loading-progress-bar" class="h-full bg-blue-600 rounded-full transition-all duration-300" style="width: 0%"></div>
+              </div>
+              <div id="voice-upload-loading-progress-text" class="mt-1 text-xs text-gray-500"></div>
+            </div>
+          </div>
         </div>
       </div>
     `
@@ -241,6 +181,54 @@ export default class extends Controller {
     
     // ステータスメッセージも更新
     this.statusTarget.textContent = `🔄 ${message}`
+    this.statusTarget.className = 'text-sm text-blue-600 font-medium'
+  }
+
+  updateLoadingProgress({ message, currentChunk, totalChunks, percent }) {
+    const loadingEl = document.getElementById('voice-upload-loading')
+    if (!loadingEl) {
+      this.showLoading(message || '🤖 AIが音声を文字起こししています...')
+    }
+
+    const messageEl = document.getElementById('voice-upload-loading-message')
+    const progressWrap = document.getElementById('voice-upload-loading-progress')
+    const progressBar = document.getElementById('voice-upload-loading-progress-bar')
+    const progressText = document.getElementById('voice-upload-loading-progress-text')
+
+    if (messageEl && message) {
+      messageEl.textContent = message
+    }
+
+    const hasChunkInfo = Number.isFinite(Number(currentChunk)) && Number.isFinite(Number(totalChunks)) && Number(totalChunks) > 0
+    const hasPercent = Number.isFinite(Number(percent))
+
+    if (progressWrap) {
+      progressWrap.classList.remove('hidden')
+    }
+
+    if (progressBar) {
+      const safePercent = hasPercent ? Math.max(0, Math.min(100, Number(percent))) : (hasChunkInfo ? Math.round((Number(currentChunk) / Number(totalChunks)) * 100) : 0)
+      progressBar.style.width = `${safePercent}%`
+    }
+
+    if (progressText) {
+      if (hasChunkInfo) {
+        progressText.textContent = `${Number(currentChunk)}/${Number(totalChunks)}${hasPercent ? ` (${Math.max(0, Math.min(100, Number(percent)))}%)` : ''}`
+      } else if (hasPercent) {
+        progressText.textContent = `${Math.max(0, Math.min(100, Number(percent)))}%`
+      } else {
+        progressText.textContent = ''
+      }
+    }
+
+    const statusParts = ['🔄']
+    if (message) statusParts.push(message)
+    if (hasChunkInfo) {
+      statusParts.push(`${Number(currentChunk)}/${Number(totalChunks)}`)
+    } else if (hasPercent) {
+      statusParts.push(`${Math.max(0, Math.min(100, Number(percent)))}%`)
+    }
+    this.statusTarget.textContent = statusParts.join(' ')
     this.statusTarget.className = 'text-sm text-blue-600 font-medium'
   }
 
@@ -290,8 +278,12 @@ export default class extends Controller {
   // テスト用メソッド（開発環境でのみ使用）
   testInsert() {
     const testContent = '【業務報告】\n\n■ 活動概要\n電話による相談対応を実施。緊急性の高い案件について関係者と連携を図った。\n\n■ 相談内容\n・急な体調変化に対する不安\n・夜間対応サービスの利用について\n\n■ 実施した対応\n・医療機関への連絡をサポート\n・緊急時対応マニュアルの説明\n\n■ 今後の対応\n定期的なフォローアップの実施予定'
-    
-    this.appendContentToTextarea(testContent)
+
+    const textarea = document.getElementById('activity_content')
+    if (textarea) {
+      textarea.value = testContent
+      textarea.dispatchEvent(new Event('input', { bubbles: true }))
+    }
     this.statusTarget.textContent = '✅ テストデータを挿入しました'
     this.statusTarget.className = 'text-sm text-green-600 font-medium'
     
@@ -302,9 +294,6 @@ export default class extends Controller {
   }
 
   disconnect() {
-    // WebSocket接続をクリーンアップ
-    if (this.channel) {
-      this.channel.unsubscribe()
-    }
+    // no-op
   }
 }

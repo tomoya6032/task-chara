@@ -1,6 +1,7 @@
 # app/models/character.rb
 class Character < ApplicationRecord
   belongs_to :user
+  has_many :events, dependent: :nullify
   has_many :tasks, dependent: :destroy
   has_many :activities, dependent: :destroy
   has_many :support_reports, dependent: :destroy
@@ -11,6 +12,20 @@ class Character < ApplicationRecord
   validates :shave_level, :body_shape, :inner_peace, :intelligence, :toughness,
             presence: true,
             numericality: { in: 0..100 }
+
+  # textカラムをHashとして安全に扱う
+  serialize :calendar_settings, coder: JSON
+
+  def calendar_settings_hash
+    raw = calendar_settings
+    return {} if raw.blank?
+    return raw.deep_stringify_keys if raw.is_a?(Hash)
+    return JSON.parse(raw) if raw.is_a?(String)
+
+    {}
+  rescue JSON::ParserError
+    {}
+  end
 
   # ステータス判定メソッド
   def fat?

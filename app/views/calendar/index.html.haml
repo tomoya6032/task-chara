@@ -11,19 +11,29 @@
       .flex.items-center.space-x-2.md:space-x-4.flex-wrap.gap-2
         / 期間ナビゲーション
         .flex.items-center.space-x-2
-          %button#prev-month.nav-btn{ type: "button" } ←
-          %button#next-month.nav-btn{ type: "button" } →
-          %span#current-month.text-sm.md:text-lg.font-medium.text-gray-900.dark:text-white
-            = @date.strftime("%Y年%m月")
+          - if @view_type == 'week'
+            = link_to calendar_index_path(view: 'week', date: (@start_date - 7).to_s),
+                class: "nav-btn", title: "前の週" do
+              ←
+            = link_to calendar_index_path(view: 'week', date: (@start_date + 7).to_s),
+                class: "nav-btn", title: "次の週" do
+              →
+            %span.text-sm.md:text-lg.font-medium.text-gray-900.dark:text-white
+              = "#{@start_date.strftime('%Y年%m月%d日')} 〜 #{@end_date.strftime('%m月%d日')}"
+          - else
+            %button#prev-month.nav-btn{ type: "button" } ←
+            %button#next-month.nav-btn{ type: "button" } →
+            %span#current-month.text-sm.md:text-lg.font-medium.text-gray-900.dark:text-white
+              = @date.strftime("%Y年%m月")
         
         / 表示選択
         .flex.bg-gray-100.dark:bg-slate-700.rounded-md.p-1
-          %button.view-btn.active{ data: { view: "month" } }
+          = link_to calendar_index_path(view: 'month', date: @date.to_s),
+              class: "view-btn #{@view_type == 'month' ? 'active' : ''}" do
             月
-          %button.view-btn{ data: { view: "week" } }
+          = link_to calendar_index_path(view: 'week', date: @date.to_s),
+              class: "view-btn #{@view_type == 'week' ? 'active' : ''}" do
             週
-          %button.view-btn{ data: { view: "day" } }
-            日
         
         / イベント作成ボタン
         %button.bg-blue-600.text-white.px-2.md:px-4.py-2.rounded-md.hover:bg-blue-700.transition-colors.text-sm.md:text-base{ onclick: "openNewEventModal()" }
@@ -49,7 +59,7 @@
   / カレンダー本体
   .calendar-container.flex-1{ data: { current_date: @date.strftime("%Y-%m-%d") } }
     / 月表示
-    #month-view.calendar-view
+    #month-view.calendar-view{ class: (@view_type == 'month' ? '' : 'hidden') }
       / 曜日ヘッダー
       .calendar-header-row
         - %w[日 月 火 水 木 金 土].each do |day|
@@ -69,13 +79,15 @@
               ].compact.join(' ')
             }
               .calendar-date-header
-                .calendar-date-number{ 
-                  class: [
-                    (day_data[:today] ? 'calendar-today-number' : ''),
-                    (day_data[:holiday] ? 'calendar-holiday-number' : '')
-                  ].compact.join(' ')
-                }
-                  = day_data[:date].day
+                = link_to calendar_index_path(view: 'week', date: day_data[:date].to_s),
+                    class: "calendar-date-number-link" do
+                  .calendar-date-number{ 
+                    class: [
+                      (day_data[:today] ? 'calendar-today-number' : ''),
+                      (day_data[:holiday] ? 'calendar-holiday-number' : '')
+                    ].compact.join(' ')
+                  }
+                    = day_data[:date].day
                 - if day_data[:holiday]
                   .calendar-holiday-name.text-xs.text-red-600.font-medium.mt-1
                     = day_data[:holiday].name
@@ -88,10 +100,134 @@
           .calendar-no-data
             %p データが読み込まれていません
 
-    / 週表示（非表示）
-    #week-view.calendar-view.hidden
-      .text-center.text-gray-500.py-8
-        週表示は開発中です
+    / 週表示
+    #week-view.calendar-view{ class: (@view_type == 'week' ? '' : 'hidden') }
+      - if @view_type == 'week' && @week_days.present?
+        / 時間列の幅 + 7日分の列
+        .week-grid-wrapper
+          / 曜日ヘッダー行
+          .week-header-row
+            .week-time-gutter
+            - @week_days.each do |day|
+              - is_today = day == Date.current
+              - holiday = @holidays.find { |h| h.date == day }
+              = link_to calendar_index_path(view: 'week', date: day.to_s),
+                  class: "week-header-cell #{is_today ? 'week-header-today' : ''}" do
+                .week-header-dow{ class: is_today ? 'text-blue-600 font-bold' : '' }
+                  = %w[日 月 火 水 木 金 土][day.wday]
+                .week-header-date{ class: is_today ? 'week-date-today-circle' : '' }
+                  = day.day
+                - if holiday
+                  .week-header-holiday= holiday.name
+
+          / 終日イベント行
+          .week-allday-row
+            .week-allday-gutter
+              %span.week-allday-label 終日
+            - @week_days.each do |day|
+              - is_today = day == Date.current
+              .week-allday-cell{ class: is_today ? 'week-allday-cell-today' : '' }
+                / 終日イベント
+                - allday_ev = @events.select { |e| (e.all_day || e.all_day?) && e.start_time.to_date <= day && e.end_time.to_date >= day }
+                - allday_ev.each do |event|
+                  .week-allday-event{ data: { event_id: event.id, event_type: event.event_type }, onclick: "event.stopPropagation(); openEventDetailsModal(#{event.id})" }
+                    = event.title.truncate(16)
+                / 時刻指定の日跨ぎイベントの中間日（開始日・終了日を除く）
+                - multiday_ev = @events.select { |e| !e.all_day && !e.all_day? && e.start_time.to_date != e.end_time.to_date && e.start_time.to_date < day && e.end_time.to_date > day }
+                - multiday_ev.each do |event|
+                  .week-allday-event.week-allday-event-span{ data: { event_id: event.id, event_type: event.event_type }, onclick: "event.stopPropagation(); openEventDetailsModal(#{event.id})" }
+                    = "→ #{event.title.truncate(14)}"
+
+          / スクロール可能なタイムライン本体
+          .week-body-scroll
+            .week-body-inner
+              / 時間ラベル列
+              .week-time-column
+                - (0..23).each do |hour|
+                  .week-time-label
+                    - if hour.even? && hour > 0
+                      = "#{hour}:00"
+
+              / 各日のイベント列
+              - @week_days.each do |day|
+                - is_today = day == Date.current
+                .week-day-column{ class: is_today ? 'week-day-today' : '' }
+                  / 時間セル（1時間ごと）
+                  - (0..23).each do |hour|
+                    .week-hour-cell{ data: { date: day.to_s, hour: hour } }
+                  / 時刻指定イベントを絶対配置でオーバーレイ（終日不可、開始日・終了日のみ表示）
+                  - day_events = @events.select { |e| !e.all_day && !e.all_day? && (e.start_time.to_date == day || e.end_time.to_date == day) }
+                  - event_layouts = day_events.map do |event|
+                    - start_hour = event.start_time.to_date == day ? event.start_time.hour + event.start_time.min / 60.0 : 0.0
+                    - end_hour = event.end_time.to_date == day ? event.end_time.hour + event.end_time.min / 60.0 : 24.0
+                    - { event: event, start_hour: start_hour, end_hour: end_hour, duration: end_hour - start_hour }
+                  - event_layouts.sort_by! { |item| [item[:start_hour], -item[:duration], item[:end_hour]] }
+                  - active_columns = []
+                  - cluster_indices = []
+                  - cluster_max_columns = 1
+                  - event_layouts.each_with_index do |item, idx|
+                    - active_columns.reject! { |active| active[:end_hour] <= item[:start_hour] }
+                    - if active_columns.empty? && cluster_indices.any?
+                      - cluster_indices.each { |cluster_idx| event_layouts[cluster_idx][:col_count] = cluster_max_columns }
+                      - cluster_indices = []
+                      - cluster_max_columns = 1
+                    
+                    - used_cols = active_columns.map { |active| active[:col_index] }
+                    - col_index = 0
+                    - col_index += 1 while used_cols.include?(col_index)
+                    - item[:col_index] = col_index
+                    - active_columns << { end_hour: item[:end_hour], col_index: col_index }
+                    - cluster_indices << idx
+                    - cluster_max_columns = [cluster_max_columns, active_columns.size].max
+                  - if cluster_indices.any?
+                    - cluster_indices.each { |cluster_idx| event_layouts[cluster_idx][:col_count] = cluster_max_columns }
+                  - event_layouts.each do |item|
+                    - event = item[:event]
+                    - is_multiday = event.start_time.to_date != event.end_time.to_date
+                    - start_hour = item[:start_hour]
+                    - end_hour = item[:end_hour]
+                    - top_pct    = (start_hour / 24.0 * 100).round(2)
+                    - height_pct = ((end_hour - start_hour) / 24.0 * 100).round(2)
+                    - col_count = [item[:col_count].to_i, 1].max
+                    - col_index = item[:col_index].to_i
+                    - left_padding_pct = 2.0
+                    - right_padding_pct = 1.5
+                    - usable_pct = [100.0 - left_padding_pct - right_padding_pct, 35.0].max
+                    - if col_count == 1
+                      - width_pct = usable_pct.round(4)
+                      - left_pct = left_padding_pct.round(4)
+                    - else
+                      - min_step = 10.0
+                      - max_step = 26.0
+                      - step_pct = (usable_pct / (col_count + 1.0)).clamp(min_step, max_step)
+                      - overlap_multiplier = 2.4
+                      - width_pct = [step_pct * overlap_multiplier, usable_pct].min
+                      - left_pct = left_padding_pct + (col_index * step_pct)
+                      - max_width_from_left = 100.0 - right_padding_pct - left_pct
+                      - width_pct = [width_pct, max_width_from_left].min.round(4)
+                      - left_pct = left_pct.round(4)
+                    
+                    - continues_before = is_multiday && event.start_time.to_date != day
+                    - continues_after  = is_multiday && event.end_time.to_date != day
+                    - compact_class = col_count >= 3 ? 'week-event-compact' : ''
+                    - extra_class = "#{continues_before ? 'week-event-continues-before' : ''} #{continues_after ? 'week-event-continues-after' : ''} #{compact_class}".strip
+                    - event_z_index = 1 + col_index
+                    .week-event-block{ style: "top:#{top_pct}%; height:#{[height_pct, 2].max}%; left:#{left_pct}%; width:#{width_pct}%; z-index:#{event_z_index};", class: extra_class, data: { event_id: event.id, event_type: event.event_type, col_index: col_index, col_count: col_count }, onclick: "event.stopPropagation(); openEventDetailsModal(#{event.id})" }
+                      .week-event-title
+                        - if continues_before
+                          %span.week-event-arrow ↑
+                        = event.title.truncate(col_count >= 3 ? 11 : 18)
+                        - if continues_after
+                          %span.week-event-arrow ↓
+                      - if (end_hour - start_hour) >= 1 && !continues_before && col_count <= 2
+                        .week-event-time
+                          = event.start_time.strftime("%H:%M")
+                          = " 〜 "
+                          = event.end_time.strftime("%H:%M")
+                      - elsif (end_hour - start_hour) >= 1 && continues_before && col_count <= 2
+                        .week-event-time
+                          = "〜 #{event.end_time.strftime('%H:%M')}"
+
 
     / 日表示（非表示）
     #day-view.calendar-view.hidden
@@ -99,7 +235,7 @@
         日表示は開発中です
 
   / イベント作成モーダル
-  #event-modal.fixed.inset-0.bg-gray-600.bg-opacity-50.hidden.flex.items-center.justify-center
+  #event-modal.fixed.inset-0.hidden.flex.items-center.justify-center{ style: "background: rgba(0,0,0,0.72); z-index: 9999;" }
     .bg-white.rounded-lg.shadow-lg.p-6.w-96
       %h3.text-lg.font-medium.text-gray-900.mb-4
         新しいイベント
@@ -115,15 +251,51 @@
             タイトル
           %input.w-full.border.border-gray-300.rounded-md.px-3.py-2.focus:ring-2.focus:ring-blue-500.focus:border-transparent{ type: "text", name: "event[title]", required: true }
 
-        .mb-4
-          %label.block.text-sm.font-medium.text-gray-700.mb-2
-            開始日時
-          %input.w-full.border.border-gray-300.rounded-md.px-3.py-2{ type: "datetime-local", name: "event[start_time]", required: true, value: @event&.start_time&.strftime("%Y-%m-%dT%H:%M") }
+        / 終日トグル
+        .mb-3.flex.items-center.gap-2
+          %input#event-allday-check{ type: "checkbox", name: "event[all_day]", value: "1",
+            onchange: "toggleAlldayMode(this.checked)",
+            class: "w-4 h-4 text-blue-600 border-gray-300 rounded" }
+          %label{ for: "event-allday-check", class: "text-sm font-medium text-gray-700 cursor-pointer" }
+            終日イベント
 
-        .mb-4
-          %label.block.text-sm.font-medium.text-gray-700.mb-2
-            終了日時
-          %input.w-full.border.border-gray-300.rounded-md.px-3.py-2{ type: "datetime-local", name: "event[end_time]", required: true, value: @event&.end_time&.strftime("%Y-%m-%dT%H:%M") }
+        / 時刻指定入力（終日チェック時は非表示）
+        #event-datetime-fields
+          %input{ type: "hidden", id: "event-start-input", name: "event[start_time]" }
+          %input{ type: "hidden", id: "event-end-input", name: "event[end_time]" }
+          .mb-4
+            %label.block.text-sm.font-medium.text-gray-700.mb-1 開始日時
+            .flex.items-center.gap-1.flex-wrap
+              %input.border.border-gray-300.rounded-md.px-2.py-2.text-sm{ type: "date", id: "event-start-date-part", name: "event[start_date_part]", onchange: "syncDatetimeHidden('event-start-date-part','event-start-hour-part','event-start-min-part','event-start-input')" }
+              %select.border.border-gray-300.rounded-md.px-2.py-2.text-sm{ id: "event-start-hour-part", name: "event[start_hour_part]", onchange: "syncDatetimeHidden('event-start-date-part','event-start-hour-part','event-start-min-part','event-start-input')" }
+                - (0..23).each do |h|
+                  %option{ value: h.to_s.rjust(2,'0') }= "#{h.to_s.rjust(2,'0')}時"
+              %select.border.border-gray-300.rounded-md.px-2.py-2.text-sm{ id: "event-start-min-part", name: "event[start_min_part]", onchange: "syncDatetimeHidden('event-start-date-part','event-start-hour-part','event-start-min-part','event-start-input')" }
+                - [0, 15, 30, 45].each do |m|
+                  %option{ value: m.to_s.rjust(2,'0') }= "#{m.to_s.rjust(2,'0')}分"
+          .mb-4
+            %label.block.text-sm.font-medium.text-gray-700.mb-1
+              終了日時
+              %span.text-xs.text-gray-400.ml-1 （別の日付も指定可能）
+            .flex.items-center.gap-1.flex-wrap
+              %input.border.border-gray-300.rounded-md.px-2.py-2.text-sm{ type: "date", id: "event-end-date-part", name: "event[end_date_part]", onchange: "syncDatetimeHidden('event-end-date-part','event-end-hour-part','event-end-min-part','event-end-input')" }
+              %select.border.border-gray-300.rounded-md.px-2.py-2.text-sm{ id: "event-end-hour-part", name: "event[end_hour_part]", onchange: "syncDatetimeHidden('event-end-date-part','event-end-hour-part','event-end-min-part','event-end-input')" }
+                - (0..23).each do |h|
+                  %option{ value: h.to_s.rjust(2,'0') }= "#{h.to_s.rjust(2,'0')}時"
+              %select.border.border-gray-300.rounded-md.px-2.py-2.text-sm{ id: "event-end-min-part", name: "event[end_min_part]", onchange: "syncDatetimeHidden('event-end-date-part','event-end-hour-part','event-end-min-part','event-end-input')" }
+                - [0, 15, 30, 45].each do |m|
+                  %option{ value: m.to_s.rjust(2,'0') }= "#{m.to_s.rjust(2,'0')}分"
+
+        / 終日用日付入力（終日チェック時のみ表示）
+        #event-date-only-fields.hidden
+          .mb-4
+            %label.block.text-sm.font-medium.text-gray-700.mb-1
+              開始日
+            %input.w-full.border.border-gray-300.rounded-md.px-3.py-2{ type: "date", id: "event-start-date", name: "event[start_time]" }
+          .mb-4
+            %label.block.text-sm.font-medium.text-gray-700.mb-1
+              終了日
+            %input.w-full.border.border-gray-300.rounded-md.px-3.py-2{ type: "date", id: "event-end-date", name: "event[end_time]" }
 
         .mb-4
           %label.block.text-sm.font-medium.text-gray-700.mb-2
@@ -145,7 +317,7 @@
             作成
 
   / イベント詳細モーダル
-  #event-details-modal.fixed.inset-0.bg-gray-600.bg-opacity-50.hidden.flex.items-center.justify-center
+  #event-details-modal.fixed.inset-0.bg-black.hidden.flex.items-center.justify-center{ style: "background: rgba(0,0,0,0.72); z-index: 9999;" }
     .bg-white.rounded-lg.shadow-lg.p-6.w-96
       %h3.text-lg.font-medium.text-gray-900.mb-4
         📅 イベント詳細
@@ -166,18 +338,20 @@
             .text-gray-900#event-detail-type
           .event-detail-row
             .font-medium.text-gray-700 説明:
-            .text-gray-900#event-detail-description
+            .text-gray-900#event-detail-description{ style: "white-space: pre-wrap;" }
 
       .flex.justify-end.space-x-3.mt-6
         %button.bg-gray-200.text-gray-800.px-4.py-2.rounded-md.hover:bg-gray-300.transition-colors{ type: "button", onclick: "closeEventDetailsModal()" }
           閉じる
+        %button#notify-event-btn.bg-emerald-600.text-white.px-4.py-2.rounded-md.hover:bg-emerald-700.transition-colors{ type: "button", onclick: "notifyEventToLine()" }
+          LINEへ通知
         %button#edit-event-btn.bg-blue-600.text-white.px-4.py-2.rounded-md.hover:bg-blue-700.transition-colors{ type: "button", onclick: "openEditEventModal()" }
           編集
         %button#delete-event-btn.bg-red-600.text-white.px-4.py-2.rounded-md.hover:bg-red-700.transition-colors{ type: "button", onclick: "openDeleteConfirmModal()" }
           削除
 
   / イベント編集モーダル
-  #event-edit-modal.fixed.inset-0.bg-gray-600.bg-opacity-50.hidden.flex.items-center.justify-center
+  #event-edit-modal.fixed.inset-0.hidden.flex.items-center.justify-center{ style: "background: rgba(0,0,0,0.72); z-index: 9999;" }
     .bg-white.rounded-lg.shadow-lg.p-6.w-96
       %h3.text-lg.font-medium.text-gray-900.mb-4
         ✏️ イベント編集
@@ -195,14 +369,28 @@
           %input#edit-event-title.w-full.border.border-gray-300.rounded-md.px-3.py-2.focus:ring-2.focus:ring-blue-500.focus:border-transparent{ type: "text", name: "event[title]", required: true }
 
         .mb-4
-          %label.block.text-sm.font-medium.text-gray-700.mb-2
-            開始日時
-          %input#edit-event-start.w-full.border.border-gray-300.rounded-md.px-3.py-2{ type: "datetime-local", name: "event[start_time]", required: true }
+          %label.block.text-sm.font-medium.text-gray-700.mb-2 開始日時
+          %input#edit-event-start{ type: "hidden", name: "event[start_time]" }
+          .flex.items-center.gap-1.flex-wrap
+            %input.border.border-gray-300.rounded-md.px-2.py-2.text-sm{ type: "date", id: "edit-start-date-part", name: "event[start_date_part]", onchange: "syncDatetimeHidden('edit-start-date-part','edit-start-hour-part','edit-start-min-part','edit-event-start')" }
+            %select.border.border-gray-300.rounded-md.px-2.py-2.text-sm{ id: "edit-start-hour-part", name: "event[start_hour_part]", onchange: "syncDatetimeHidden('edit-start-date-part','edit-start-hour-part','edit-start-min-part','edit-event-start')" }
+              - (0..23).each do |h|
+                %option{ value: h.to_s.rjust(2,'0') }= "#{h.to_s.rjust(2,'0')}時"
+            %select.border.border-gray-300.rounded-md.px-2.py-2.text-sm{ id: "edit-start-min-part", name: "event[start_min_part]", onchange: "syncDatetimeHidden('edit-start-date-part','edit-start-hour-part','edit-start-min-part','edit-event-start')" }
+              - [0, 15, 30, 45].each do |m|
+                %option{ value: m.to_s.rjust(2,'0') }= "#{m.to_s.rjust(2,'0')}分"
 
         .mb-4
-          %label.block.text-sm.font-medium.text-gray-700.mb-2
-            終了日時
-          %input#edit-event-end.w-full.border.border-gray-300.rounded-md.px-3.py-2{ type: "datetime-local", name: "event[end_time]", required: true }
+          %label.block.text-sm.font-medium.text-gray-700.mb-2 終了日時
+          %input#edit-event-end{ type: "hidden", name: "event[end_time]" }
+          .flex.items-center.gap-1.flex-wrap
+            %input.border.border-gray-300.rounded-md.px-2.py-2.text-sm{ type: "date", id: "edit-end-date-part", name: "event[end_date_part]", onchange: "syncDatetimeHidden('edit-end-date-part','edit-end-hour-part','edit-end-min-part','edit-event-end')" }
+            %select.border.border-gray-300.rounded-md.px-2.py-2.text-sm{ id: "edit-end-hour-part", name: "event[end_hour_part]", onchange: "syncDatetimeHidden('edit-end-date-part','edit-end-hour-part','edit-end-min-part','edit-event-end')" }
+              - (0..23).each do |h|
+                %option{ value: h.to_s.rjust(2,'0') }= "#{h.to_s.rjust(2,'0')}時"
+            %select.border.border-gray-300.rounded-md.px-2.py-2.text-sm{ id: "edit-end-min-part", name: "event[end_min_part]", onchange: "syncDatetimeHidden('edit-end-date-part','edit-end-hour-part','edit-end-min-part','edit-event-end')" }
+              - [0, 15, 30, 45].each do |m|
+                %option{ value: m.to_s.rjust(2,'0') }= "#{m.to_s.rjust(2,'0')}分"
 
         .mb-4
           %label.block.text-sm.font-medium.text-gray-700.mb-2
@@ -224,7 +412,7 @@
             更新
 
   / 削除確認モーダル
-  #delete-confirm-modal.fixed.inset-0.bg-gray-600.bg-opacity-50.hidden.flex.items-center.justify-center
+  #delete-confirm-modal.fixed.inset-0.hidden.flex.items-center.justify-center{ style: "background: rgba(0,0,0,0.72); z-index: 9999;" }
     .bg-white.rounded-lg.shadow-lg.p-6.w-96
       %h3.text-lg.font-medium.text-red-600.mb-4
         🗑️ イベント削除確認
@@ -243,11 +431,295 @@
           削除
 
 :css
-  .nav-btn {
-    padding: 6px 10px;
+  /* 月ビュー: 日付番号をリンクに */
+  .calendar-date-number-link {
+    text-decoration: none;
+    color: inherit;
+    display: inline-flex;
+    align-items: center;
+  }
+  .calendar-date-number-link:hover .calendar-date-number {
+    background-color: #e0e7ff;
+    border-radius: 50%;
+  }
+
+  /* ─────────────────────────────────────── */
+  /* 週ビュー                                */
+  /* ─────────────────────────────────────── */
+  .week-grid-wrapper {
+    display: flex;
+    flex-direction: column;
     border: 1px solid #e5e7eb;
-    border-radius: 6px;
+    border-radius: 8px;
+    overflow: hidden;
     background: white;
+  }
+
+  /* 曜日ヘッダー */
+  .week-header-row {
+    display: grid;
+    grid-template-columns: 52px repeat(7, 1fr);
+    border-bottom: 2px solid #e5e7eb;
+    background: #f9fafb;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .week-time-gutter {
+    border-right: 1px solid #e5e7eb;
+  }
+
+  .week-header-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 4px;
+    border-right: 1px solid #e5e7eb;
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
+    transition: background 0.15s;
+    min-height: 60px;
+  }
+  .week-header-cell:hover {
+    background: #eff6ff;
+  }
+  .week-header-cell:last-child {
+    border-right: none;
+  }
+  .week-header-today {
+    background: #eff6ff;
+  }
+
+  .week-header-dow {
+    font-size: 11px;
+    font-weight: 500;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .week-header-date {
+    font-size: 22px;
+    font-weight: 400;
+    color: #111827;
+    line-height: 1;
+    margin-top: 2px;
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+  }
+  .week-date-today-circle {
+    background: #2563eb;
+    color: white !important;
+    font-weight: 700;
+    border-radius: 50%;
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .week-header-holiday {
+    font-size: 9px;
+    color: #ef4444;
+    margin-top: 2px;
+    text-align: center;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* タイムライン本体 スクロール */
+  .week-body-scroll {
+    overflow-y: auto;
+    max-height: calc(100vh - 280px);
+  }
+  .week-body-inner {
+    display: grid;
+    grid-template-columns: 52px repeat(7, 1fr);
+    min-height: 1152px; /* 24h × 48px */
+  }
+
+  /* 時間ラベル列 */
+  .week-time-column {
+    border-right: 1px solid #e5e7eb;
+    display: flex;
+    flex-direction: column;
+  }
+  /* 終日イベント行 */
+  .week-allday-row {
+    display: grid;
+    grid-template-columns: 52px repeat(7, 1fr);
+    border-bottom: 2px solid #e5e7eb;
+    background: #fafafa;
+    min-height: 28px;
+  }
+  .week-allday-gutter {
+    border-right: 1px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 2px 4px;
+  }
+  .week-allday-label {
+    font-size: 9px;
+    color: #9ca3af;
+  }
+  .week-allday-cell {
+    border-right: 1px solid #e5e7eb;
+    padding: 2px 2px;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-height: 28px;
+    overflow: hidden;
+    min-width: 0;
+  }
+  .week-allday-cell:last-child {
+    border-right: none;
+  }
+  .week-allday-cell-today {
+    background: #fafbff;
+  }
+  .week-allday-event {
+    border-radius: 3px;
+    padding: 1px 4px;
+    font-size: 10px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    background: #dbeafe;
+    border-left: 3px solid #2563eb;
+    color: #1e3a8a;
+    cursor: pointer;
+    line-height: 1.5;
+  }
+  .week-allday-event:hover {
+    filter: brightness(0.95);
+  }
+  /* 日跨ぎイベントの中間日バッジ */
+  .week-allday-event-span {
+    background: #e0e7ff;
+    border-left-color: #6366f1;
+    color: #3730a3;
+    opacity: 0.85;
+  }
+
+  /* 継続矢印 */
+  .week-event-arrow {
+    font-size: 9px;
+    opacity: 0.7;
+    margin-right: 2px;
+  }
+  .week-event-continues-after {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    border-bottom: 2px dashed rgba(0,0,0,0.25);
+  }
+  .week-event-continues-before {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    border-top: 2px dashed rgba(0,0,0,0.25);
+  }
+
+  .week-time-label {
+    height: 48px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+    padding: 2px 6px 0 0;
+    font-size: 10px;
+    color: #9ca3af;
+    flex-shrink: 0;
+    border-bottom: 1px solid #f3f4f6;
+  }
+
+  /* 各日の列 */
+  .week-day-column {
+    position: relative;
+    border-right: 1px solid #e5e7eb;
+  }
+  .week-day-column:last-child {
+    border-right: none;
+  }
+  .week-day-today {
+    background: #fafbff;
+  }
+
+  /* 1時間セル */
+  .week-hour-cell {
+    height: 48px;
+    border-bottom: 1px solid #f3f4f6;
+    transition: background 0.1s;
+  }
+  .week-hour-cell:hover {
+    background: #f0f9ff;
+    cursor: pointer;
+  }
+
+  /* イベントブロック */
+  .week-event-block {
+    position: absolute;
+    box-sizing: border-box;
+    border-radius: 4px;
+    padding: 2px 4px;
+    font-size: 11px;
+    cursor: pointer;
+    overflow: hidden;
+    z-index: 1;
+    background: #dbeafe;
+    border-left: 3px solid #2563eb;
+    color: #1e3a8a;
+    transition: filter 0.15s, box-shadow 0.15s;
+    min-height: 14px;
+  }
+  .week-event-block:hover {
+    filter: brightness(0.95);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    z-index: 4;
+  }
+  .week-event-compact {
+    padding: 2px 3px;
+  }
+  .week-event-compact .week-event-title {
+    font-size: 10px;
+  }
+  .week-event-title {
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.3;
+  }
+  .week-event-time {
+    font-size: 10px;
+    opacity: 0.8;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  @media (max-width: 768px) {
+    .week-header-date { font-size: 16px; width: 28px; height: 28px; }
+    .week-date-today-circle { width: 28px; height: 28px; }
+    .week-header-cell { min-height: 48px; }
+    .week-body-inner { grid-template-columns: 36px repeat(7, 1fr); }
+    .week-time-column { /* narrow */ }
+    .week-time-label { font-size: 9px; padding-right: 3px; }
+    .week-event-block {
+      padding: 2px 2px;
+      font-size: 10px;
+    }
+    .week-event-compact .week-event-title {
+      font-size: 9px;
+    }
+  }
     color: #374151;
     cursor: pointer;
     transition: all 0.2s;
@@ -669,7 +1141,7 @@
       return;
     }
     
-    const eventElements = document.querySelectorAll('.calendar-event');
+    const eventElements = document.querySelectorAll('.calendar-event, .week-event-block');
     console.log(`Found ${eventElements.length} event elements`);
     
     eventElements.forEach(eventElement => {
@@ -746,20 +1218,10 @@
   }
 
   // ビュー切り替えボタン設定
+  // ビュー切替はサーバーサイドURLナビゲーションに統一済み（aタグ）
+  // 旧JS切替は無効化
   function setupViewButtons() {
-    document.querySelectorAll('.view-btn').forEach(btn => {
-      btn.addEventListener('click', function() {
-        document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
-        this.classList.add('active');
-        
-        const view = this.dataset.view;
-        document.querySelectorAll('.calendar-view').forEach(v => v.classList.add('hidden'));
-        const targetView = document.getElementById(`${view}-view`);
-        if (targetView) {
-          targetView.classList.remove('hidden');
-        }
-      });
-    });
+    // no-op: view-btn は link_to (aタグ) に変更済みのため不要
   }
 
   // フォーム送信設定
@@ -783,43 +1245,45 @@
 
   // 開始日時変更時の終了日時自動設定
   function setupDateTimeAutoCalculation() {
-    const startTimeInput = document.querySelector('input[name="event[start_time]"]');
-    const endTimeInput = document.querySelector('input[name="event[end_time]"]');
-    
-    if (startTimeInput && endTimeInput) {
-      startTimeInput.addEventListener('change', function() {
-        updateEndTimeOneHourLater(this.value, endTimeInput);
-      });
-    }
-    
-    const editStartTimeInput = document.getElementById('edit-event-start');
-    const editEndTimeInput = document.getElementById('edit-event-end');
-    
-    if (editStartTimeInput && editEndTimeInput) {
-      editStartTimeInput.addEventListener('change', function() {
-        updateEndTimeOneHourLater(this.value, editEndTimeInput);
-      });
-    }
+    // 新規作成モーダル
+    ['event-start-date-part', 'event-start-hour-part', 'event-start-min-part'].forEach(function(id) {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener('change', function() {
+          syncDatetimeHidden('event-start-date-part', 'event-start-hour-part', 'event-start-min-part', 'event-start-input');
+          const startHidden = document.getElementById('event-start-input');
+          if (startHidden && startHidden.value) {
+            updateEndTimeOneHourLater(startHidden.value, 'event-end-date-part', 'event-end-hour-part', 'event-end-min-part', 'event-end-input');
+          }
+        });
+      }
+    });
+    // 編集モーダル
+    ['edit-start-date-part', 'edit-start-hour-part', 'edit-start-min-part'].forEach(function(id) {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener('change', function() {
+          syncDatetimeHidden('edit-start-date-part', 'edit-start-hour-part', 'edit-start-min-part', 'edit-event-start');
+          const startHidden = document.getElementById('edit-event-start');
+          if (startHidden && startHidden.value) {
+            updateEndTimeOneHourLater(startHidden.value, 'edit-end-date-part', 'edit-end-hour-part', 'edit-end-min-part', 'edit-event-end');
+          }
+        });
+      }
+    });
   }
 
-  // 1時間後の時刻設定
-  function updateEndTimeOneHourLater(startTimeValue, endTimeInput) {
-    if (!startTimeValue || !endTimeInput) return;
-    
+  // 1時間後の時刻設定（終了日時が開始より前の場合のみ上書き）
+  function updateEndTimeOneHourLater(startTimeValue, endDateId, endHourId, endMinId, endHiddenId) {
+    if (!startTimeValue) return;
     try {
       const startDate = new Date(startTimeValue);
-      const endDate = new Date(startDate.getTime() + (60 * 60 * 1000));
-      
-      const year = endDate.getFullYear();
-      const month = String(endDate.getMonth() + 1).padStart(2, '0');
-      const day = String(endDate.getDate()).padStart(2, '0');
-      const hours = String(endDate.getHours()).padStart(2, '0');
-      const minutes = String(endDate.getMinutes()).padStart(2, '0');
-      
-      const formattedEndTime = `${year}-${month}-${day}T${hours}:${minutes}`;
-      endTimeInput.value = formattedEndTime;
-      
-      console.log(`Auto-calculated end time: ${formattedEndTime}`);
+      const endHiddenEl = document.getElementById(endHiddenId);
+      const currentEnd = endHiddenEl?.value ? new Date(endHiddenEl.value) : null;
+      // 既に開始より後の終了時刻が設定されている場合は上書きしない
+      if (currentEnd && currentEnd > startDate) return;
+      const endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
+      setDatetimeParts(endDate.toISOString(), endDateId, endHourId, endMinId, endHiddenId);
     } catch (error) {
       console.error('Error calculating end time:', error);
     }
@@ -892,6 +1356,11 @@
     if (modal) {
       modal.classList.remove('hidden');
       hideErrorMessages();
+      // デフォルト日時（現在時刻・1時間後）をセット
+      const now = new Date();
+      setDatetimeParts(now.toISOString(), 'event-start-date-part', 'event-start-hour-part', 'event-start-min-part', 'event-start-input');
+      const endNow = new Date(now.getTime() + 60 * 60 * 1000);
+      setDatetimeParts(endNow.toISOString(), 'event-end-date-part', 'event-end-hour-part', 'event-end-min-part', 'event-end-input');
     }
   };
 
@@ -903,8 +1372,38 @@
     }
     if (form) {
       form.reset();
+      // 終日モードをリセット
+      const checkbox = document.getElementById('event-allday-check');
+      if (checkbox) checkbox.checked = false;
+      toggleAlldayMode(false);
     }
     hideErrorMessages();
+  };
+
+  // 終日モード切替
+  window.toggleAlldayMode = function(isAllDay) {
+    const datetimeFields = document.getElementById('event-datetime-fields');
+    const dateOnlyFields = document.getElementById('event-date-only-fields');
+    const startInput = document.getElementById('event-start-input');
+    const endInput   = document.getElementById('event-end-input');
+    const startDate  = document.getElementById('event-start-date');
+    const endDate    = document.getElementById('event-end-date');
+
+    if (isAllDay) {
+      datetimeFields.classList.add('hidden');
+      dateOnlyFields.classList.remove('hidden');
+      if (startInput) startInput.removeAttribute('required');
+      if (endInput)   endInput.removeAttribute('required');
+      if (startDate)  startDate.setAttribute('required', '');
+      if (endDate)    endDate.setAttribute('required', '');
+    } else {
+      datetimeFields.classList.remove('hidden');
+      dateOnlyFields.classList.add('hidden');
+      if (startInput) startInput.setAttribute('required', '');
+      if (endInput)   endInput.setAttribute('required', '');
+      if (startDate)  startDate.removeAttribute('required');
+      if (endDate)    endDate.removeAttribute('required');
+    }
   };
 
   // イベント詳細モーダル
@@ -976,8 +1475,8 @@
     
     if (idInput) idInput.value = window.currentEvent.id;
     if (titleInput) titleInput.value = window.currentEvent.title || '';
-    if (startInput) startInput.value = formatDateTimeForInput(window.currentEvent.start_time);
-    if (endInput) endInput.value = formatDateTimeForInput(window.currentEvent.end_time);
+    setDatetimeParts(window.currentEvent.start_time, 'edit-start-date-part', 'edit-start-hour-part', 'edit-start-min-part', 'edit-event-start');
+    setDatetimeParts(window.currentEvent.end_time, 'edit-end-date-part', 'edit-end-hour-part', 'edit-end-min-part', 'edit-event-end');
     if (typeInput) typeInput.value = window.currentEvent.event_type;
     if (descInput) descInput.value = window.currentEvent.description || '';
     
@@ -995,6 +1494,58 @@
       editModal.classList.remove('hidden');
     }
     hideEditErrorMessages();
+  };
+
+  window.notifyEventToLine = function() {
+    if (!window.currentEvent || !window.currentEvent.id) {
+      alert('通知するイベントが選択されていません。');
+      return;
+    }
+
+    const notifyBtn = document.getElementById('notify-event-btn');
+    if (notifyBtn) {
+      notifyBtn.disabled = true;
+      notifyBtn.textContent = '送信中...';
+    }
+
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+    fetch(`/calendar/${window.currentEvent.id}/notify_line`, {
+      method: 'POST',
+      headers: {
+        'X-CSRF-Token': csrfToken,
+        'Accept': 'application/json'
+      }
+    })
+    .then(async (response) => {
+      const text = await response.text();
+      let data;
+
+      try {
+        data = JSON.parse(text);
+      } catch (_e) {
+        data = { error: text || 'サーバーからの応答を解釈できませんでした。' };
+      }
+
+      return { ok: response.ok, data };
+    })
+    .then(({ ok, data }) => {
+      if (ok) {
+        alert(data.message || 'LINEへ通知を送信しました。');
+      } else {
+        alert(data.error || 'LINE通知の送信に失敗しました。');
+      }
+    })
+    .catch(error => {
+      console.error('Error notifying line:', error);
+      alert('通知中にエラーが発生しました: ' + error.message);
+    })
+    .finally(() => {
+      if (notifyBtn) {
+        notifyBtn.disabled = false;
+        notifyBtn.textContent = 'LINEへ通知';
+      }
+    });
   };
 
   window.closeEditEventModal = function() {
@@ -1152,6 +1703,52 @@
     return `${year}-${month}-${day}T${hours}:${minutes}`;
   }
 
+  // 分を15分単位に丸める
+  function snapToQuarterHour(datetimeLocalString) {
+    if (!datetimeLocalString) return datetimeLocalString;
+    const [datePart, timePart] = datetimeLocalString.split('T');
+    if (!datePart || !timePart) return datetimeLocalString;
+    const [hour, minute] = timePart.split(':').map(Number);
+    const snappedMinute = Math.round(minute / 15) * 15;
+    const extraHour = snappedMinute >= 60 ? 1 : 0;
+    const finalMinute = snappedMinute >= 60 ? 0 : snappedMinute;
+    const finalHour = hour + extraHour;
+    if (finalHour >= 24) {
+      const d = new Date(datePart + 'T00:00:00');
+      d.setDate(d.getDate() + 1);
+      const yr = d.getFullYear();
+      const mo = String(d.getMonth() + 1).padStart(2, '0');
+      const dy = String(d.getDate()).padStart(2, '0');
+      return `${yr}-${mo}-${dy}T00:00`;
+    }
+    return `${datePart}T${String(finalHour).padStart(2, '0')}:${String(finalMinute).padStart(2, '0')}`;
+  }
+
+  // 日付・時・分セレクトの値を隠しフィールドに同期
+  function syncDatetimeHidden(dateId, hourId, minId, hiddenId) {
+    const datePart = document.getElementById(dateId)?.value;
+    const hourPart = document.getElementById(hourId)?.value;
+    const minPart  = document.getElementById(minId)?.value;
+    if (!datePart || hourPart === undefined || minPart === undefined) return;
+    const hidden = document.getElementById(hiddenId);
+    if (hidden) hidden.value = `${datePart}T${hourPart}:${minPart}`;
+  }
+
+  // 隠しフィールドと各セレクトに日時値をセット（15分単位に丸める）
+  function setDatetimeParts(datetimeValue, dateId, hourId, minId, hiddenId) {
+    const snapped = snapToQuarterHour(formatDateTimeForInput(datetimeValue));
+    if (!snapped) return;
+    const [datePart, timePart] = snapped.split('T');
+    const [hh, mm] = timePart.split(':');
+    const dateEl = document.getElementById(dateId);
+    const hourEl = document.getElementById(hourId);
+    const minEl  = document.getElementById(minId);
+    if (dateEl) dateEl.value = datePart;
+    if (hourEl) hourEl.value = hh;
+    if (minEl)  minEl.value  = mm;
+    syncDatetimeHidden(dateId, hourId, minId, hiddenId);
+  }
+
   function getEventTypeLabel(eventType) {
     if (!window.customCategories) return eventType;
     
@@ -1164,7 +1761,47 @@
     const submitBtn = document.getElementById('submit-btn');
     
     if (!form || !submitBtn) return;
-    
+
+    // 終日チェック時: dateフィールドをdatetimeに変換してからFormData生成
+    const alldayCheck = document.getElementById('event-allday-check');
+    if (alldayCheck && alldayCheck.checked) {
+      const startDate = document.getElementById('event-start-date');
+      const endDate   = document.getElementById('event-end-date');
+      // hidden inputとして datetime 値を注入
+      if (startDate && startDate.value) {
+        document.getElementById('event-start-input').value = startDate.value + 'T00:00';
+      }
+      if (endDate && endDate.value) {
+        document.getElementById('event-end-input').value = endDate.value + 'T23:59';
+      }
+      // 終日フィールドのname属性を一時的に無効化して重複送信を防ぐ
+      if (startDate) startDate.removeAttribute('name');
+      if (endDate)   endDate.removeAttribute('name');
+      document.getElementById('event-start-input').setAttribute('name', 'event[start_time]');
+      document.getElementById('event-end-input').setAttribute('name', 'event[end_time]');
+    } else {
+      // hidden input が空でも、表示中の date/hour/minute から必ず再構築する
+      syncDatetimeHidden('event-start-date-part', 'event-start-hour-part', 'event-start-min-part', 'event-start-input');
+      syncDatetimeHidden('event-end-date-part', 'event-end-hour-part', 'event-end-min-part', 'event-end-input');
+
+      const startHidden = document.getElementById('event-start-input');
+      const endHidden = document.getElementById('event-end-input');
+
+      if (!startHidden?.value || !endHidden?.value) {
+        const now = new Date();
+        setDatetimeParts(now.toISOString(), 'event-start-date-part', 'event-start-hour-part', 'event-start-min-part', 'event-start-input');
+        const endNow = new Date(now.getTime() + 60 * 60 * 1000);
+        setDatetimeParts(endNow.toISOString(), 'event-end-date-part', 'event-end-hour-part', 'event-end-min-part', 'event-end-input');
+      }
+    }
+
+    const startValue = document.getElementById('event-start-input')?.value;
+    const endValue = document.getElementById('event-end-input')?.value;
+    if (!startValue || !endValue) {
+      showErrorMessages(['開始日時と終了日時を入力してください。']);
+      return;
+    }
+
     const formData = new FormData(form);
     const token = document.querySelector('meta[name="csrf-token"]');
     

@@ -1,7 +1,7 @@
 / 日報詳細ページ
 .min-h-screen.bg-slate-50.dark:bg-slate-900
   / デスクトップサイドバー（lg以上で表示）
-  .hidden.lg:fixed.lg:inset-y-0.lg:z-50.lg:flex.lg:w-72.lg:flex-col
+  .hidden.lg:fixed.lg:inset-y-0.lg:z-50.lg:flex.lg:w-72.lg:flex-col.lg:pointer-events-none
     -# .flex.grow.flex-col.gap-y-5.overflow-y-auto.bg-white.dark:bg-slate-800.px-6.border-r.border-slate-200.dark:border-slate-700
       -# .flex.h-16.shrink-0.items-center
       -#   %h1.text-lg.font-semibold.text-slate-900.dark:text-white
@@ -34,7 +34,7 @@
     .px-4.sm:px-6.lg:px-8.py-8
       / 戻るボタン
       .mb-6
-        = link_to activities_path, class: "inline-flex items-center text-sm text-slate-500 hover:text-slate-700" do
+        = link_to activities_path, class: "back-to-index-button inline-flex items-center text-sm text-slate-500 hover:text-slate-700 cursor-pointer", data: { turbo: false } do
           ← 日報一覧に戻る
 
       / 日報詳細カード
@@ -121,27 +121,24 @@
         / アクションボタン
         .px-6.py-4.bg-slate-50.dark:bg-slate-700.border-t.border-slate-200.dark:border-slate-600
           .flex.justify-between.items-center
-            = link_to activities_path, class: "inline-flex items-center px-4 py-2 border border-slate-300 text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors" do
+            = link_to activities_path, class: "back-to-index-button inline-flex items-center px-4 py-2 border border-slate-300 text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors cursor-pointer", data: { turbo: false } do
               ← 一覧に戻る
             
             .flex.space-x-2
               = button_to extract_tasks_activity_path(@activity),
                   method: :post,
-                  class: "inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors",
-                  data: { confirm: "この日報から予定・タスクを抽出してタスクリストに追加しますか？", disable_with: "🤖 AIが解析中..." },
+                  class: "inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors cursor-pointer",
+                  data: { confirm: "この日報から予定・タスク候補を抽出してドラフト作成しますか？", disable_with: "🤖 AIが解析中..." },
                   id: "extract-tasks-btn" do
-                🤖 予定をタスクに抽出
+                🤖 予定・タスク候補を抽出
               = link_to edit_activity_path(@activity), 
                   class: "inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors" do
                 📝 編集
               = button_to activity_path(@activity), method: :delete,
-                  class: "inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors",
+                  class: "inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors cursor-pointer",
                   data: { confirm: "この日報を削除しますか？" } do
                 🗑️ 削除
               = link_to new_activity_path, 
                   class: "inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors",
                   data: { "turbo-frame": "activity_form_modal" } do
                 📝 新しい日報を投稿
-
-  / 日報投稿モーダル用のTurbo Frame
-  = turbo_frame_tag "activity_form_modal"

@@ -337,10 +337,10 @@ export default class extends Controller {
     
     console.log(`✅ Audio file accepted: ${file.name}, type: ${file.type || 'unknown'}, size: ${(file.size/1024/1024).toFixed(2)}MB`)
 
-    // ファイルサイズチェック（25MB制限）
-    if (file.size > 25 * 1024 * 1024) {
+    // ファイルサイズチェック（50MB制限）
+    if (file.size > 50 * 1024 * 1024) {
       console.error(`File size too large: ${(file.size/1024/1024).toFixed(2)}MB`)
-      this.showErrorStatus(`❌ 音声ファイルのサイズが大きすぎます（最大25MB）\n現在のサイズ：${(file.size/1024/1024).toFixed(2)}MB`)
+      this.showErrorStatus(`❌ 音声ファイルのサイズが大きすぎます（最大50MB）\n現在のサイズ：${(file.size/1024/1024).toFixed(2)}MB`)
       event.target.value = '' // ファイル選択をリセット
       return
     }

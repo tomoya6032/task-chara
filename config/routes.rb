@@ -1,10 +1,15 @@
 Rails.application.routes.draw do
+  # LINE Messaging API Webhook
+  post "line/callback", to: "line_webhooks#callback"
+
   # AI Secretary routes
   get "ai_secretary/chat"
   post "ai_secretary/send_message"
+  post "ai_secretary/extract_tasks_from_chat"
   get "ai_secretary/conversation_history"
   get "ai_secretary/conversation_list"
   post "ai_secretary/new_conversation"
+  post "ai_secretary/create_calendar_event"
 
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
@@ -14,6 +19,9 @@ Rails.application.routes.draw do
 
   # Calendar routes
   resources :calendar, only: [ :index, :show, :new, :create, :edit, :update, :destroy ] do
+    member do
+      post :notify_line
+    end
     collection do
       get :events
       post :sync_external
@@ -78,6 +86,7 @@ Rails.application.routes.draw do
   # Tasks routes
   resources :tasks, only: [ :index, :new, :create, :show, :edit, :update ] do
     member do
+      post :notify_line
       patch :complete
       patch :hide
       patch :unhide

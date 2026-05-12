@@ -84,6 +84,7 @@ class ActivityTaskExtractionService
   def build_extraction_prompt
     current_date = Time.current.strftime("%Y年%m月%d日")
     current_time = Time.current.strftime("%H:%M")
+    current_date_iso = Time.current.strftime("%Y-%m-%d")
 
     <<~PROMPT
       あなたは日本の日報から予定・タスクを抽出する専門家です。
@@ -102,11 +103,16 @@ class ActivityTaskExtractionService
       - 一般論や考察
 
       【日時の解釈基準】
-      - 現在日時: #{current_date} #{current_time}
+      - 現在日時: #{current_date} #{current_time}（日本時間/JST）
+      - 基準日: #{current_date_iso}
       - 「明日」→ #{Date.current.tomorrow.strftime("%Y年%m月%d日")}
       - 「来週」→ #{Date.current.next_week.strftime("%Y年%m月%d日")}以降
       - 「今度」「次回」→ #{3.days.from_now.strftime("%Y年%m月%d日")}頃
-      - 時間が不明な場合は09:00にデフォルト設定
+      - 文中に「10時」「10:30」など明示の時刻がある場合は、その時刻を必ず due_date に反映
+      - 午前/午後の文脈（例: 午後3時）を考慮して24時間表記に正規化
+      - 時間が不明な場合のみ09:00にデフォルト設定
+      - 日付だけ明確で時間が不明な場合はその日09:00
+      - due_date は必ず "YYYY-MM-DD HH:MM" 形式（JST基準）で出力
 
       【カテゴリ判定】
       - "welfare": 訪問介護、利用者対応、福祉関連
@@ -187,14 +193,21 @@ class ActivityTaskExtractionService
     return nil if date_string.blank? || date_string == "null"
 
     begin
-      # ISO形式での解析を試行
-      if date_string.match?(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/)
-        DateTime.parse(date_string)
-      elsif date_string.match?(/^\d{4}-\d{2}-\d{2}$/)
-        Date.parse(date_string).beginning_of_day + 9.hours # 09:00に設定
-      else
-        nil
+      normalized = date_string.to_s.strip
+
+      # 秒やタイムゾーン付きのISO8601にも対応
+      return Time.zone.parse(normalized) if normalized.match?(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/)
+
+      # 例: 2026-05-12 10:00 / 2026/05/12 10:00
+      return Time.zone.parse(normalized.tr("/", "-")) if normalized.match?(/^\d{4}[\/-]\d{2}[\/-]\d{2} \d{2}:\d{2}$/)
+
+      # 例: 2026-05-12（時間不明時は09:00固定）
+      if normalized.match?(/^\d{4}[\/-]\d{2}[\/-]\d{2}$/)
+        date = Date.strptime(normalized.tr("/", "-"), "%Y-%m-%d")
+        return Time.zone.local(date.year, date.month, date.day, 9, 0, 0)
       end
+
+      nil
     rescue Date::Error, ArgumentError
       nil
     end

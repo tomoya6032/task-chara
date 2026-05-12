@@ -5,9 +5,10 @@ class Task < ApplicationRecord
 
   after_initialize :set_defaults
   after_save :manage_calendar_event
+  before_save :reset_line_due_reminder_flag_if_needed
 
   validates :title, presence: true
-  validates :category, presence: true, inclusion: { in: %w[welfare web admin] }
+  validates :category, presence: true
   validates :dislike_level, presence: true, numericality: { in: 1..10 }
   validates :extraction_confidence, numericality: { in: 0.0..1.0 }, allow_nil: true
 
@@ -120,12 +121,14 @@ class Task < ApplicationRecord
     # ドラフト状態のタスクはカレンダーで同期しない
     if due_date.present? && !completed? && published?
       event = Event.find_or_initialize_by(external_id: task_external_id)
+      # 時間が未指定（00:00）の場合は17:00-18:00をデフォルトにする
+      effective_end = due_date.hour == 0 && due_date.min == 0 ? due_date.change(hour: 18) : due_date
       event.assign_attributes(
         title: "📋 #{title} (期限)",
-        description: "カテゴリ: #{category_display}\n嫌悪レベル: #{dislike_level_display}",
-        start_time: due_date.beginning_of_day,
-        end_time: due_date.end_of_day,
-        all_day: true,
+        description: description.presence,
+        start_time: effective_end - 1.hour,
+        end_time: effective_end,
+        all_day: false,
         event_type: "task_deadline",
         character: character
       )
@@ -181,7 +184,14 @@ class Task < ApplicationRecord
   end
 
   def manage_calendar_event
-    sync_calendar_event if saved_change_to_due_date? || saved_change_to_title? || saved_change_to_completed_at?
+    sync_calendar_event if saved_change_to_due_date? || saved_change_to_title? || saved_change_to_completed_at? || saved_change_to_description?
+  end
+
+  def reset_line_due_reminder_flag_if_needed
+    return unless self.class.column_names.include?("line_due_72h_notified_at")
+    return unless will_save_change_to_due_date? || will_save_change_to_completed_at?
+
+    self.line_due_72h_notified_at = nil
   end
 
   def polish_character_from_completion

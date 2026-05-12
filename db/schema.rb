@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_04_22_064105) do
+ActiveRecord::Schema[8.0].define(version: 2026_05_11_190000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -327,7 +327,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_04_22_064105) do
     t.integer "extracted_from_activity_id"
     t.decimal "extraction_confidence"
     t.text "extraction_source_text"
+    t.text "description"
+    t.datetime "line_due_72h_notified_at"
     t.index ["character_id"], name: "index_tasks_on_character_id"
+    t.index ["line_due_72h_notified_at"], name: "index_tasks_on_line_due_72h_notified_at"
   end
 
   create_table "users", force: :cascade do |t|
@@ -335,6 +338,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_04_22_064105) do
     t.bigint "organization_id", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "line_user_id"
+    t.index ["line_user_id"], name: "index_users_on_line_user_id", unique: true
     t.index ["organization_id"], name: "index_users_on_organization_id"
   end
 

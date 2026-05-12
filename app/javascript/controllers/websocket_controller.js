@@ -2,92 +2,9 @@
 import { Controller } from "@hotwired/stimulus"
 import { createConsumer } from "@rails/actioncable"
 
-// グローバルな結果処理関数
-window.handleAiProcessingResult = function(data) {
-  console.log("🌟 === GLOBAL HANDLER TRIGGERED ===")
-  console.log("Received data:", data)
-  console.log("Data type:", data.type)
-  console.log("Data status:", data.status)
-  console.log("Content length:", data.content ? data.content.length : 0)
-  
-  // 最初にローディング画面を非表示
-  hideAllLoadingScreens()
-  
-  if (data.status === 'completed' && data.content) {
-    console.log("✅ Processing completed data with content")
-    
-    // テキストエリアを複数の方法で検索
-    let contentField = null
-    const selectors = [
-      'textarea[name="activity[content]"]',
-      '#activity_content',
-      'textarea[data-character-counter-target="input"]',
-      'textarea[data-character-counter-target="textarea"]',
-      'textarea[required]' // 必須フィールドとして検索
-    ]
-    
-    console.log("🔍 Searching for content field...")
-    for (let i = 0; i < selectors.length; i++) {
-      console.log(`Trying selector ${i + 1}: ${selectors[i]}`)
-      contentField = document.querySelector(selectors[i])
-      if (contentField) {
-        console.log(`✅ Found content field with selector: ${selectors[i]}`)
-        break
-      }
-    }
-    
-    if (contentField) {
-      console.log("📝 Inserting text into content field...")
-      
-      const currentText = contentField.value.trim()
-      const separator = currentText ? '\n\n' : ''
-      const newValue = currentText + separator + data.content
-      
-      console.log("Current text length:", currentText.length)
-      console.log("New content length:", data.content.length)
-      console.log("Final text length:", newValue.length)
-      
-      contentField.value = newValue
-      
-      // イベント発火
-      const event = new Event('input', { bubbles: true })
-      contentField.dispatchEvent(event)
-      
-      // フォーカス
-      contentField.focus()
-      contentField.setSelectionRange(contentField.value.length, contentField.value.length)
-      
-      // 成功通知
-      const message = data.type === 'image_ocr' ? '📷 画像から文字を抽出しました！' : '🎤 音声をテキストに変換しました！'
-      showSuccessNotification(message)
-      
-      // AIコントローラーのUIをリセット
-      resetAllAiControllers('success', 'テキストが挿入されました')
-      
-      console.log("✅ Text successfully inserted into content field")
-    } else {
-      console.error("❌ Content field not found!")
-      console.log("Available textareas on page:")
-      const allTextareas = document.querySelectorAll('textarea')
-      allTextareas.forEach((textarea, index) => {
-        console.log(`Textarea ${index}:`)
-        console.log(`  - name: ${textarea.name}`)
-        console.log(`  - id: ${textarea.id}`)
-        console.log(`  - class: ${textarea.className}`)
-        console.log(`  - required: ${textarea.required}`)
-      })
-      
-      resetAllAiControllers('error', 'テキストエリアが見つかりませんでした')
-    }
-  } else {
-    console.warn("⚠️ Data incomplete:", {
-      status: data.status,
-      hasContent: !!data.content,
-      contentPreview: data.content ? data.content.substring(0, 50) : 'No content'
-    })
-    
-    resetAllAiControllers('error', data.error || '処理中にエラーが発生しました')
-  }
+// 旧グローバルハンドラーは重複処理を招くため無効化
+window.handleAiProcessingResult = function() {
+  console.warn("handleAiProcessingResult is deprecated. Use websocket_controller.processIncomingMessage().")
 }
 
 // Connects to data-controller="websocket"
@@ -101,12 +18,9 @@ export default class extends Controller {
     
     this.consumer = createConsumer()
     this.subscription = null
+    this.processedMessageKeys = new Set()
     this.subscribeToChannel()
     
-    // 動的IDの場合の追加サブスクリプション
-    if (this.activityIdValue === 'new') {
-      this.setupDynamicIdListener()
-    }
   }
 
   disconnect() {
@@ -142,57 +56,45 @@ export default class extends Controller {
           console.log("Data type:", data.type)
           console.log("Data status:", data.status)
           console.log("Data content preview:", data.content ? data.content.substring(0, 100) + "..." : "No content")
-          
-          // グローバル関数を使用（メイン処理）
-          window.handleAiProcessingResult(data)
-          // 従来の処理も継続（デバッグ用）
-          self.handleAiResult(data)
+
+          // 受信処理はこのメソッドに一本化
+          self.processIncomingMessage(data)
         }
       }
     )
   }
   
-  // 動的IDリスナーの設定（新規作成時）
-  setupDynamicIdListener() {
-    console.log("=== Setting up dynamic ID listener ===")
-    
-    // すべての可能なチャンネルをリッスンするためのワイルドカード的アプローチ
-    const dynamicSubscription = this.consumer.subscriptions.create(
-      { 
-        channel: "AiProcessingChannel", 
-        activity_id: "new_*" // サーバー側で動的IDをサポート
-      },
-      {
-        connected() {
-          console.log("✅ Connected to dynamic ID channel")
-        },
-        received(data) {
-          console.log("📨 DYNAMIC CHANNEL RECEIVED:")
-          console.log(data)
-          window.handleAiProcessingResult(data)
-        }
-      }
-    )
-  }
-
-  handleAiResult(data) {
+  processIncomingMessage(data) {
     console.log("=== Handling AI Result ===")
     console.log("Data:", data)
     console.log("Data type:", data.type)
     console.log("Data status:", data.status)
+
+    if (this.isDuplicateMessage(data)) {
+      console.warn("⚠️ Duplicate websocket message skipped")
+      return
+    }
     
     const { type, status, content, error } = data
 
     if (type === 'image_ocr') {
       this.handleOcrResult(status, content, error)
     } else if (type === 'voice_transcription') {
-      this.handleVoiceResult(status, content, error)
+      this.handleVoiceResult(status, content, error, data)
     }
     
     // 処理完了時の追加フィードバック
     if (status === 'completed' && content) {
       this.showSuccessNotification(type)
     }
+  }
+
+  isDuplicateMessage(data) {
+    if (data?.status !== 'completed' || !data?.content) return false
+    const key = `${data.type}|${data.status}|${data.content.length}|${data.content.slice(0, 120)}`
+    if (this.processedMessageKeys.has(key)) return true
+    this.processedMessageKeys.add(key)
+    return false
   }
   
   showSuccessNotification(type) {
@@ -255,7 +157,7 @@ export default class extends Controller {
     }
   }
 
-  handleVoiceResult(status, content, error) {
+  handleVoiceResult(status, content, error, rawData) {
     // 音声録音コントローラーをチェック
     const voiceRecorderController = this.application.getControllerForElementAndIdentifier(
       document.querySelector('[data-controller~="voice-recorder"]'), 
@@ -272,9 +174,21 @@ export default class extends Controller {
     if (activeController) {
       const statusElement = activeController.statusTarget
 
+      if (status === 'processing' || status === 'progress') {
+        if (voiceUploaderController && voiceUploaderController.updateLoadingProgress) {
+          voiceUploaderController.updateLoadingProgress({
+            message: rawData?.message || '🤖 AIが音声を文字起こししています...',
+            currentChunk: rawData?.current_chunk,
+            totalChunks: rawData?.total_chunks,
+            percent: rawData?.progress_percent
+          })
+        }
+        return
+      }
+
       if (status === 'completed' && content) {
-        // 成功時: contentフィールドにテキストを追加
-        this.appendToContentField(content)
+        // 成功時: contentフィールドへ一度だけ反映（置換ベース）
+        this.writeVoiceContent(content)
         statusElement.textContent = '✅ 音声をテキストに変換しました'
         statusElement.className = 'text-sm text-green-600 font-medium'
 
@@ -317,24 +231,50 @@ export default class extends Controller {
     }
   }
 
+  writeVoiceContent(newText) {
+    const contentField = this.findContentField()
+    if (!contentField) return
+
+    const incoming = (newText || '').trim()
+    const current = (contentField.value || '').trim()
+    if (!incoming) return
+
+    if (current === incoming || current.includes(incoming)) {
+      console.warn('⚠️ Same voice transcription already exists, skipped')
+      return
+    }
+
+    contentField.value = incoming
+    contentField.dispatchEvent(new Event('input', { bubbles: true }))
+    contentField.focus()
+    contentField.setSelectionRange(contentField.value.length, contentField.value.length)
+  }
+
+  findContentField() {
+    const scopedRoot = this.element?.closest('form') || this.element
+
+    if (scopedRoot) {
+      const scopedMatch =
+        scopedRoot.querySelector('textarea[name="activity[content]"]') ||
+        scopedRoot.querySelector('#activity_content') ||
+        scopedRoot.querySelector('textarea[data-character-counter-target="input"]') ||
+        scopedRoot.querySelector('textarea[data-character-counter-target="textarea"]')
+
+      if (scopedMatch) return scopedMatch
+    }
+
+    return (
+      document.querySelector('textarea[name="activity[content]"]') ||
+      document.getElementById('activity_content') ||
+      document.querySelector('textarea[data-character-counter-target="input"]') ||
+      document.querySelector('textarea[data-character-counter-target="textarea"]')
+    )
+  }
+
   appendToContentField(newText) {
     console.log("=== Attempting to append text to content field ===")
     console.log("New text:", newText)
-    
-    // 複数の方法でコンテンツフィールドを探す
-    let contentField = document.querySelector('textarea[name="activity[content]"]')
-    
-    if (!contentField) {
-      contentField = document.getElementById('activity_content')
-    }
-    
-    if (!contentField) {
-      contentField = document.querySelector('textarea[data-character-counter-target="input"]')
-    }
-    
-    if (!contentField) {
-      contentField = document.querySelector('textarea[data-character-counter-target="textarea"]')
-    }
+    const contentField = this.findContentField()
     
     console.log("Found content field:", contentField)
     
@@ -381,7 +321,7 @@ export default class extends Controller {
       content: 'デバッグテスト用のテキストです。'
     }
     
-    window.handleAiProcessingResult(testData)
+    this.processIncomingMessage(testData)
   }
 }
 
