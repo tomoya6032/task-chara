@@ -4,19 +4,19 @@
     .flex.justify-between.items-center.mb-6
       %h3.text-lg.font-semibold.text-slate-900.dark:text-white
         進行中のタスク
-      .flex.gap-2
+      .flex.flex-col.sm:flex-row.gap-2
         = link_to new_task_path, 
-          class: "bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2",
+          class: "bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2",
           data: { "turbo-frame": "task-modal", "action": "click->loading#show" } do
           %span ✅
           タスク追加
         = link_to hidden_tasks_path, 
-          class: "bg-slate-500 hover:bg-slate-600 text-white px-3 py-2 rounded-lg text-xs font-medium transition-colors flex items-center gap-1",
+          class: "bg-slate-500 hover:bg-slate-600 text-white px-3 py-2 rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-1",
           data: { "turbo-frame": "task-modal" } do
           %span 🗑
           非表示タスク
         = link_to new_task_path(from_new_window: 'true'), 
-          class: "bg-gray-500 hover:bg-gray-600 text-white px-3 py-2 rounded-lg text-xs",
+          class: "bg-gray-500 hover:bg-gray-600 text-white px-3 py-2 rounded-lg text-xs flex items-center justify-center",
           target: "_blank" do
           🔗 別タブで開く
 

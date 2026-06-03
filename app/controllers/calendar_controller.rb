@@ -190,6 +190,10 @@ class CalendarController < ApplicationController
         description: event.description,
         location: event.location,
         eventType: event.event_type,
+        event_type: event.event_type,
+        start_time: event.start_time.iso8601,
+        end_time: event.end_time.iso8601,
+        reminder_minutes: event.reminder_minutes,
         status: event.status
       }
     end
@@ -471,6 +475,7 @@ class CalendarController < ApplicationController
   def event_params
     params.require(:event).permit(:title, :description, :start_time, :end_time, :location,
                                   :all_day, :event_type, :status, :color, :attendees,
+                                  :reminder_minutes,
                                   :start_date_part, :start_hour_part, :start_min_part,
                                   :end_date_part, :end_hour_part, :end_min_part)
   end

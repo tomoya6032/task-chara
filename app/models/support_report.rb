@@ -11,7 +11,6 @@ class SupportReport < ApplicationRecord
   }
 
   validates :title, presence: true
-  validates :period_start, :period_end, presence: true
   validate :period_end_after_start
 
   scope :recent, -> { order(created_at: :desc) }

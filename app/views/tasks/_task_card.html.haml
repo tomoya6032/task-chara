@@ -49,55 +49,55 @@
       .flex.items-center.gap-3.flex-grow.min-w-0
         %span.text-xl ✅
         .flex-grow.min-w-0
-          %h4.font-medium.text-slate-900.dark:text-white.truncate
+          %h4.font-medium.text-slate-900.dark:text-white.truncate.mb-1
             = task.title
-          .text-sm.text-green-600.dark:text-green-400
+          .text-sm.text-green-600.dark:text-green-400.leading-relaxed
             完了: #{task.completed_at.strftime("%m/%d %H:%M")} | 
             獲得強靭さ: +#{(task.dislike_level || 1) * 1.5}pt
 
 - else
   / 通常の未完了タスク
-  .bg-slate-50.dark:bg-slate-700.rounded-lg.p-3.border.border-slate-200.dark:border-slate-600{id: "task-#{task.id}"}
-    .flex.items-center.justify-between.w-full
-      .flex.items-center.gap-3.flex-grow.min-w-0
-        / カテゴリアイコン
-        - case task.category
-        - when 'welfare'
-          %span.text-xl 🏠
-        - when 'web'
-          %span.text-xl 💻
-        - when 'admin'
-          %span.text-xl 📋
-        - else
-          %span.text-xl ✅
+  .bg-slate-50.dark:bg-slate-700.rounded-lg.p-4.border.border-slate-200.dark:border-slate-600{id: "task-#{task.id}"}
+    .flex.items-center.gap-2.w-full
+      / カテゴリアイコン
+      - case task.category
+      - when 'welfare'
+        %span.text-xl.flex-shrink-0 🏠
+      - when 'web'
+        %span.text-xl.flex-shrink-0 💻
+      - when 'admin'
+        %span.text-xl.flex-shrink-0 📋
+      - else
+        %span.text-xl.flex-shrink-0 ✅
 
-        .flex-grow.min-w-0
-          %h4.font-medium.text-slate-900.dark:text-white.truncate
+      .flex-1.min-w-0
+        .flex.items-center.justify-between.gap-1
+          %h4.font-medium.text-slate-900.dark:text-white.truncate.flex-1.min-w-0.mb-0
             = task.title
-          .text-sm.text-slate-600.dark:text-slate-400
-            嫌い度: #{task.dislike_level}/10 | 
-            作成: #{task.created_at.strftime("%m/%d %H:%M")}
-          - if task.description.present?
-            .text-xs.text-slate-500.dark:text-slate-400.mt-1.truncate
-              📝 #{task.description}
-          - if task.due_date.present?
-            .text-sm{
-              class: case task.due_status
-                     when "期限切れ"
-                       "text-red-600 dark:text-red-400 font-medium"
-                     when "期限間近"
-                       "text-amber-600 dark:text-amber-400 font-medium"
-                     else
-                       "text-slate-500 dark:text-slate-400"
-                     end
-            }
-              ⏰ #{task.due_date_display} (#{task.due_status})
+          .flex.gap-1.flex-shrink-0
+            %button.bg-blue-600.hover:bg-blue-700.text-white.px-2.py-1.rounded.text-xs.transition-colors{ type: "button", onclick: "openEditTaskModal(#{task.id})" }
+              ✏️
+            = button_to notify_line_task_path(task), method: :post, class: "bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded text-xs transition-colors", data: { turbo: false }, form_class: "inline" do
+              📲
 
-      .flex.gap-2.flex-shrink-0
-        %button.bg-blue-600.hover:bg-blue-700.text-white.px-3.py-1.rounded.text-sm.transition-colors{ type: "button", onclick: "openEditTaskModal(#{task.id})" }
-          ✏️ 編集
-        = button_to notify_line_task_path(task), method: :post, class: "bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-sm transition-colors", data: { turbo: false }, form_class: "inline" do
-          📲 LINE通知
+        .text-xs.text-slate-600.dark:text-slate-400.mt-2.leading-relaxed
+          嫌い度: #{task.dislike_level}/10 | 
+          作成: #{task.created_at.strftime("%m/%d %H:%M")}
+        - if task.description.present?
+          .text-xs.text-slate-500.dark:text-slate-400.mt-2.truncate
+            📝 #{task.description}
+        - if task.due_date.present?
+          .text-xs.mt-2{
+            class: case task.due_status
+                   when "期限切れ"
+                     "text-red-600 dark:text-red-400 font-medium"
+                   when "期限間近"
+                     "text-amber-600 dark:text-amber-400 font-medium"
+                   else
+                     "text-slate-500 dark:text-slate-400"
+                   end
+          }
+            ⏰ #{task.due_date_display} (#{task.due_status})
         = button_to complete_task_path(task), method: :patch, class: "bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm transition-colors", data: { confirm: "「#{task.title}」を完了しますか？\n強靭さ+#{(task.dislike_level || 1) * 1.5}pt獲得できます！", turbo: false }, form_class: "inline" do
           🎯 完了
         = button_to hide_task_path(task), method: :patch, class: "bg-slate-600 hover:bg-slate-700 text-white px-3 py-1 rounded text-sm transition-colors", data: { turbo: false }, form_class: "inline" do

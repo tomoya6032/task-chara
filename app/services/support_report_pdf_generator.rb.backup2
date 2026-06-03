@@ -1,0 +1,173 @@
+require "prawn"
+require "cgi"
+require "nokogiri"
+
+class SupportReportPdfGenerator
+  BUNDLED_FONT_PATH = Rails.root.join("app/assets/fonts/ipaexg.ttf").to_s
+
+  def initialize(support_report)
+    @support_report = support_report
+  end
+
+  def render
+    Prawn::Document.new(page_size: "A4", margin: 36) do |pdf|
+      apply_font(pdf)
+
+      pdf.text "支援報告書", size: 18, style: :bold
+      pdf.move_down 10
+
+      pdf.text "タイトル: #{@support_report.title}", size: 11, inline_format: true
+      pdf.text "対象期間: #{@support_report.period_display}", size: 11, inline_format: true
+      pdf.text "作成日: #{@support_report.created_at.strftime('%Y年%m月%d日')}", size: 11, inline_format: true
+      pdf.move_down 12
+
+      pdf.stroke_horizontal_rule
+      pdf.move_down 12
+
+      pdf.text "報告書内容", size: 14, style: :bold
+      pdf.move_down 8
+
+      # HTMLをPrawnのinline format形式に変換
+      prawn_formatted_text = convert_html_to_prawn_format(@support_report.content.to_s)
+
+      # inline_format: true で出力
+      pdf.text prawn_formatted_text, size: 11, leading: 3, inline_format: true
+    end.render
+  end
+
+  private
+
+  def convert_html_to_prawn_format(html_content)
+    return "" if html_content.blank?
+
+    doc = Nokogiri::HTML.fragment(html_content)
+    convert_node_to_prawn(doc).strip
+  end
+
+  def convert_node_to_prawn(node)
+    result = ""
+
+    node.children.each do |child|
+      if child.text?
+        # テキストノードはそのまま追加（改行を保持）
+        result << child.text
+      elsif child.name == "br"
+        # 改行タグ
+        result << "\n"
+      elsif child.name == "div" || child.name == "p"
+        # 段落は改行で区切る
+        inner = convert_node_to_prawn(child)
+        result << inner unless inner.strip.empty?
+        result << "\n\n" unless result.end_with?("\n\n")
+      elsif child.name == "strong" || child.name == "b"
+        # 太字
+        inner = convert_node_to_prawn(child)
+        result << "<b>#{inner}</b>"
+      elsif child.name == "u"
+        # 下線
+        inner = convert_node_to_prawn(child)
+        result << "<u>#{inner}</u>"
+      elsif child.name == "mark"
+        # マーカー（背景色）→ 太字+明るい黄色で表現
+        inner = convert_node_to_prawn(child)
+        result << "<b><color rgb='FFEB3B'>#{inner}</color></b>"
+      elsif child.name == "span"
+        # spanタグのスタイルを解析
+        result << convert_span_to_prawn(child)
+      else
+        # その他のタグは再帰的に処理
+        result << convert_node_to_prawn(child)
+      end
+    end
+
+    result
+  end
+
+  def convert_span_to_prawn(span_node)
+    inner = convert_node_to_prawn(span_node)
+    return inner if span_node["style"].blank?
+
+    style = span_node["style"]
+    tags_open = []
+    tags_close = []
+
+    # 太字
+    if style =~ /font-weight:\s*bold/
+      tags_open << "<b>"
+      tags_close.unshift("</b>")
+    end
+
+    # 下線
+    if style =~ /text-decoration(?:-line)?:\s*underline/
+      tags_open << "<u>"
+      tags_close.unshift("</u>")
+    end
+
+    # フォントサイズ
+    if style =~ /font-size:\s*(\d+)px/
+      size = $1.to_i
+      tags_open << "<font size='#{size}'>"
+      tags_close.unshift("</font>")
+    end
+
+    # 文字色
+    color_hex = nil
+    if style =~ /color:\s*rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/
+      r, g, b = $1.to_i, $2.to_i, $3.to_i
+      color_hex = "%02X%02X%02X" % [ r, g, b ]
+    elsif style =~ /color:\s*#([0-9a-fA-F]{6})/
+      color_hex = $1.upcase
+    elsif style =~ /color:\s*#([0-9a-fA-F]{3})/
+      short_hex = $1
+      color_hex = short_hex.chars.map { |c| c * 2 }.join.upcase
+    end
+
+    if color_hex
+      tags_open << "<color rgb='#{color_hex}'>"
+      tags_close.unshift("</color>")
+    end
+
+    # 背景色（マーカー）
+    if style =~ /background-color:\s*rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/
+      # マーカーは太字+明るい黄色で表現
+      unless tags_open.include?("<b>")
+        tags_open << "<b>"
+        tags_close.unshift("</b>")
+      end
+      # 文字色が指定されていない場合のみ黄色を適用
+      unless color_hex
+        tags_open << "<color rgb='FFEB3B'>"
+        tags_close.unshift("</color>")
+      end
+    end
+
+    "#{tags_open.join}#{inner}#{tags_close.join}"
+  end
+
+  def apply_font(pdf)
+    font_path = preferred_japanese_font_path
+    if font_path
+      pdf.font_families.update(
+        "jp" => {
+          normal: font_path,
+          bold: font_path,
+          italic: font_path,
+          bold_italic: font_path
+        }
+      )
+      return pdf.font("jp")
+    end
+
+    pdf.font "Helvetica"
+  end
+
+  def preferred_japanese_font_path
+    [
+      BUNDLED_FONT_PATH,
+      "/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc",
+      "/System/Library/Fonts/ヒラギノ角ゴシック W6.ttc",
+      "/System/Library/Fonts/ヒラギノ明朝 ProN.ttc",
+      "/Library/Fonts/IPAexGothic.ttf"
+    ].find { |path| File.exist?(path) }
+  end
+end

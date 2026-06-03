@@ -10,8 +10,12 @@
       %p.mt-2.text-slate-600.dark:text-slate-400
         AI生成による月次支援報告書の管理
     = link_to new_support_report_path, 
-        class: "inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors shadow-sm" do
-      ➕ 新規作成
+        class: "inline-flex items-center justify-center px-4 py-3 mx-2 sm:mx-0 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors shadow-sm text-center" do
+      %span.sm:hidden
+        新規
+        %br
+        作成
+      %span.hidden.sm:inline ➕ 新規作成
 
   / 支援報告書一覧
   - if @support_reports.any?
@@ -22,7 +26,7 @@
             .flex.items-start.justify-between.mb-4
               %div
                 %h3.text-xl.font-semibold.text-slate-900.dark:text-white.mb-2
-                  = link_to report.title, support_report_path(report), class: "hover:text-blue-600 transition-colors"
+                  = link_to strip_tags(report.title), support_report_path(report), class: "hover:text-blue-600 transition-colors"
                 %p.text-sm.text-slate-500.dark:text-slate-400.mb-2
                   = report.period_display
                 .flex.items-center.space-x-3.text-sm.text-slate-500
@@ -49,7 +53,7 @@
               %div.flex.space-x-2
                 = link_to support_report_path(report), 
                     class: "inline-flex items-center px-3 py-2 border border-slate-300 text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors" do
-                  👁️ 詳細
+                  詳細
                 - if report.draft? || report.error?
                   = link_to generate_support_report_path(report), method: :post,
                       class: "inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors" do
@@ -58,7 +62,7 @@
             - if report.content.present?
               .mt-4.pt-4.border-t.border-slate-200.dark:border-slate-600
                 %p.text-slate-600.dark:text-slate-300.line-clamp-3
-                  = truncate(report.content, length: 150)
+                  = truncate(strip_tags(report.content), length: 150)
 
     / ページネーション
     - if @support_reports.respond_to?(:current_page)

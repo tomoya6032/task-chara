@@ -55,6 +55,9 @@ gem "solid_cable"
 
 # PDF processing for report templates
 gem "mini_magick", "~> 4.11"
+gem "prawn"
+gem "wicked_pdf"
+gem "wkhtmltopdf-binary"
 
 # Reduces boot times through caching; required in config/boot.rb
 gem "bootsnap", require: false

@@ -220,13 +220,7 @@
                         - if continues_after
                           %span.week-event-arrow ↓
                       - if (end_hour - start_hour) >= 1 && !continues_before && col_count <= 2
-                        .week-event-time
-                          = event.start_time.strftime("%H:%M")
-                          = " 〜 "
-                          = event.end_time.strftime("%H:%M")
                       - elsif (end_hour - start_hour) >= 1 && continues_before && col_count <= 2
-                        .week-event-time
-                          = "〜 #{event.end_time.strftime('%H:%M')}"
 
 
     / 日表示（非表示）
@@ -310,6 +304,17 @@
             説明
           %textarea.w-full.border.border-gray-300.rounded-md.px-3.py-2.h-20{ name: "event[description]" }
 
+        .mb-6
+          %label.block.text-sm.font-medium.text-gray-700.mb-2
+            🔔 LINE通知
+          %select.w-full.border.border-gray-300.rounded-md.px-3.py-2{ name: "event[reminder_minutes]", id: "event-reminder-minutes" }
+            %option{ value: "" } 通知なし
+            %option{ value: "30" } 30分前
+            %option{ value: "60" } 1時間前
+            %option{ value: "180" } 3時間前
+            %option{ value: "1440" } 1日前
+            %option{ value: "4320" } 3日前
+
         .flex.justify-end.space-x-3
           %button.bg-gray-200.text-gray-800.px-4.py-2.rounded-md.hover:bg-gray-300.transition-colors{ type: "button", onclick: "closeEventModal()" }
             キャンセル
@@ -339,6 +344,9 @@
           .event-detail-row
             .font-medium.text-gray-700 説明:
             .text-gray-900#event-detail-description{ style: "white-space: pre-wrap;" }
+          .event-detail-row
+            .font-medium.text-gray-700 🔔 LINE通知:
+            .text-gray-900#event-detail-reminder
 
       .flex.justify-end.space-x-3.mt-6
         %button.bg-gray-200.text-gray-800.px-4.py-2.rounded-md.hover:bg-gray-300.transition-colors{ type: "button", onclick: "closeEventDetailsModal()" }
@@ -405,6 +413,17 @@
             説明
           %textarea#edit-event-description.w-full.border.border-gray-300.rounded-md.px-3.py-2.h-20{ name: "event[description]" }
 
+        .mb-6
+          %label.block.text-sm.font-medium.text-gray-700.mb-2
+            🔔 LINE通知
+          %select#edit-event-reminder-minutes.w-full.border.border-gray-300.rounded-md.px-3.py-2{ name: "event[reminder_minutes]" }
+            %option{ value: "" } 通知なし
+            %option{ value: "30" } 30分前
+            %option{ value: "60" } 1時間前
+            %option{ value: "180" } 3時間前
+            %option{ value: "1440" } 1日前
+            %option{ value: "4320" } 3日前
+
         .flex.justify-end.space-x-3
           %button.bg-gray-200.text-gray-800.px-4.py-2.rounded-md.hover:bg-gray-300.transition-colors{ type: "button", onclick: "closeEditEventModal()" }
             キャンセル
@@ -464,6 +483,8 @@
     position: sticky;
     top: 0;
     z-index: 10;
+    overflow-y: scroll;
+    scrollbar-gutter: stable;
   }
 
   .week-time-gutter {
@@ -537,8 +558,9 @@
 
   /* タイムライン本体 スクロール */
   .week-body-scroll {
-    overflow-y: auto;
+    overflow-y: scroll;
     max-height: calc(100vh - 280px);
+    scrollbar-gutter: stable;
   }
   .week-body-inner {
     display: grid;
@@ -559,6 +581,8 @@
     border-bottom: 2px solid #e5e7eb;
     background: #fafafa;
     min-height: 28px;
+    overflow-y: scroll;
+    scrollbar-gutter: stable;
   }
   .week-allday-gutter {
     border-right: 1px solid #e5e7eb;
@@ -636,7 +660,8 @@
     justify-content: flex-end;
     padding: 2px 6px 0 0;
     font-size: 10px;
-    color: #9ca3af;
+    color: #374151;
+    font-weight: 700;
     flex-shrink: 0;
     border-bottom: 1px solid #f3f4f6;
   }
@@ -674,9 +699,9 @@
     cursor: pointer;
     overflow: hidden;
     z-index: 1;
-    background: #dbeafe;
-    border-left: 3px solid #2563eb;
-    color: #1e3a8a;
+    background: #2563eb;
+    border-left: 3px solid #1d4ed8;
+    color: #ffffff;
     transition: filter 0.15s, box-shadow 0.15s;
     min-height: 14px;
   }
@@ -709,6 +734,8 @@
     .week-header-date { font-size: 16px; width: 28px; height: 28px; }
     .week-date-today-circle { width: 28px; height: 28px; }
     .week-header-cell { min-height: 48px; }
+    .week-header-row { grid-template-columns: 36px repeat(7, 1fr); }
+    .week-allday-row { grid-template-columns: 36px repeat(7, 1fr); }
     .week-body-inner { grid-template-columns: 36px repeat(7, 1fr); }
     .week-time-column { /* narrow */ }
     .week-time-label { font-size: 9px; padding-right: 3px; }
@@ -746,9 +773,9 @@
   }
   
   .view-btn.active {
-    background: white;
-    color: #374151;
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    background: #16a34a;
+    color: #ffffff;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.15);
   }
   
   @media (max-width: 768px) {
@@ -869,14 +896,14 @@
   }
   
   .calendar-event {
-    background: #f3f4f6;
-    border-left: 2px solid #6b7280;
+    background: #6b7280;
+    border-left: 2px solid #4b5563;
     padding: 1px 4px;
     margin-bottom: 1px;
     border-radius: 2px;
     font-size: 9px;
     line-height: 1.2;
-    color: #374151;
+    color: #ffffff;
     text-overflow: ellipsis;
     overflow: hidden;
     white-space: nowrap;
@@ -936,21 +963,34 @@
   }
   
   @media (max-width: 768px) {
+    .header {
+      padding-top: 8px !important;
+      padding-bottom: 8px !important;
+      margin-bottom: 8px !important;
+    }
+
     .color-legend {
-      padding: 12px;
+      padding: 6px 8px !important;
+      margin-top: 6px !important;
+    }
+
+    .color-legend h3 {
+      font-size: 10px;
+      margin-bottom: 4px;
     }
     
     .legend-items {
-      gap: 8px;
+      gap: 6px;
+      max-height: 44px;
     }
     
     .legend-item {
-      font-size: 10px;
+      font-size: 9px;
     }
     
     .legend-color-box {
-      width: 12px;
-      height: 12px;
+      width: 10px;
+      height: 10px;
     }
   }
   
@@ -974,11 +1014,11 @@
     }
     
     .calendar-main-grid {
-      grid-template-rows: repeat(6, minmax(70px, auto));
+      grid-template-rows: repeat(6, minmax(110px, auto));
     }
     
     .calendar-day-cell {
-      min-height: 70px;
+      min-height: 110px;
     }
     
     .calendar-date-header {
@@ -1016,11 +1056,11 @@
     }
     
     .calendar-main-grid {
-      grid-template-rows: repeat(6, minmax(60px, auto));
+      grid-template-rows: repeat(6, minmax(100px, auto));
     }
     
     .calendar-day-cell {
-      min-height: 60px;
+      min-height: 100px;
     }
     
     .calendar-date-header {
@@ -1169,9 +1209,9 @@
       } else {
         console.warn(`No category found for event type: ${eventType}`);
         // デフォルト色を適用
-        eventElement.style.backgroundColor = '#f3f4f6';
-        eventElement.style.borderLeftColor = '#6b7280';
-        eventElement.style.color = '#374151';
+        eventElement.style.backgroundColor = '#6b7280';
+        eventElement.style.borderLeftColor = '#4b5563';
+        eventElement.style.color = '#ffffff';
       }
     });
   }
@@ -1192,16 +1232,13 @@
     const backgroundR = Math.min(255, r + (255 - r) * 0.8);
     const backgroundG = Math.min(255, g + (255 - g) * 0.8);
     const backgroundB = Math.min(255, b + (255 - b) * 0.8);
-    const background = `rgba(${backgroundR}, ${backgroundG}, ${backgroundB}, 0.3)`;
+    const background = baseColor;
     
-    // 枠線色は元の色
+    // 枠線色は元の色を少し暗く
     const border = baseColor;
     
-    // 文字色は元の色を暗くしたもの
-    const textR = Math.floor(r * 0.7);
-    const textG = Math.floor(g * 0.7);
-    const textB = Math.floor(b * 0.7);
-    const text = `rgb(${textR}, ${textG}, ${textB})`;
+    // 文字色は白
+    const text = '#ffffff';
     
     return { background, border, text };
   }
@@ -1438,6 +1475,11 @@
       if (endEl) endEl.textContent = formatDateTime(event.end_time);
       if (typeEl) typeEl.textContent = getEventTypeLabel(event.event_type);
       if (descEl) descEl.textContent = event.description || '説明なし';
+      const reminderEl = document.getElementById('event-detail-reminder');
+      if (reminderEl) {
+        const reminderLabels = { 30: '30分前', 60: '1時間前', 180: '3時間前', 1440: '1日前', 4320: '3日前' };
+        reminderEl.textContent = event.reminder_minutes != null ? (reminderLabels[event.reminder_minutes] || event.reminder_minutes + '分前') : '通知なし';
+      }
       
       // モーダルを表示
       const modal = document.getElementById('event-details-modal');
@@ -1479,6 +1521,8 @@
     setDatetimeParts(window.currentEvent.end_time, 'edit-end-date-part', 'edit-end-hour-part', 'edit-end-min-part', 'edit-event-end');
     if (typeInput) typeInput.value = window.currentEvent.event_type;
     if (descInput) descInput.value = window.currentEvent.description || '';
+    const reminderInput = document.getElementById('edit-event-reminder-minutes');
+    if (reminderInput) reminderInput.value = window.currentEvent.reminder_minutes != null ? String(window.currentEvent.reminder_minutes) : '';
     
     // CSRFトークンを設定
     const token = document.querySelector('meta[name="csrf-token"]');

@@ -1,0 +1,81 @@
+!!!
+%html
+  %head
+    %meta{ charset: 'utf-8' }
+    %title= @support_report.title
+    :css
+      body {
+        font-family: 'Noto Sans JP', sans-serif;
+        line-height: 1.9;
+        color: #1e293b;
+        margin: 0;
+        padding: 20px;
+        zoom: 1.25;
+      }
+      h1 {
+        font-size: 22px;
+        font-weight: bold;
+        margin-bottom: 12px;
+        color: #0f172a;
+      }
+      .content {
+        font-size: 13px;
+        line-height: 1.9;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+      }
+      /* 文字装飾のスタイル */
+      strong, b {
+        font-weight: bold;
+      }
+      u {
+        text-decoration: underline;
+      }
+      mark {
+        background-color: #fef08a;
+        color: #000000;
+        padding: 2px 0;
+      }
+      .text-red {
+        color: #dc2626;
+      }
+      /* フォントサイズ（1.2倍に調整） */
+      .font-small {
+        font-size: 14px;
+      }
+      .font-standard {
+        font-size: 13px;
+      }
+      .font-large {
+        font-size: 21px;
+      }
+      /* インラインスタイルのサポート（1.2倍に調整） */
+      span[style*="font-size: 12px"] {
+        font-size: 14px;
+      }
+      span[style*="font-size: 11px"] {
+        font-size: 13px;
+      }
+      span[style*="font-size: 18px"] {
+        font-size: 21px;
+      }
+      span[style*="font-weight: bold"] {
+        font-weight: bold;
+      }
+      span[style*="text-decoration-line: underline"],
+      span[style*="text-decoration: underline"] {
+        text-decoration: underline;
+      }
+      span[style*="color: rgb(220, 38, 38)"],
+      span[style*="color: red"] {
+        color: #dc2626;
+      }
+      span[style*="background-color: rgb(254, 240, 138)"],
+      span[style*="background-color: yellow"] {
+        background-color: #fef08a;
+        color: #000000;
+        padding: 2px 0;
+      }
+  %body
+    .content
+      = sanitize(@support_report.content.to_s, tags: %w[p br div strong b u em span mark ul ol li], attributes: %w[style])

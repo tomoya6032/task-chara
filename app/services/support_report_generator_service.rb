@@ -1,8 +1,9 @@
 class SupportReportGeneratorService
-  def initialize(support_report)
+  def initialize(support_report, activity_ids: nil)
     @support_report = support_report
     @character = support_report.character
     @template = support_report.report_template
+    @activity_ids = Array(activity_ids).map(&:to_i).uniq
     @client = OpenAI::Client.new
   end
 
@@ -12,7 +13,11 @@ class SupportReportGeneratorService
     @support_report.update!(status: :generating, generated_at: Time.current)
 
     begin
-      activities = @support_report.period_activities.order(:created_at)
+      activities = if @activity_ids.present?
+        @character.activities.where(id: @activity_ids).order(:created_at)
+      else
+        @support_report.period_activities.order(:created_at)
+      end
 
       if activities.empty?
         @support_report.update!(
@@ -92,6 +97,14 @@ class SupportReportGeneratorService
       【日報データ】
       #{activities_text}
 
+      【出力形式の重要な指示】
+      - A4用紙1枚（1200〜1500文字程度）に収まる分量で作成してください。
+      - 箇条書きは使用せず、必ず文章形式で記載してください。
+      - 「・」「-」「*」などの箇条書き記号は一切使用しないでください。
+      - Markdown記法（#、##、**など）も使用しないでください。
+      - 段落分けは改行で行い、見出しが必要な場合は「利用者情報:」「支援内容:」のように通常の文章として記載してください。
+      - 日報に記載されている具体的なエピソードや様子を盛り込み、支援の実態が伝わる内容にしてください。
+
     PROMPT
 
     format_instructions = if @template&.format_instructions.present?
@@ -105,17 +118,19 @@ class SupportReportGeneratorService
     else
       <<~FORMAT
         【報告書作成の指針】
-        1. 利用者の活動状況の概要をまとめてください
-        2. 顕著な変化や成長が見られた点を記載してください
-        3. 気分や体調の傾向について分析してください
-        4. 今後の支援に向けた提案や注意点を含めてください
-        5. 専門的すぎず、わかりやすい文章で作成してください
-        6. 1000文字程度で簡潔にまとめてください
+        1. 利用者の1ヶ月間の活動状況を文章形式で概説してください
+        2. 日報に記載されている具体的なエピソード（発言、行動、様子など）を引用して、支援の実態が分かる内容にしてください
+        3. 気分や体調の傾向、変化について分析し、具体例とともに記載してください
+        4. 顕著な成長や変化が見られた点を、日報の記録を根拠として説明してください
+        5. 今後の支援に向けた提案や注意点を含めてください
+        6. 専門的すぎず、ご家族や関係者が読んでも分かりやすい文章で作成してください
+        7. A4用紙1枚（1200〜1500文字程度）に収まるよう簡潔にまとめてください
+        8. 段落構成は自然な文章の流れで、箇条書きは一切使用しないでください
 
       FORMAT
     end
 
-    base_prompt + format_instructions + "報告書を作成してください。"
+    base_prompt + format_instructions + "上記ルールを厳守して、箇条書きを一切使わず、日報の具体的な内容を盛り込んだ文章形式の支援報告書を作成してください。"
   end
 
   def call_openai_api(prompt)
@@ -125,7 +140,7 @@ class SupportReportGeneratorService
         messages: [
           {
             role: "system",
-            content: "あなたは経験豊富な福祉施設の支援スタッフです。利用者の日報から適切な支援報告書を作成することができます。"
+            content: "あなたは経験豊富な福祉施設の支援スタッフです。利用者の日報から適切な支援報告書を作成できます。出力は必ず文章形式のプレーンテキストとし、箇条書き（・、-、*）やMarkdown記号（#, ##, **など）は一切使用しないでください。日報の具体的な内容を盛り込み、支援の様子が伝わる報告書を作成してください。"
           },
           {
             role: "user",

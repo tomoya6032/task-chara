@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_05_11_190000) do
+ActiveRecord::Schema[8.0].define(version: 2026_05_26_011600) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -105,6 +105,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_05_11_190000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "event_type"
+    t.integer "reminder_minutes"
     t.index ["character_id"], name: "index_events_on_character_id"
     t.index ["character_id"], name: "index_events_on_character_id_new"
     t.index ["end_time"], name: "index_events_on_end_time"

@@ -1,27 +1,33 @@
 class SupportReportsController < ApplicationController
+  ACTIVITY_CATEGORY_OPTIONS = [
+    [ "📚 学習", "study" ],
+    [ "💼 仕事", "work" ],
+    [ "💪 運動", "exercise" ],
+    [ "🎯 目標", "goal" ],
+    [ "💭 思考", "thought" ],
+    [ "🎉 その他", "other" ]
+  ].freeze
+
   before_action :set_character
-  before_action :set_support_report, only: [ :show, :edit, :update, :destroy ]
+  before_action :set_support_report, only: [ :show, :edit, :update, :destroy, :download_pdf ]
 
   def index
-    @support_reports = @character.support_reports.recent.page(params[:page]).per(10)
+    @support_reports = support_reports_scope.recent.page(params[:page]).per(10)
   end
 
   def show
   end
 
   def new
-    @support_report = @character.support_reports.build
-    @available_templates = ReportTemplate.available_for(current_user)
+    load_new_form_context
+    @support_report = @selected_character.support_reports.build
     # AIチャットの会話履歴を取得
     @ai_conversations = get_ai_conversations
 
-    # デフォルトで前月の期間を設定
-    last_month_start = 1.month.ago.beginning_of_month.to_date
-    last_month_end = 1.month.ago.end_of_month.to_date
-
-    @support_report.period_start = last_month_start
-    @support_report.period_end = last_month_end
-    @support_report.title = "#{last_month_start.strftime('%Y年%m月')}の支援報告書"
+    @support_report.period_start = @filter_period_start
+    @support_report.period_end = @filter_period_end
+    @support_report.title = "#{@selected_character.name} #{@filter_period_start.strftime('%Y年%m月')}の支援報告書"
+    @support_report.character = @selected_character
 
     # デフォルトテンプレートを設定
     default_template = @available_templates.find(&:is_default?)
@@ -34,13 +40,16 @@ class SupportReportsController < ApplicationController
   end
 
   def create
-    @support_report = @character.support_reports.build(support_report_params)
+    load_new_form_context
+    target_character = @available_characters.find_by(id: support_report_create_params[:character_id]) || @selected_character
+    @support_report = target_character.support_reports.build(support_report_create_params.except(:character_id))
     @support_report.status = :draft
+    selected_activity_ids = parse_selected_activity_ids
 
     if @support_report.save
       if params[:sync_generate] == "true" && Rails.env.development?
         # 開発環境での同期生成（デバッグ用）
-        service = SupportReportGeneratorService.new(@support_report)
+        service = SupportReportGeneratorService.new(@support_report, activity_ids: selected_activity_ids)
         if service.generate
           redirect_to support_report_path(@support_report), notice: "支援報告書を即座に生成しました。"
         else
@@ -48,10 +57,11 @@ class SupportReportsController < ApplicationController
         end
       else
         # バックグラウンドで報告書を生成
-        GenerateSupportReportJob.perform_later(@support_report)
+        GenerateSupportReportJob.perform_later(@support_report, selected_activity_ids)
         redirect_to support_report_path(@support_report), notice: "支援報告書の生成を開始しました。"
       end
     else
+      @ai_conversations = get_ai_conversations
       render :new, status: :unprocessable_entity
     end
   end
@@ -74,7 +84,7 @@ class SupportReportsController < ApplicationController
   end
 
   def generate
-    @support_report = @character.support_reports.find(params[:id])
+    @support_report = support_reports_scope.find(params[:id])
 
     if @support_report.draft? || @support_report.error?
       GenerateSupportReportJob.perform_later(@support_report)
@@ -82,6 +92,22 @@ class SupportReportsController < ApplicationController
     else
       redirect_to support_report_path(@support_report), alert: "\u73FE\u5728\u751F\u6210\u4E2D\u307E\u305F\u306F\u65E2\u306B\u5B8C\u6210\u3057\u3066\u3044\u307E\u3059\u3002"
     end
+  end
+
+  def download_pdf
+    pdf_data = SupportReportPdfGenerator.new(@support_report, self).render
+    send_data(
+      pdf_data,
+      filename: pdf_filename(@support_report),
+      type: "application/pdf",
+      disposition: "attachment"
+    )
+  rescue LoadError => e
+    Rails.logger.error "PDF出力エラー(LoadError): #{e.message}"
+    redirect_to support_report_path(@support_report), alert: "PDF出力ライブラリが読み込めませんでした。サーバー再起動後に再試行してください。"
+  rescue StandardError => e
+    Rails.logger.error "PDF出力エラー: #{e.message}"
+    redirect_to support_report_path(@support_report), alert: "PDF出力に失敗しました。時間をおいて再試行してください。"
   end
 
   # AIチャット情報から支援記録を生成
@@ -140,7 +166,7 @@ class SupportReportsController < ApplicationController
   end
 
   def set_support_report
-    @support_report = @character.support_reports.find(params[:id])
+    @support_report = support_reports_scope.find(params[:id])
   rescue ActiveRecord::RecordNotFound
     redirect_to support_reports_path, alert: "指定された支援報告書が見つかりません。"
   end
@@ -149,14 +175,107 @@ class SupportReportsController < ApplicationController
     params.require(:support_report).permit(:title, :period_start, :period_end, :content, :report_template_id)
   end
 
+  def support_report_create_params
+    params.require(:support_report).permit(:title, :period_start, :period_end, :content, :report_template_id, :character_id)
+  end
+
+  def support_reports_scope
+    SupportReport.joins(character: :user).where(users: { organization_id: @organization.id })
+  end
+
+  def load_new_form_context
+    @available_templates = ReportTemplate.available_for(current_user)
+    @available_characters = @organization.characters.order(:name)
+
+    last_month_start = 1.month.ago.beginning_of_month.to_date
+    last_month_end = 1.month.ago.end_of_month.to_date
+
+    # 報告書の対象期間（フォームの初期値用）
+    @filter_period_start = parse_date(filter_params[:period_start]) || last_month_start
+    @filter_period_end = parse_date(filter_params[:period_end]) || last_month_end
+
+    @person_keyword = filter_params[:person_keyword].to_s.strip.presence
+    @filter_category = filter_params[:category].to_s.strip.presence
+
+    @category_options = [ [ "すべて", "" ] ] + ACTIVITY_CATEGORY_OPTIONS
+
+    # 日報は visit_end_time の日付で絞り込む（NULLの場合は created_at にフォールバック）
+    base_scope = Activity.joins(character: :user)
+                         .where(users: { organization_id: @organization.id })
+                         .where(
+                           "COALESCE(activities.visit_end_time, activities.created_at) >= ? AND COALESCE(activities.visit_end_time, activities.created_at) <= ?",
+                           @filter_period_start.beginning_of_day,
+                           @filter_period_end.end_of_day
+                         )
+
+    base_scope = base_scope.where(category: @filter_category) if @filter_category.present?
+
+    if @person_keyword.present?
+      person = "%#{ActiveRecord::Base.sanitize_sql_like(@person_keyword)}%"
+      base_scope = base_scope.where("activities.title ILIKE :person OR activities.content ILIKE :person", person: person)
+    end
+
+    explicit_character = @available_characters.find_by(id: selected_character_id_from_params)
+    @selected_character = explicit_character || infer_character_from_scope(base_scope)
+    @selected_character ||= @character
+
+    filtered_scope = base_scope.where(character_id: @selected_character.id)
+                                .order(Arel.sql("COALESCE(activities.visit_end_time, activities.created_at) DESC"))
+
+    if @person_keyword.present? && filtered_scope.none?
+      @character_inference_message = "人物キーワードに一致する日報が見つからなかったため、既定の利用者（#{@selected_character.name}）を表示しています。"
+    end
+
+    @filtered_activity_count = filtered_scope.count
+    @filtered_activity_ids = filtered_scope.pluck(:id)
+    @filtered_activities = filtered_scope.limit(100)
+  end
+
+  def filter_params
+    params.fetch(:report_filter, {}).permit(:character_id, :period_start, :period_end, :activity_from, :activity_to, :person_keyword, :category)
+  end
+
+  def selected_character_id_from_params
+    filter_params[:character_id].presence || params.dig(:support_report, :character_id).presence
+  end
+
+  def parse_date(value)
+    return nil if value.blank?
+
+    Date.parse(value.to_s)
+  rescue ArgumentError
+    nil
+  end
+
+  def parse_selected_activity_ids
+    params[:selected_activity_ids].to_s.split(",").map(&:strip).select(&:present?).map(&:to_i).uniq
+  end
+
+  def infer_character_from_scope(scope)
+    return nil if scope.blank?
+
+    hit_counts = scope.group(:character_id).count
+    return nil if hit_counts.empty?
+
+    selected_id, selected_count = hit_counts.max_by { |_, count| count }
+
+    if hit_counts.size > 1
+      @character_inference_message = "人物キーワードに複数候補が一致したため、最も一致件数が多い利用者を選択しています（#{selected_count}件）。"
+    elsif @person_keyword.present?
+      @character_inference_message = "人物キーワードに一致した利用者を自動選択しました（#{selected_count}件）。"
+    end
+
+    @available_characters.find_by(id: selected_id)
+  end
+
   # AIチャットの会話履歴を取得
   def get_ai_conversations
+    source_character = @selected_character || @character
+
     # 最近の会話の一意な conversation_id を取得
-    conversation_ids = AiChat.where(character: @character)
-                             .select(:conversation_id)
-                             .distinct
-                             .order("MIN(created_at) DESC")
+    conversation_ids = AiChat.where(character: source_character)
                              .group(:conversation_id)
+                             .order("MAX(created_at) DESC")
                              .limit(10)
                              .pluck(:conversation_id)
 
@@ -255,5 +374,10 @@ class SupportReportsController < ApplicationController
   def truncate_text(text, length)
     return "" if text.blank?
     text.length > length ? "#{text[0...length]}..." : text
+  end
+
+  def pdf_filename(report)
+    base = report.title.presence || "support_report"
+    "#{base.to_s.gsub(/[\\\\\/:*?\"<>|]/, "_")}.pdf"
   end
 end

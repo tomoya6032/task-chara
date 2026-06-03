@@ -89,18 +89,18 @@
                         = fatigue_labels[@activity.fatigue_level - 1] rescue "普通"
               .flex.items-center.space-x-4.text-sm.text-slate-500
                 %span
-                  = @activity.created_at.strftime("%Y年%m月%d日 %H:%M投稿")
+                  ✏️ #{@activity.created_at.strftime("%Y年%m月%d日 %H:%M")}作成
                 %span
                   = "#{@activity.content&.length || 0}文字"
                 - if @activity.visit_start_time.present? || @activity.visit_end_time.present?
                   %span.text-blue-600
-                    🕐 
+                    🕐
                     - if @activity.visit_start_time.present?
-                      = @activity.visit_start_time.strftime("%H:%M")
+                      = @activity.visit_start_time.strftime("%Y年%m月%d日 %H:%M")
                     - if @activity.visit_start_time.present? && @activity.visit_end_time.present?
                       〜
                     - if @activity.visit_end_time.present?
-                      = @activity.visit_end_time.strftime("%H:%M")
+                      = @activity.visit_end_time.strftime("%m月%d日 %H:%M")
 
         .px-6.py-6
           / 内容表示

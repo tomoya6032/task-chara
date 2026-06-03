@@ -1,4 +1,14 @@
 class Event < ApplicationRecord
+  # 通知タイミング定数（分単位）
+  REMINDER_OPTIONS = {
+    "通知なし"  => nil,
+    "30分前"   => 30,
+    "1時間前"  => 60,
+    "3時間前"  => 180,
+    "1日前"    => 1440,
+    "3日前"    => 4320
+  }.freeze
+
   # 関連
   belongs_to :character, optional: true
 
@@ -29,6 +39,9 @@ class Event < ApplicationRecord
     tentative: 1,
     cancelled: 2
   }
+
+  # reminder_minutes が変更されたらリマインド送信済みフラグをリセット
+  before_save :reset_reminder_sent_flag, if: :reminder_minutes_changed?
 
   # 色の設定（カスタムカテゴリ対応）
   def display_color
@@ -152,5 +165,12 @@ class Event < ApplicationRecord
     unless allowed_fixed.include?(event_type) || event_type&.start_with?("custom_")
       errors.add(:event_type, "は有効なイベントタイプではありません")
     end
+  end
+
+  def reset_reminder_sent_flag
+    return unless metadata.is_a?(Hash)
+    meta = metadata.dup
+    meta.delete("line_reminder_sent_at")
+    self.metadata = meta
   end
 end

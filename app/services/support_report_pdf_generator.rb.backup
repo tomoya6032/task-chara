@@ -1,0 +1,253 @@
+require "prawn"
+require "cgi"
+require "nokogiri"
+
+class SupportReportPdfGenerator
+  BUNDLED_FONT_PATH = Rails.root.join("app/assets/fonts/ipaexg.ttf").to_s
+
+  def initialize(support_report)
+    @support_report = support_report
+  end
+
+  def render
+    Prawn::Document.new(page_size: "A4", margin: 36) do |pdf|
+      apply_font(pdf)
+
+      pdf.text "支援報告書", size: 18, style: :bold
+      pdf.move_down 10
+
+      pdf.text "タイトル: #{@support_report.title}", size: 11
+      pdf.text "対象期間: #{@support_report.period_display}", size: 11
+      pdf.text "作成日: #{@support_report.created_at.strftime('%Y年%m月%d日')}", size: 11
+      pdf.move_down 12
+
+      pdf.stroke_horizontal_rule
+      pdf.move_down 12
+
+      pdf.text "報告書内容", size: 14, style: :bold
+      pdf.move_down 8
+      
+      # デバッグ: HTMLの内容をログ出力
+      Rails.logger.info "=== PDF Generator Debug ==="
+      Rails.logger.info "Raw HTML: #{@support_report.content.to_s.inspect}"
+      
+      # HTMLの装飾を保持したまま出力
+      formatted_content = parse_html_to_formatted_text(@support_report.content.to_s)
+      
+      # デバッグ: パース結果をログ出力
+      Rails.logger.info "Formatted content: #{formatted_content.inspect}"
+      
+      output_formatted_content(pdf, formatted_content, base_size: 11)
+    end.render
+  end
+
+  private
+
+  def output_formatted_content(pdf, formatted_content, base_size: 11)
+    formatted_content.each do |block|
+      if block[:type] == :paragraph
+        pdf.formatted_text block[:fragments], size: base_size, leading: 3
+        pdf.move_down 6  # 段落間の余白
+      elsif block[:type] == :text
+        pdf.formatted_text block[:fragments], size: base_size, leading: 3
+      end
+    end
+  end
+
+  def parse_html_to_formatted_text(html_content)
+    return [{ type: :text, fragments: [{ text: "" }] }] if html_content.blank?
+    
+    doc = Nokogiri::HTML.fragment(html_content)
+    blocks = []
+    
+    doc.children.each do |node|
+      if node.name == 'div' || node.name == 'p'
+        fragments = parse_node_to_fragments(node)
+        blocks << { type: :paragraph, fragments: fragments } unless fragments.empty?
+      elsif node.text?
+        text = node.text.strip
+        unless text.empty?
+          blocks << { type: :text, fragments: [{ text: text }] }
+        end
+      else
+        fragments = parse_node_to_fragments(node)
+        blocks << { type: :text, fragments: fragments } unless fragments.empty?
+      end
+    end
+    
+    blocks.empty? ? [{ type: :text, fragments: [{ text: html_content }] }] : blocks
+  end
+
+  def parse_node_to_fragments(node, parent_styles = {})
+    fragments = []
+    
+    node.children.each do |child|
+      if child.text?
+        text = child.text
+        next if text.strip.empty? && text !~ /\n/
+        
+        fragments << build_fragment(text, parent_styles)
+      else
+        child_styles = parent_styles.dup
+        
+        # タグに応じてスタイルを追加
+        case child.name
+        when 'strong', 'b'
+          child_styles[:bold] = true
+        when 'u'
+          child_styles[:underline] = true
+        when 'mark'
+          child_styles[:background] = 'fef08a'
+        when 'font'
+          # font要素のcolor属性を解析
+          if child['color']
+            color_value = child['color'].gsub(/^#/, '')
+            # rgb形式をチェック
+            if color_value =~ /^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/
+              r, g, b = $1.to_i, $2.to_i, $3.to_i
+              child_styles[:color] = "%02X%02X%02X" % [r, g, b]
+            else
+              child_styles[:color] = color_value.upcase
+            end
+          end
+        when 'span'
+          # インラインスタイルを解析
+          if child['style']
+            style_attr = child['style']
+            
+            # デバッグ: スタイル属性をログ出力
+            Rails.logger.debug "Parsing span style: #{style_attr.inspect}"
+            
+            # 太字（font-weight）
+            if style_attr =~ /font-weight:\s*bold/
+              child_styles[:bold] = true
+              Rails.logger.debug "  -> font-weight: bold"
+            end
+            
+            # 下線（text-decoration）
+            if style_attr =~ /text-decoration(?:-line)?:\s*underline/
+              child_styles[:underline] = true
+              Rails.logger.debug "  -> text-decoration: underline"
+            end
+            
+            # フォントサイズ
+            if style_attr =~ /font-size:\s*(\d+)px/
+              child_styles[:size] = $1.to_i
+              Rails.logger.debug "  -> font-size: #{$1.to_i}px"
+            end
+            
+            # 文字色（16進数形式）
+            if style_attr =~ /color:\s*#([0-9a-fA-F]{6})/
+              child_styles[:color] = $1.upcase
+              Rails.logger.debug "  -> color (hex): #{$1.upcase}"
+            elsif style_attr =~ /color:\s*#([0-9a-fA-F]{3})/
+              # 3桁の16進数を6桁に変換
+              short_hex = $1
+              child_styles[:color] = short_hex.chars.map { |c| c * 2 }.join.upcase
+              Rails.logger.debug "  -> color (short hex): #{child_styles[:color]}"
+            elsif style_attr =~ /color:\s*rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/
+              # RGB形式を16進数に変換
+              r, g, b = $1.to_i, $2.to_i, $3.to_i
+              child_styles[:color] = "%02X%02X%02X" % [r, g, b]
+              Rails.logger.debug "  -> color (rgb): #{child_styles[:color]}"
+            end
+            
+            # 背景色（マーカー）16進数形式
+            if style_attr =~ /background-color:\s*#([0-9a-fA-F]{6})/
+              child_styles[:background] = $1.upcase
+              Rails.logger.debug "  -> background (hex): #{$1.upcase}"
+            elsif style_attr =~ /background-color:\s*#([0-9a-fA-F]{3})/
+              # 3桁の16進数を6桁に変換
+              short_hex = $1
+              child_styles[:background] = short_hex.chars.map { |c| c * 2 }.join.upcase
+              Rails.logger.debug "  -> background (short hex): #{child_styles[:background]}"
+            elsif style_attr =~ /background-color:\s*rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/
+              # RGB形式を16進数に変換
+              r, g, b = $1.to_i, $2.to_i, $3.to_i
+              child_styles[:background] = "%02X%02X%02X" % [r, g, b]
+              Rails.logger.debug "  -> background (rgb): #{child_styles[:background]}"
+            end
+          end
+        end
+        
+        # 子ノードを再帰的に処理
+        fragments.concat(parse_node_to_fragments(child, child_styles))
+      end
+    end
+    
+    fragments
+  end
+
+  def build_fragment(text, styles)
+    fragment = { text: text }
+    
+    styles_array = []
+    styles_array << :bold if styles[:bold]
+    styles_array << :underline if styles[:underline]
+    
+    # 文字色を指定
+    if styles[:color]
+      # 色コードを大文字の16進数に正規化
+      color_hex = styles[:color].to_s.upcase.gsub(/^#/, '')
+      fragment[:color] = color_hex
+    end
+    
+    # マーカー（背景色）がある場合は、下線と太字で強調
+    if styles[:background]
+      styles_array << :bold unless styles_array.include?(:bold)
+      styles_array << :underline unless styles_array.include?(:underline)
+      # 文字色が指定されていない場合は、オレンジ色を使用
+      fragment[:color] ||= 'FF8C00'
+    end
+    
+    fragment[:styles] = styles_array unless styles_array.empty?
+    fragment[:size] = styles[:size] if styles[:size]
+    
+    # デバッグ: 生成されたfragmentをログ出力
+    Rails.logger.debug "Fragment: #{fragment.inspect}"
+    
+    fragment
+  end
+
+  def apply_font(pdf)
+    font_path = preferred_japanese_font_path
+    if font_path
+      pdf.font_families.update(
+        "jp" => {
+          normal: font_path,
+          bold: font_path,
+          italic: font_path,
+          bold_italic: font_path
+        }
+      )
+      return pdf.font("jp")
+    end
+
+    pdf.font "Helvetica"
+  end
+
+  def preferred_japanese_font_path
+    [
+      BUNDLED_FONT_PATH,
+      "/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc",
+      "/System/Library/Fonts/ヒラギノ角ゴシック W6.ttc",
+      "/System/Library/Fonts/ヒラギノ明朝 ProN.ttc",
+      "/Library/Fonts/IPAexGothic.ttf"
+    ].find { |path| File.exist?(path) }
+  end
+
+  def normalized_plain_content(content)
+    text = ActionController::Base.helpers.strip_tags(content.to_s)
+    text = CGI.unescapeHTML(text.to_s).gsub(/\r\n?/, "\n")
+
+    text.lines.map { |line| normalize_line(line) }.join
+  end
+
+  def normalize_line(line)
+    line
+      .gsub(/\*\*(.*?)\*\*/, '\\1')
+      .sub(/^\s{0,3}\#{1,6}\s+/, "")
+      .sub(/^\s*[\-\-*+][[:space:]　]+/, "")
+      .sub(/^\s*\d+[\.)]\s+/, "")
+  end
+end

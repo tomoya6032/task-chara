@@ -65,15 +65,7 @@
           / フォーマット指示
           .form-group
             = form.label :format_instructions, "フォーマット指示", class: "block text-sm font-medium text-gray-700 mb-2"
-            = form.text_area :format_instructions, rows: 8, class: "w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm", placeholder: <<~TEXT
-              AIが報告書を生成する際の書式指示を入力してください
-
-              例:
-              - 見出しは「■」で始める
-              - 日時は「令和○年○月○日」形式で記載
-              - 活動内容は箇条書きで「・」を使用
-              - 最後に「以上」で締める
-            TEXT
+            = form.text_area :format_instructions, rows: 8, class: "w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm", placeholder: "AIが報告書を生成する際の書式指示を入力してください\n\n例:\n- 見出しは「■」で始める\n- 日時は「令和○年○月○日」形式で記載\n- 活動内容は箇条書きで「・」を使用\n- 最後に「以上」で締める"
             %p.mt-1.text-sm.text-gray-500 この指示に基づいてAIが報告書を生成します
 
           / ボタン

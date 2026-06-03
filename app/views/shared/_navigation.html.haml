@@ -69,13 +69,13 @@
     = link_to new_activity_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400", data: { "turbo-frame": "activity_form_modal" } do
       %span.text-lg 📖
       %span.text-xs.mt-1 日報
-    = link_to support_reports_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400" do
-      %span.text-lg 📋
-      %span.text-xs.mt-1 報告書
-    = link_to meeting_minutes_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400" do
-      %span.text-lg 📝
-      %span.text-xs.mt-1 議事録
-    = link_to new_task_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400", data: { "turbo-frame": "task-modal" } do
+    = link_to ai_secretary_chat_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400" do
+      %span.text-lg 🤖
+      %span.text-xs.mt-1 秘書
+    = link_to calendar_index_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400" do
+      %span.text-lg 📅
+      %span.text-xs.mt-1 カレンダー
+    = link_to tasks_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400" do
       %span.text-lg ✅
       %span.text-xs.mt-1 タスク
     = link_to "#", class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400" do

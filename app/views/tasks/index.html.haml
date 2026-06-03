@@ -23,7 +23,7 @@
 
   / ヘッダー
   .flex.items-center.justify-between.mb-6
-    %h1.text-2xl.font-bold.text-slate-900.dark:text-white
+    %h1.text-base.sm:text-2xl.font-bold.text-slate-900.dark:text-white
       📋 全タスク一覧
 
     .flex.gap-2
@@ -32,31 +32,30 @@
       = link_to hidden_tasks_path, class: "bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 px-4 py-2 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors" do
         👁️ 非表示
 
-  / 統計情報
-  .bg-white.dark:bg-slate-800.rounded-xl.shadow-sm.p-6.mb-6
-    .grid.grid-cols-1.sm:grid-cols-4.gap-4
-      .text-center
+  .bg-white.dark:bg-slate-800.rounded-xl.shadow-sm.p-4.mb-6
+    .grid.grid-cols-2.sm:grid-cols-4.gap-3
+      .text-center.bg-blue-50.dark:bg-blue-900.rounded-lg.py-3.px-2
         .text-2xl.font-bold.text-blue-600.dark:text-blue-400
           = @pending_tasks.count
-        .text-sm.text-slate-600.dark:text-slate-400
+        .text-xs.text-slate-600.dark:text-slate-400.mt-1
           未完了タスク
 
-      .text-center
+      .text-center.bg-green-50.dark:bg-green-900.rounded-lg.py-3.px-2
         .text-2xl.font-bold.text-green-600.dark:text-green-400
           = @completed_tasks.count
-        .text-sm.text-slate-600.dark:text-slate-400
+        .text-xs.text-slate-600.dark:text-slate-400.mt-1
           完了済みタスク
 
-      .text-center
+      .text-center.bg-purple-50.dark:bg-purple-900.rounded-lg.py-3.px-2
         .text-2xl.font-bold.text-purple-600.dark:text-purple-400
           = @draft_tasks.count
-        .text-sm.text-slate-600.dark:text-slate-400
+        .text-xs.text-slate-600.dark:text-slate-400.mt-1
           承認待ちドラフト
 
-      .text-center
+      .text-center.bg-slate-100.dark:bg-slate-700.rounded-lg.py-3.px-2
         .text-2xl.font-bold.text-slate-600.dark:text-slate-400
           = @hidden_tasks.count
-        .text-sm.text-slate-600.dark:text-slate-400
+        .text-xs.text-slate-600.dark:text-slate-400.mt-1
           非表示タスク
 
   / ドラフトタスク（AI抽出）セクション
@@ -147,14 +146,14 @@
         .mb-4
           %label.block.text-sm.font-medium.text-slate-700.dark:text-slate-300.mb-2
             カテゴリ
-          %select#edit-task-category.w-full.border.border-slate-300.dark:border-slate-600.rounded-md.px-3.py-2.bg-white.dark:bg-slate-700.text-slate-900.dark:text-white{ name: "task[category]", required: true }
+          %select#edit-task-category.w-full.border.border-slate-300.dark:border-slate-600.rounded-md.px-3.py-2.bg-white.dark:bg-slate-700.text-slate-900.dark:text-white.text-sm{ name: "task[category]", required: true }
             - (@task_categories || []).each do |label, value|
               %option{ value: value }= label
 
         .mb-4
           %label.block.text-sm.font-medium.text-slate-700.dark:text-slate-300.mb-2
             嫌い度 (1-10)
-          %select#edit-task-dislike-level.w-full.border.border-slate-300.dark:border-slate-600.rounded-md.px-3.py-2.bg-white.dark:bg-slate-700.text-slate-900.dark:text-white{ name: "task[dislike_level]", required: true }
+          %select#edit-task-dislike-level.w-full.border.border-slate-300.dark:border-slate-600.rounded-md.px-3.py-2.bg-white.dark:bg-slate-700.text-slate-900.dark:text-white.text-sm{ name: "task[dislike_level]", required: true }
             - (1..10).each do |level|
               %option{ value: level }
                 = level
