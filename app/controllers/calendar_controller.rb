@@ -274,9 +274,7 @@ class CalendarController < ApplicationController
 
   private
 
-  def set_character
-    @character = Character.find_by(id: 1) || Character.first
-  end
+  # ApplicationController#set_characterを使用（current_user.character）
 
   def create_sample_events
     # 開発環境でのみサンプルイベントを作成（本番環境では実行しない）

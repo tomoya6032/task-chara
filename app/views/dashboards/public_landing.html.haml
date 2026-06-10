@@ -1,0 +1,55 @@
+.min-h-screen.bg-gradient-to-br.from-blue-50.to-indigo-100
+  .container.mx-auto.px-4.py-16
+    / ヘッダー
+    .text-center.mb-16
+      %h1.text-5xl.font-bold.text-gray-900.mb-4
+        🎯 タスク×キャラクター育成
+      %p.text-xl.text-gray-600.mb-8
+        日報・議事録・タスクを管理しながら、AIと一緒にキャラクターを育てよう
+
+    / 機能紹介
+    .grid.md:grid-cols-3.gap-8.mb-16
+      .bg-white.p-6.rounded-lg.shadow-md
+        .text-4xl.mb-4 📝
+        %h3.text-xl.font-bold.mb-2 日報管理
+        %p.text-gray-600
+          日々の活動を記録し、AIが自動で分析。タスクも自動抽出します。
+
+      .bg-white.p-6.rounded-lg.shadow-md
+        .text-4xl.mb-4 🤖
+        %h3.text-xl.font-bold.mb-2 AI秘書
+        %p.text-gray-600
+          音声やテキストから議事録を自動生成。スケジュール管理もお任せ。
+
+      .bg-white.p-6.rounded-lg.shadow-md
+        .text-4xl.mb-4 🎮
+        %h3.text-xl.font-bold.mb-2 キャラクター育成
+        %p.text-gray-600
+          タスクをこなすとキャラクターが成長。サウナで特殊能力も！
+
+    / ダッシュボードプレビュー
+    .bg-white.p-8.rounded-lg.shadow-lg.mb-16
+      %h2.text-2xl.font-bold.mb-6.text-center ダッシュボード機能
+      .grid.md:grid-cols-2.gap-6
+        .border.p-4.rounded
+          %h4.font-bold.mb-2 📊 統計情報
+          %ul.text-sm.text-gray-600.space-y-1
+            %li ✓ 今日のタスク進捗
+            %li ✓ キャラクターステータス
+            %li ✓ 今週の活動サマリー
+
+        .border.p-4.rounded
+          %h4.font-bold.mb-2 📅 スケジュール
+          %ul.text-sm.text-gray-600.space-y-1
+            %li ✓ 今後の予定一覧
+            %li ✓ タスク期限管理
+            %li ✓ LINE通知連携
+
+    / CTA（Call to Action）
+    .text-center
+      = link_to "ログイン", new_user_session_path, class: "inline-block bg-blue-600 text-white px-8 py-3 rounded-lg text-lg font-semibold hover:bg-blue-700 transition mr-4"
+      = link_to "新規登録", new_user_registration_path, class: "inline-block bg-green-600 text-white px-8 py-3 rounded-lg text-lg font-semibold hover:bg-green-700 transition"
+
+    / フッター
+    .text-center.mt-16.text-gray-500.text-sm
+      %p © 2026 Task Character. All rights reserved.

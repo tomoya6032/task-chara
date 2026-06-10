@@ -5,7 +5,8 @@ require "line/bot"
 module LineBotClient
   # メッセージ送信用クライアント（channel_access_tokenで初期化）
   def self.client
-    token = ENV["LINE_CHANNEL_TOKEN"] || Rails.application.credentials.dig(:line, :channel_token)
+    # 後方互換性のため LINE_CHANNEL_TOKEN を優先
+    token = ENV["LINE_CHANNEL_TOKEN"] || ENV["LINE_CHANNEL_ACCESS_TOKEN"] || Rails.application.credentials.dig(:line, :channel_token)
     Line::Bot::V2::MessagingApi::ApiClient.new(channel_access_token: token)
   end
 

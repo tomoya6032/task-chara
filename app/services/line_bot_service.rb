@@ -14,20 +14,60 @@ class LineBotService
     raise ArgumentError, "line_user_id is blank" if line_user_id.blank?
     raise ArgumentError, "text is blank"         if text.blank?
 
+    # メッセージリクエストを作成
+    message = Line::Bot::V2::MessagingApi::TextMessage.new(text: text.to_s.truncate(5000))
     request = Line::Bot::V2::MessagingApi::PushMessageRequest.new(
       to: line_user_id,
-      messages: [
-        Line::Bot::V2::MessagingApi::TextMessage.new(text: text.to_s.truncate(5000))
-      ]
+      messages: [ message ]
     )
-    @client.push_message(push_message_request: request)
-    Rails.logger.info("[LineBotService] Sent to #{line_user_id}: #{text.truncate(50)}")
-    true
+
+    Rails.logger.info("[LineBotService] 送信開始 | ユーザーID: #{line_user_id} | メッセージ: #{text.truncate(50)}")
+    Rails.logger.debug("[LineBotService] リクエスト詳細: #{request.inspect}")
+
+    # プッシュメッセージを送信（HTTPレスポンスを取得）
+    response_body, status_code, headers = @client.push_message_with_http_info(
+      push_message_request: request
+    )
+
+    Rails.logger.info("[LineBotService] LINE APIレスポンス | ステータス: #{status_code}")
+    Rails.logger.debug("[LineBotService] レスポンスボディ: #{response_body.inspect}")
+    Rails.logger.debug("[LineBotService] レスポンスヘッダー: #{headers.inspect}")
+
+    # エラー時は生のJSONレスポンスも出力
+    if status_code != 200 && response_body.is_a?(Line::Bot::V2::MessagingApi::ErrorResponse)
+      Rails.logger.error("[LineBotService] ⚠️ エラーレスポンス詳細:")
+      Rails.logger.error("  - message: #{response_body.message}")
+      Rails.logger.error("  - details: #{response_body.details.inspect}")
+    end
+
+    # ステータスコードに応じた処理
+    case status_code
+    when 200
+      Rails.logger.info("[LineBotService] ✅ 送信成功 | ユーザーID: #{line_user_id}")
+      true
+    when 400
+      Rails.logger.error("[LineBotService] ❌ 400 Bad Request | エラー: #{response_body.message rescue response_body} | 詳細: #{response_body.details rescue 'なし'}")
+      false
+    when 403
+      Rails.logger.error("[LineBotService] ❌ 403 Forbidden | アクセストークンが無効またはユーザーがブロック | エラー: #{response_body.message rescue response_body}")
+      false
+    when 409
+      Rails.logger.error("[LineBotService] ❌ 409 Conflict | エラー: #{response_body.message rescue response_body}")
+      false
+    when 429
+      Rails.logger.error("[LineBotService] ❌ 429 Rate Limit Exceeded | レート制限超過 | エラー: #{response_body.message rescue response_body}")
+      false
+    else
+      Rails.logger.error("[LineBotService] ❌ 予期しないステータスコード: #{status_code} | レスポンス: #{response_body}")
+      false
+    end
+
   rescue ArgumentError => e
-    Rails.logger.error("[LineBotService] Invalid argument: #{e.message}")
+    Rails.logger.error("[LineBotService] ❌ 引数エラー: #{e.message}")
     false
   rescue => e
-    Rails.logger.error("[LineBotService] Unexpected error: #{e.class} - #{e.message}")
+    Rails.logger.error("[LineBotService] ❌ 予期しないエラー: #{e.class} - #{e.message}")
+    Rails.logger.error("[LineBotService] バックトレース: #{e.backtrace.first(5).join("\n")}")
     false
   end
 
@@ -58,7 +98,8 @@ class LineBotService
   # @return [Boolean] 認証情報が揃っているか
   def self.credentials_configured?
     secret = ENV["LINE_CHANNEL_SECRET"] || Rails.application.credentials.dig(:line, :channel_secret)
-    token  = ENV["LINE_CHANNEL_TOKEN"]  || Rails.application.credentials.dig(:line, :channel_token)
+    # 後方互換性のため LINE_CHANNEL_TOKEN を優先
+    token  = ENV["LINE_CHANNEL_TOKEN"] || ENV["LINE_CHANNEL_ACCESS_TOKEN"] || Rails.application.credentials.dig(:line, :channel_token)
     secret.present? && token.present?
   end
 end

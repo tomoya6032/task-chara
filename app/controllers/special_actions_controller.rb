@@ -189,9 +189,8 @@ class SpecialActionsController < ApplicationController
 
   private
 
+  # ApplicationController#set_characterを使用（current_user.character）
   def set_character
-    @organization = Organization.first
-    @user = @organization.users.first
-    @character = @user.character
+    super  # ApplicationControllerのset_characterを呼び出す
   end
 end

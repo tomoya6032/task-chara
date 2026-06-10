@@ -244,19 +244,9 @@ class AiSecretaryController < ApplicationController
 
   private
 
+  # ApplicationController#set_characterを使用（current_user.character）
   def set_character
-    # デモ用: 現在は固定のキャラクターを使用
-    @character = Character.find_by(id: 1)
-
-    unless @character
-      # デモデータがない場合は作成
-      @character = Character.create!(
-        name: "AI秘書",
-        description: "親しみやすくて頼りになるAIアシスタントです。",
-        character_type: "assistant"
-      )
-      Rails.logger.info "🚀 Created demo character: #{@character.name}"
-    end
+    super  # ApplicationControllerのset_characterを呼び出す
 
     Rails.logger.info "👤 Using character: #{@character.name} (ID: #{@character.id})"
 

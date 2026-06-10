@@ -1,5 +1,6 @@
 class SupportReport < ApplicationRecord
   belongs_to :character
+  belongs_to :user, optional: true
   belongs_to :report_template, optional: true
 
   # ステータス定義

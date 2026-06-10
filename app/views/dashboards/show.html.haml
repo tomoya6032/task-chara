@@ -29,12 +29,12 @@
       AIが精神保健福祉士の視点で解析中...
 
 / デバッグ情報（開発時のみ）
-- if Rails.env.development?
+- if Rails.env.development? && @character
   .px-4.py-4
     .bg-slate-800.text-white.p-4.rounded-lg.text-sm
       %h3.font-bold.mb-2 デバッグ情報
-      %p Organization: #{@organization.name}
-      %p User: #{@user.email}
+      %p User: #{current_user.email}
+      %p Name: #{current_user.name}
       %p Character: #{@character.name}
       %p Shave Level: #{@character.shave_level}
       %p Body Shape: #{@character.body_shape}

@@ -1,5 +1,6 @@
 class MeetingMinute < ApplicationRecord
   belongs_to :character
+  belongs_to :user, optional: true
   belongs_to :prompt_template, optional: true
 
   # 会議タイプ定義

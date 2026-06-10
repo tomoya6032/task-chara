@@ -75,18 +75,9 @@ class PromptTemplatesController < ApplicationController
 
   private
 
+  # ApplicationController#set_characterを使用（current_user.character）
   def set_character
-    # デモ用: 現在は固定のキャラクターを使用
-    @organization = Organization.find_or_create_by(name: "サンプル企業")
-    @user = @organization.users.find_or_create_by(email: "demo@example.com")
-    @character = @user.character || @user.create_character(
-      name: "デモキャラクター",
-      shave_level: 20,
-      stress_level: 30,
-      total_points: 0,
-      organization: @organization,
-      user: @user
-    )
+    super  # ApplicationControllerのset_characterを呼び出す
   end
 
   def set_prompt_template

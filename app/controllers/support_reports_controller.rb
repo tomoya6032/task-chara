@@ -151,18 +151,9 @@ class SupportReportsController < ApplicationController
     @user
   end
 
+  # ApplicationController#set_characterを使用（current_user.character）
   def set_character
-    # デモ用: 現在は固定のキャラクターを使用
-    @organization = Organization.find_or_create_by(name: "サンプル企業")
-    @user = @organization.users.find_or_create_by(email: "demo@example.com")
-    @character = @user.character || @user.create_character(
-      name: "デモキャラクター",
-      shave_level: 20,
-      body_shape: 30,
-      inner_peace: 40,
-      intelligence: 50,
-      toughness: 35
-    )
+    super  # ApplicationControllerのset_characterを呼び出す
   end
 
   def set_support_report

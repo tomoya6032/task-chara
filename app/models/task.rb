@@ -1,6 +1,7 @@
 # app/models/task.rb
 class Task < ApplicationRecord
   belongs_to :character
+  belongs_to :user, optional: true
   belongs_to :extracted_from_activity, class_name: "Activity", foreign_key: "extracted_from_activity_id", optional: true
 
   after_initialize :set_defaults

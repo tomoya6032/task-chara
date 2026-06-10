@@ -1,0 +1,106 @@
+class LineNotifyController < ApplicationController
+  before_action :authenticate_user!, except: [:callback]
+  before_action :check_line_notify_configured, except: [:callback]
+
+  # LINE Notify OAuth認証開始
+  def authorize
+    client_id = ENV['LINE_NOTIFY_CLIENT_ID']
+    redirect_uri = line_notify_callback_url
+    state = SecureRandom.hex(16)
+    session[:line_notify_state] = state
+
+    authorize_url = "https://notify-bot.line.me/oauth/authorize?" \
+                    "response_type=code&" \
+                    "client_id=#{client_id}&" \
+                    "redirect_uri=#{CGI.escape(redirect_uri)}&" \
+                    "scope=notify&" \
+                    "state=#{state}"
+
+    redirect_to authorize_url, allow_other_host: true
+  end
+
+  # LINE Notify OAuthコールバック
+  def callback
+    # stateの検証
+    if params[:state] != session[:line_notify_state]
+      redirect_to settings_path, alert: 'LINE Notify連携に失敗しました（不正なリクエスト）'
+      return
+    end
+
+    # エラーチェック
+    if params[:error].present?
+      redirect_to settings_path, alert: "LINE Notify連携をキャンセルしました: #{params[:error]}"
+      return
+    end
+
+    # アクセストークン取得
+    code = params[:code]
+    token_response = exchange_code_for_token(code)
+
+    if token_response['status'] == 200
+      access_token = token_response['access_token']
+      current_user.update(line_notify_token: access_token)
+      redirect_to settings_path, notice: 'LINE Notify連携が完了しました！通知を受け取れるようになりました。'
+    else
+      redirect_to settings_path, alert: "LINE Notify連携に失敗しました: #{token_response['message']}"
+    end
+
+    session.delete(:line_notify_state)
+  end
+
+  # LINE Notify連携解除
+  def revoke
+    if current_user.line_notify_token.present?
+      # LINE Notify APIでトークンを無効化
+      revoke_token(current_user.line_notify_token)
+      current_user.update(line_notify_token: nil)
+      redirect_to settings_path, notice: 'LINE Notify連携を解除しました'
+    else
+      redirect_to settings_path, alert: 'LINE Notify連携されていません'
+    end
+  end
+
+  private
+
+  def exchange_code_for_token(code)
+    require 'net/http'
+    require 'uri'
+
+    uri = URI.parse('https://notify-bot.line.me/oauth/token')
+    
+    request = Net::HTTP::Post.new(uri)
+    request.set_form_data(
+      grant_type: 'authorization_code',
+      code: code,
+      redirect_uri: line_notify_callback_url,
+      client_id: ENV['LINE_NOTIFY_CLIENT_ID'],
+      client_secret: ENV['LINE_NOTIFY_CLIENT_SECRET']
+    )
+
+    response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
+      http.request(request)
+    end
+
+    JSON.parse(response.body)
+  end
+
+  def revoke_token(token)
+    require 'net/http'
+    require 'uri'
+
+    uri = URI.parse('https://notify-api.line.me/api/revoke')
+    
+    request = Net::HTTP::Post.new(uri)
+    request['Authorization'] = "Bearer #{token}"
+
+    Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
+      http.request(request)
+    end
+
+  def check_line_notify_configured
+    unless ENV['LINE_NOTIFY_CLIENT_ID'].present? && ENV['LINE_NOTIFY_CLIENT_SECRET'].present?
+      redirect_to settings_path, alert: 'LINE Notifyが設定されていません。管理者に設定を依頼してください。'
+    end
+  end
+  end
+end

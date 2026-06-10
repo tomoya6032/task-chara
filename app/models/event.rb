@@ -11,6 +11,7 @@ class Event < ApplicationRecord
 
   # 関連
   belongs_to :character, optional: true
+  belongs_to :user, optional: true
 
   # バリデーション
   validates :title, presence: true

@@ -1,5 +1,6 @@
 class AiChat < ApplicationRecord
   belongs_to :character
+  belongs_to :user, optional: true
 
   # Role validation
   validates :role, presence: true, inclusion: { in: %w[user assistant system] }

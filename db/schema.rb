@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_05_26_011600) do
+ActiveRecord::Schema[8.0].define(version: 2026_06_08_080723) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -55,7 +55,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_05_26_011600) do
     t.string "title"
     t.datetime "visit_start_time"
     t.datetime "visit_end_time"
+    t.bigint "user_id"
     t.index ["character_id"], name: "index_activities_on_character_id"
+    t.index ["user_id", "created_at"], name: "index_activities_on_user_id_and_created_at"
+    t.index ["user_id"], name: "index_activities_on_user_id"
   end
 
   create_table "ai_chats", force: :cascade do |t|
@@ -66,8 +69,28 @@ ActiveRecord::Schema[8.0].define(version: 2026_05_26_011600) do
     t.integer "tokens_used"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "user_id"
     t.index ["character_id"], name: "index_ai_chats_on_character_id"
     t.index ["conversation_id"], name: "index_ai_chats_on_conversation_id"
+    t.index ["user_id"], name: "index_ai_chats_on_user_id"
+  end
+
+  create_table "ai_token_usages", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "organization_id"
+    t.string "ai_model", null: false
+    t.integer "prompt_tokens", default: 0, null: false
+    t.integer "completion_tokens", default: 0, null: false
+    t.integer "total_tokens", default: 0, null: false
+    t.decimal "cost", precision: 10, scale: 6, default: "0.0"
+    t.string "feature"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["feature"], name: "index_ai_token_usages_on_feature"
+    t.index ["organization_id", "created_at"], name: "index_ai_token_usages_on_organization_id_and_created_at"
+    t.index ["organization_id"], name: "index_ai_token_usages_on_organization_id"
+    t.index ["user_id", "created_at"], name: "index_ai_token_usages_on_user_id_and_created_at"
+    t.index ["user_id"], name: "index_ai_token_usages_on_user_id"
   end
 
   create_table "characters", force: :cascade do |t|
@@ -106,6 +129,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_05_26_011600) do
     t.datetime "updated_at", null: false
     t.string "event_type"
     t.integer "reminder_minutes"
+    t.bigint "user_id"
     t.index ["character_id"], name: "index_events_on_character_id"
     t.index ["character_id"], name: "index_events_on_character_id_new"
     t.index ["end_time"], name: "index_events_on_end_time"
@@ -113,6 +137,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_05_26_011600) do
     t.index ["external_id"], name: "index_events_on_external_id", unique: true
     t.index ["start_time", "end_time"], name: "index_events_on_start_time_and_end_time"
     t.index ["start_time"], name: "index_events_on_start_time"
+    t.index ["user_id"], name: "index_events_on_user_id"
   end
 
   create_table "holidays", force: :cascade do |t|
@@ -137,14 +162,20 @@ ActiveRecord::Schema[8.0].define(version: 2026_05_26_011600) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.bigint "prompt_template_id"
+    t.bigint "user_id"
     t.index ["character_id"], name: "index_meeting_minutes_on_character_id"
     t.index ["prompt_template_id"], name: "index_meeting_minutes_on_prompt_template_id"
+    t.index ["user_id", "meeting_date"], name: "index_meeting_minutes_on_user_id_and_meeting_date"
+    t.index ["user_id"], name: "index_meeting_minutes_on_user_id"
   end
 
   create_table "organizations", force: :cascade do |t|
     t.string "name"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "token_limit", default: 1000000, null: false
+    t.integer "token_used", default: 0, null: false
+    t.boolean "active", default: true, null: false
   end
 
   create_table "prompt_templates", force: :cascade do |t|
@@ -158,9 +189,11 @@ ActiveRecord::Schema[8.0].define(version: 2026_05_26_011600) do
     t.text "description"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "user_id"
     t.index ["is_active"], name: "index_prompt_templates_on_is_active"
     t.index ["meeting_type", "prompt_type", "is_active"], name: "idx_on_meeting_type_prompt_type_is_active_6c738d814c"
     t.index ["organization_id"], name: "index_prompt_templates_on_organization_id"
+    t.index ["user_id"], name: "index_prompt_templates_on_user_id"
   end
 
   create_table "report_templates", force: :cascade do |t|
@@ -309,8 +342,11 @@ ActiveRecord::Schema[8.0].define(version: 2026_05_26_011600) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.bigint "report_template_id"
+    t.bigint "user_id"
     t.index ["character_id"], name: "index_support_reports_on_character_id"
     t.index ["report_template_id"], name: "index_support_reports_on_report_template_id"
+    t.index ["user_id", "created_at"], name: "index_support_reports_on_user_id_and_created_at"
+    t.index ["user_id"], name: "index_support_reports_on_user_id"
   end
 
   create_table "tasks", force: :cascade do |t|
@@ -330,28 +366,48 @@ ActiveRecord::Schema[8.0].define(version: 2026_05_26_011600) do
     t.text "extraction_source_text"
     t.text "description"
     t.datetime "line_due_72h_notified_at"
+    t.bigint "user_id"
     t.index ["character_id"], name: "index_tasks_on_character_id"
     t.index ["line_due_72h_notified_at"], name: "index_tasks_on_line_due_72h_notified_at"
+    t.index ["user_id", "completed_at"], name: "index_tasks_on_user_id_and_completed_at"
+    t.index ["user_id"], name: "index_tasks_on_user_id"
   end
 
   create_table "users", force: :cascade do |t|
-    t.string "email"
-    t.bigint "organization_id", null: false
+    t.string "email", default: "", null: false
+    t.bigint "organization_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "line_user_id"
+    t.string "encrypted_password", default: "", null: false
+    t.string "reset_password_token"
+    t.datetime "reset_password_sent_at"
+    t.datetime "remember_created_at"
+    t.integer "role", default: 0, null: false
+    t.string "name"
+    t.boolean "active", default: true, null: false
+    t.string "line_notify_token"
+    t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["line_user_id"], name: "index_users_on_line_user_id", unique: true
     t.index ["organization_id"], name: "index_users_on_organization_id"
+    t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
   end
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "activities", "characters"
+  add_foreign_key "activities", "users"
   add_foreign_key "ai_chats", "characters"
+  add_foreign_key "ai_chats", "users"
+  add_foreign_key "ai_token_usages", "organizations"
+  add_foreign_key "ai_token_usages", "users"
   add_foreign_key "characters", "users"
   add_foreign_key "events", "characters"
+  add_foreign_key "events", "users"
   add_foreign_key "meeting_minutes", "characters"
   add_foreign_key "meeting_minutes", "prompt_templates"
+  add_foreign_key "meeting_minutes", "users"
+  add_foreign_key "prompt_templates", "users"
   add_foreign_key "report_templates", "users"
   add_foreign_key "solid_queue_blocked_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_claimed_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
@@ -361,6 +417,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_05_26_011600) do
   add_foreign_key "solid_queue_scheduled_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "support_reports", "characters"
   add_foreign_key "support_reports", "report_templates"
+  add_foreign_key "support_reports", "users"
   add_foreign_key "tasks", "characters"
+  add_foreign_key "tasks", "users"
   add_foreign_key "users", "organizations"
 end

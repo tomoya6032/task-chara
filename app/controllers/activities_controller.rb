@@ -316,20 +316,6 @@ class ActivitiesController < ApplicationController
 
   private
 
-  def set_character
-    # デモ用: 現在は固定のキャラクターを使用
-    @organization = Organization.find_or_create_by(name: "サンプル企業")
-    @user = @organization.users.find_or_create_by(email: "demo@example.com")
-    @character = @user.character || @user.create_character(
-      name: "デモキャラクター",
-      shave_level: 20,
-      body_shape: 30,
-      inner_peace: 40,
-      intelligence: 50,
-      toughness: 35
-    )
-  end
-
   def activity_params
     params.require(:activity).permit(:title, :content, :image, :image_url, :category, :mood_level, :fatigue_level, :visit_start_time, :visit_end_time)
   end

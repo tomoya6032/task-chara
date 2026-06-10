@@ -1,4 +1,5 @@
 Rails.application.routes.draw do
+  devise_for :users
   # LINE Messaging API Webhook
   post "line/callback", to: "line_webhooks#callback"
 
@@ -16,6 +17,15 @@ Rails.application.routes.draw do
   # Dashboard routes
   get "dashboard", to: "dashboards#show"
   root "dashboards#show"
+
+  # Settings routes
+  get "settings", to: "settings#show"
+  patch "settings", to: "settings#update"
+  delete "settings/line", to: "settings#unlink_line", as: :unlink_line
+
+  # LINE Login OAuth routes (Messaging API連携用)
+  get "line_login/authorize", to: "line_login#authorize", as: :line_login_authorize
+  get "line_login/callback", to: "line_login#callback", as: :line_login_callback
 
   # Calendar routes
   resources :calendar, only: [ :index, :show, :new, :create, :edit, :update, :destroy ] do
