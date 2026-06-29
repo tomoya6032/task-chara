@@ -1,0 +1,8 @@
+%p
+  = "#{@email} さん、ようこそ！"
+
+%p アカウント登録ありがとうございます。下記のリンクをクリックして、メールアドレスを確認してください。
+
+%p= link_to 'メールアドレスを確認する', confirmation_url(@resource, confirmation_token: @token), style: "display: inline-block; padding: 10px 20px; background-color: #3b82f6; color: white; text-decoration: none; border-radius: 5px;"
+
+%p このメールに心当たりがない場合は、無視してください。

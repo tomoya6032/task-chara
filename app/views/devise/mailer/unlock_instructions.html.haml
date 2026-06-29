@@ -1,0 +1,27 @@
+%p
+  = "#{@resource.name}様"
+
+%p
+  あなたのアカウントは、ログイン試行の失敗回数が上限に達したため、一時的にロックされました。
+
+%p
+  %strong セキュリティ通知：
+  不正なログイン試行が検出されました。もしご自身でログインを試みていない場合は、パスワードの変更をお勧めします。
+
+%p
+  下記のリンクをクリックして、アカウントのロックを解除してください：
+
+%p
+  = link_to 'アカウントのロックを解除する', unlock_url(@resource, unlock_token: @token), style: 'display: inline-block; padding: 12px 24px; background-color: #2563eb; color: white; text-decoration: none; border-radius: 6px; font-weight: bold;'
+
+%p.text-sm{ style: 'color: #6b7280; margin-top: 20px;' }
+  ※ このリンクは一度のみ使用可能です。
+  %br
+  ※ #{30.minutes.from_now.strftime('%H:%M')}（#{30}分後）に自動的にロックが解除されます。
+
+%hr{ style: 'margin: 20px 0; border: none; border-top: 1px solid #e5e7eb;' }
+
+%p.text-xs{ style: 'color: #9ca3af;' }
+  このメールに心当たりがない場合は、このメールを無視してください。
+  %br
+  アカウントのセキュリティに関する問題がある場合は、サポートまでお問い合わせください。
