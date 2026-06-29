@@ -26,22 +26,22 @@
       .px-6.py-4
         .flex.items-center
           .flex-shrink-0
-            %span.text-2xl 👥
+            %span.text-2xl �
           .ml-3
-            %p.text-sm.font-medium.text-slate-500.dark:text-slate-400 支援会議
+            %p.text-sm.font-medium.text-slate-500.dark:text-slate-400 通常会議
             %p.text-2xl.font-semibold.text-slate-900.dark:text-white
-              = @character.meeting_minutes.support_meeting.count
+              = @character.meeting_minutes.regular_meeting.count
               %span.text-sm.font-normal.text-slate-500 件
 
     .bg-white.dark:bg-slate-800.overflow-hidden.shadow-xl.rounded-2xl.border.border-slate-200.dark:border-slate-700
       .px-6.py-4
         .flex.items-center
           .flex-shrink-0
-            %span.text-2xl 🏢
+            %span.text-2xl 🏥
           .ml-3
-            %p.text-sm.font-medium.text-slate-500.dark:text-slate-400 団体会議
+            %p.text-sm.font-medium.text-slate-500.dark:text-slate-400 診察同行
             %p.text-2xl.font-semibold.text-slate-900.dark:text-white
-              = @character.meeting_minutes.professional_meeting.count
+              = @character.meeting_minutes.medical_visit.count
               %span.text-sm.font-normal.text-slate-500 件
 
   / 新規作成ボタン
@@ -65,8 +65,8 @@
                   .flex.items-center.space-x-3.mb-2
                     %span.inline-flex.items-center.px-2.py-1.rounded-full.text-xs.font-medium{
                       class: case meeting_minute.meeting_type
-                        when 'support_meeting' then 'bg-blue-100 text-blue-800 dark:bg-blue-200 dark:text-blue-900'
-                        when 'professional_meeting' then 'bg-green-100 text-green-800 dark:bg-green-200 dark:text-green-900'
+                        when 'regular_meeting' then 'bg-blue-100 text-blue-800 dark:bg-blue-200 dark:text-blue-900'
+                        when 'medical_visit' then 'bg-green-100 text-green-800 dark:bg-green-200 dark:text-green-900'
                       end
                     }
                       = meeting_minute.meeting_type_display

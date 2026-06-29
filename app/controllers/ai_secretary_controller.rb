@@ -4,7 +4,8 @@ class AiSecretaryController < ApplicationController
 
   def chat
     @conversation_id = params[:conversation_id] || AiChat.generate_conversation_id
-    @recent_messages = AiChat.for_conversation(@conversation_id).recent.limit(20)
+    # セキュリティ: 現在のユーザーのキャラクターの会話のみ取得
+    @recent_messages = @character.ai_chats.for_conversation(@conversation_id).recent.limit(20)
     @pending_tasks = get_pending_tasks
     @upcoming_events = get_upcoming_events
   end
@@ -26,7 +27,12 @@ class AiSecretaryController < ApplicationController
       )
 
       # 会話履歴を取得（コンテキスト用）
-      conversation_history = AiChat.conversation_context(@conversation_id, 10)
+      # セキュリティ: 現在のユーザーのキャラクターの会話のみ取得
+      conversation_history = @character.ai_chats.for_conversation(@conversation_id)
+        .recent
+        .limit(10)
+        .pluck(:role, :content)
+        .map { |role, content| { role: role, content: content } }
 
       # Web検索が必要かどうかを判定
       web_search_results = nil
@@ -189,7 +195,8 @@ class AiSecretaryController < ApplicationController
 
   def conversation_history
     page = params[:page] || 1
-    @messages = AiChat.for_conversation(@conversation_id)
+    # セキュリティ: 現在のユーザーのキャラクターの会話のみ取得
+    @messages = @character.ai_chats.for_conversation(@conversation_id)
                      .recent
                      .page(page)
                      .per(50)
@@ -432,18 +439,19 @@ class AiSecretaryController < ApplicationController
     Rails.logger.info "🔍 Found conversation IDs: #{conversation_ids}"
 
     # 各会話の詳細情報を取得
+    # セキュリティ: 現在のユーザーのキャラクターの会話のみ取得
     conversations = conversation_ids.filter_map do |conv_id|
-      messages = AiChat.for_conversation(conv_id).recent.limit(1)
+      messages = @character.ai_chats.for_conversation(conv_id).recent.limit(1)
       next if messages.empty?
 
-      first_user_message = AiChat.for_conversation(conv_id).where(role: "user").first
+      first_user_message = @character.ai_chats.for_conversation(conv_id).where(role: "user").first
 
       conversation = {
         conversation_id: conv_id,
         title: generate_conversation_title(first_user_message&.content || "新しい会話"),
         preview: truncate_text(messages.first.content, 60),
         last_message_at: messages.first.created_at,
-        message_count: AiChat.for_conversation(conv_id).count,
+        message_count: @character.ai_chats.for_conversation(conv_id).count,
         is_current: conv_id == @conversation_id
       }
 

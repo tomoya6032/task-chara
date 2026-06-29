@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_06_08_080723) do
+ActiveRecord::Schema[8.0].define(version: 2026_06_29_065741) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -130,11 +130,17 @@ ActiveRecord::Schema[8.0].define(version: 2026_06_08_080723) do
     t.string "event_type"
     t.integer "reminder_minutes"
     t.bigint "user_id"
+    t.boolean "recurring", default: false, null: false
+    t.bigint "recurring_event_id"
+    t.date "recurrence_end_date"
+    t.integer "recurrence_count"
     t.index ["character_id"], name: "index_events_on_character_id"
     t.index ["character_id"], name: "index_events_on_character_id_new"
     t.index ["end_time"], name: "index_events_on_end_time"
     t.index ["event_type"], name: "index_events_on_event_type"
     t.index ["external_id"], name: "index_events_on_external_id", unique: true
+    t.index ["recurring"], name: "index_events_on_recurring"
+    t.index ["recurring_event_id"], name: "index_events_on_recurring_event_id"
     t.index ["start_time", "end_time"], name: "index_events_on_start_time_and_end_time"
     t.index ["start_time"], name: "index_events_on_start_time"
     t.index ["user_id"], name: "index_events_on_user_id"
@@ -151,7 +157,6 @@ ActiveRecord::Schema[8.0].define(version: 2026_06_08_080723) do
 
   create_table "meeting_minutes", force: :cascade do |t|
     t.string "title"
-    t.integer "meeting_type"
     t.datetime "meeting_date"
     t.text "content"
     t.text "participants"
@@ -163,7 +168,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_06_08_080723) do
     t.datetime "updated_at", null: false
     t.bigint "prompt_template_id"
     t.bigint "user_id"
+    t.integer "meeting_type", default: 0, null: false
     t.index ["character_id"], name: "index_meeting_minutes_on_character_id"
+    t.index ["meeting_type"], name: "index_meeting_minutes_on_meeting_type"
     t.index ["prompt_template_id"], name: "index_meeting_minutes_on_prompt_template_id"
     t.index ["user_id", "meeting_date"], name: "index_meeting_minutes_on_user_id_and_meeting_date"
     t.index ["user_id"], name: "index_meeting_minutes_on_user_id"
@@ -206,6 +213,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_06_08_080723) do
     t.integer "pdf_file_size"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.text "content"
     t.index ["is_default"], name: "index_report_templates_on_is_default"
     t.index ["user_id"], name: "index_report_templates_on_user_id"
   end
@@ -387,10 +395,19 @@ ActiveRecord::Schema[8.0].define(version: 2026_06_08_080723) do
     t.string "name"
     t.boolean "active", default: true, null: false
     t.string "line_notify_token"
+    t.string "confirmation_token"
+    t.datetime "confirmed_at"
+    t.datetime "confirmation_sent_at"
+    t.string "unconfirmed_email"
+    t.integer "failed_attempts", default: 0, null: false
+    t.string "unlock_token"
+    t.datetime "locked_at"
+    t.index ["confirmation_token"], name: "index_users_on_confirmation_token", unique: true
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["line_user_id"], name: "index_users_on_line_user_id", unique: true
     t.index ["organization_id"], name: "index_users_on_organization_id"
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
+    t.index ["unlock_token"], name: "index_users_on_unlock_token", unique: true
   end
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
@@ -403,6 +420,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_06_08_080723) do
   add_foreign_key "ai_token_usages", "users"
   add_foreign_key "characters", "users"
   add_foreign_key "events", "characters"
+  add_foreign_key "events", "events", column: "recurring_event_id"
   add_foreign_key "events", "users"
   add_foreign_key "meeting_minutes", "characters"
   add_foreign_key "meeting_minutes", "prompt_templates"

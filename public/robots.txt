@@ -1,1 +1,5 @@
-# See https://www.robotstxt.org/robotstxt.html for documentation on how to use the robots.txt file
+# このサイトは会員制です。検索エンジンへのインデックスを禁止します。
+# This is a members-only site. Search engine indexing is prohibited.
+
+User-agent: *
+Disallow: /

@@ -49,8 +49,8 @@
               %h3.text-lg.font-semibold.text-slate-900.dark:text-white.mb-4
                 📋 報告書内容
               .prose.max-w-none.bg-slate-50.dark:bg-slate-700.rounded-lg.p-6
-                %div.text-slate-700.dark:text-slate-300.leading-relaxed.whitespace-pre-wrap.break-words{ style: "line-height: 1.9;" }
-                  = sanitize(@support_report.content.to_s, tags: %w[p br div strong b u em span mark ul ol li], attributes: %w[style])
+                %div.text-slate-700.dark:text-slate-300.leading-relaxed{ style: "line-height: 1.9;" }
+                  = render_simple_markdown(@support_report.content)
           
           - elsif @support_report.generating?
             / 生成中の状態

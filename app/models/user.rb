@@ -1,9 +1,9 @@
 # app/models/user.rb
 class User < ApplicationRecord
   # Include default devise modules. Others available are:
-  # :confirmable, :lockable, :timeoutable, :trackable and :omniauthable
+  # :timeoutable, :trackable and :omniauthable
   devise :database_authenticatable, :registerable,
-         :recoverable, :rememberable, :validatable
+         :recoverable, :rememberable, :validatable, :confirmable, :lockable
 
   # ユーザーロールの定義
   enum :role, { individual: 0, enterprise_admin: 1, system_admin: 2 }, default: :individual
@@ -22,6 +22,7 @@ class User < ApplicationRecord
   # バリデーション
   validates :email, presence: true, uniqueness: true, format: { with: URI::MailTo::EMAIL_REGEXP }
   validates :name, presence: true
+  validate :password_complexity
 
   # ユーザー作成時に自動でキャラクターを作成
   before_validation :set_default_name, on: :create
@@ -67,5 +68,35 @@ class User < ApplicationRecord
       intelligence: 0,
       toughness: 0
     )
+  end
+
+  # パスワードの強度チェック
+  def password_complexity
+    return if password.blank? # パスワードが空の場合はスキップ（他のバリデーションが処理）
+
+    # 8文字以上
+    if password.length < 8
+      errors.add :password, "は8文字以上で設定してください"
+    end
+
+    # 小文字を含む
+    unless password.match?(/[a-z]/)
+      errors.add :password, "には小文字を含めてください"
+    end
+
+    # 大文字を含む
+    unless password.match?(/[A-Z]/)
+      errors.add :password, "には大文字を含めてください"
+    end
+
+    # 数字を含む
+    unless password.match?(/[0-9]/)
+      errors.add :password, "には数字を含めてください"
+    end
+
+    # 記号を含む
+    unless password.match?(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/)
+      errors.add :password, 'には記号(!@#$%等)を含めてください'
+    end
   end
 end

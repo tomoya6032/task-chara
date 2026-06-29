@@ -1,6 +1,7 @@
 class ReportTemplate < ApplicationRecord
   belongs_to :user, optional: true
   has_one_attached :pdf_file
+  has_many :support_reports, dependent: :nullify
 
   validates :name, presence: true, length: { maximum: 100 }
   validates :pdf_file, presence: true, on: :create
@@ -48,24 +49,24 @@ class ReportTemplate < ApplicationRecord
   def pdf_file_format
     return unless pdf_file.attached?
 
-    unless pdf_file.content_type == 'application/pdf'
-      errors.add(:pdf_file, 'PDFファイルのみアップロード可能です')
+    unless pdf_file.content_type == "application/pdf"
+      errors.add(:pdf_file, "PDFファイルのみアップロード可能です")
     end
 
     if pdf_file.blob.byte_size > 10.megabytes
-      errors.add(:pdf_file, 'ファイルサイズは10MB以下にしてください')
+      errors.add(:pdf_file, "ファイルサイズは10MB以下にしてください")
     end
   end
 
   def only_one_default_per_user
     existing_default = if user_id.present?
                         ReportTemplate.for_user(user).defaults.where.not(id: id)
-                      else
+    else
                         ReportTemplate.system_wide.defaults.where.not(id: id)
-                      end
+    end
 
     if existing_default.exists?
-      errors.add(:is_default, 'デフォルトテンプレートは1つのみ設定できます')
+      errors.add(:is_default, "デフォルトテンプレートは1つのみ設定できます")
     end
   end
 

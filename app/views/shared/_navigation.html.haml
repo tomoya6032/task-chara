@@ -1,8 +1,17 @@
 / 共通ナビゲーションメニュー（ログイン時のみ表示）
 - if user_signed_in?
   .hidden.lg:fixed.lg:inset-y-0.lg:z-40.lg:flex.lg:w-72.lg:flex-col.lg:top-16
-    .flex.grow.flex-col.gap-y-5.overflow-y-auto.bg-white.dark:bg-slate-800.px-6.border-r.border-slate-200.dark:border-slate-700.pt-6
-      %nav.flex.flex-1.flex-col
+    .flex.grow.flex-col.gap-y-5.overflow-y-auto.bg-white.dark:bg-slate-800.px-6.border-r.border-slate-200.dark:border-slate-700
+      / サイドバーロゴセクション（デスクトップのみ表示）
+      .pt-6.pb-4.border-b.border-slate-200.dark:border-slate-700
+        = link_to root_path, class: "flex items-center space-x-3 hover:opacity-80 transition-opacity group" do
+          %span.text-3xl 📋
+          %span.text-2xl.font-bold.text-slate-900.dark:text-white.group-hover:text-blue-600.dark:group-hover:text-blue-400.transition-colors
+            TaskChara
+          %span.ml-2.text-sm.text-slate-500.bg-slate-100.dark:bg-slate-700.px-2.py-1.rounded ✨
+      
+      / ナビゲーションメニュー
+      %nav.flex.flex-1.flex-col.pt-4
         %ul.flex.flex-1.flex-col.gap-y-7{role: "list"}
           %li
             %ul.space-y-1{role: "list"}

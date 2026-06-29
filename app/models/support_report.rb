@@ -25,6 +25,10 @@ class SupportReport < ApplicationRecord
     "#{period_start.strftime('%Y年%m月%d日')} 〜 #{period_end.strftime('%Y年%m月%d日')}"
   end
 
+  def period_display_short
+    "#{period_start.strftime('%Y.%m.%d')}　〜　#{period_end.strftime('%Y.%m.%d')}"
+  end
+
   private
 
   def period_end_after_start

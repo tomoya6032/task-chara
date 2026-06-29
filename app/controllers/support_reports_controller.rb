@@ -9,10 +9,14 @@ class SupportReportsController < ApplicationController
   ].freeze
 
   before_action :set_character
+  before_action :set_organization
   before_action :set_support_report, only: [ :show, :edit, :update, :destroy, :download_pdf ]
 
   def index
     @support_reports = support_reports_scope.recent.page(params[:page]).per(10)
+    @total_count = support_reports_scope.count
+    @draft_count = support_reports_scope.draft.count
+    @completed_count = support_reports_scope.completed.count
   end
 
   def show
@@ -26,7 +30,7 @@ class SupportReportsController < ApplicationController
 
     @support_report.period_start = @filter_period_start
     @support_report.period_end = @filter_period_end
-    @support_report.title = "#{@selected_character.name} #{@filter_period_start.strftime('%Y年%m月')}の支援報告書"
+    @support_report.title = "#{@filter_period_start.strftime('%Y年%m月')}の支援報告書"
     @support_report.character = @selected_character
 
     # デフォルトテンプレートを設定
@@ -41,7 +45,12 @@ class SupportReportsController < ApplicationController
 
   def create
     load_new_form_context
-    target_character = @available_characters.find_by(id: support_report_create_params[:character_id]) || @selected_character
+    target_character = if @available_characters.respond_to?(:find_by)
+      @available_characters.find_by(id: support_report_create_params[:character_id])
+    else
+      @available_characters.detect { |c| c.id == support_report_create_params[:character_id].to_i }
+    end
+    target_character ||= @selected_character
     @support_report = target_character.support_reports.build(support_report_create_params.except(:character_id))
     @support_report.status = :draft
     selected_activity_ids = parse_selected_activity_ids
@@ -146,14 +155,8 @@ class SupportReportsController < ApplicationController
 
   private
 
-  def current_user
-    # デモ用: 現在は固定のユーザーを使用
-    @user
-  end
-
-  # ApplicationController#set_characterを使用（current_user.character）
-  def set_character
-    super  # ApplicationControllerのset_characterを呼び出す
+  def set_organization
+    @organization = current_user.organization
   end
 
   def set_support_report
@@ -171,19 +174,23 @@ class SupportReportsController < ApplicationController
   end
 
   def support_reports_scope
-    SupportReport.joins(character: :user).where(users: { organization_id: @organization.id })
+    if @organization
+      SupportReport.joins(character: :user).where(users: { organization_id: @organization.id })
+    else
+      SupportReport.where(character_id: @character.id)
+    end
   end
 
   def load_new_form_context
     @available_templates = ReportTemplate.available_for(current_user)
-    @available_characters = @organization.characters.order(:name)
+    @available_characters = @organization ? @organization.characters.order(:name) : [ @character ]
 
-    last_month_start = 1.month.ago.beginning_of_month.to_date
-    last_month_end = 1.month.ago.end_of_month.to_date
+    current_month_start = Date.today.beginning_of_month
+    current_month_end = Date.today.end_of_month
 
     # 報告書の対象期間（フォームの初期値用）
-    @filter_period_start = parse_date(filter_params[:period_start]) || last_month_start
-    @filter_period_end = parse_date(filter_params[:period_end]) || last_month_end
+    @filter_period_start = parse_date(filter_params[:period_start]) || current_month_start
+    @filter_period_end = parse_date(filter_params[:period_end]) || current_month_end
 
     @person_keyword = filter_params[:person_keyword].to_s.strip.presence
     @filter_category = filter_params[:category].to_s.strip.presence
@@ -191,13 +198,22 @@ class SupportReportsController < ApplicationController
     @category_options = [ [ "すべて", "" ] ] + ACTIVITY_CATEGORY_OPTIONS
 
     # 日報は visit_end_time の日付で絞り込む（NULLの場合は created_at にフォールバック）
-    base_scope = Activity.joins(character: :user)
-                         .where(users: { organization_id: @organization.id })
-                         .where(
-                           "COALESCE(activities.visit_end_time, activities.created_at) >= ? AND COALESCE(activities.visit_end_time, activities.created_at) <= ?",
-                           @filter_period_start.beginning_of_day,
-                           @filter_period_end.end_of_day
-                         )
+    if @organization
+      base_scope = Activity.joins(character: :user)
+                           .where(users: { organization_id: @organization.id })
+                           .where(
+                             "COALESCE(activities.visit_end_time, activities.created_at) >= ? AND COALESCE(activities.visit_end_time, activities.created_at) <= ?",
+                             @filter_period_start.beginning_of_day,
+                             @filter_period_end.end_of_day
+                           )
+    else
+      base_scope = Activity.where(character_id: @character.id)
+                           .where(
+                             "COALESCE(activities.visit_end_time, activities.created_at) >= ? AND COALESCE(activities.visit_end_time, activities.created_at) <= ?",
+                             @filter_period_start.beginning_of_day,
+                             @filter_period_end.end_of_day
+                           )
+    end
 
     base_scope = base_scope.where(category: @filter_category) if @filter_category.present?
 
@@ -206,7 +222,11 @@ class SupportReportsController < ApplicationController
       base_scope = base_scope.where("activities.title ILIKE :person OR activities.content ILIKE :person", person: person)
     end
 
-    explicit_character = @available_characters.find_by(id: selected_character_id_from_params)
+    explicit_character = if @available_characters.is_a?(Array)
+                           @available_characters.detect { |c| c.id == selected_character_id_from_params.to_i }
+    else
+                           @available_characters.find_by(id: selected_character_id_from_params)
+    end
     @selected_character = explicit_character || infer_character_from_scope(base_scope)
     @selected_character ||= @character
 
@@ -256,7 +276,11 @@ class SupportReportsController < ApplicationController
       @character_inference_message = "人物キーワードに一致した利用者を自動選択しました（#{selected_count}件）。"
     end
 
-    @available_characters.find_by(id: selected_id)
+    if @available_characters.respond_to?(:find_by)
+      @available_characters.find_by(id: selected_id)
+    else
+      @available_characters.detect { |c| c.id == selected_id.to_i }
+    end
   end
 
   # AIチャットの会話履歴を取得

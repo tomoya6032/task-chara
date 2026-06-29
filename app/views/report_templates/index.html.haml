@@ -43,7 +43,7 @@
                     編集
                 
                 .flex.space-x-1
-                  = link_to analyze_report_template_path(template), method: :post, class: "text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300 text-sm font-medium" do
+                  = link_to analyze_report_template_path(template), data: { turbo_method: :post }, class: "text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300 text-sm font-medium" do
                     🔄 再解析
                   = link_to template, method: :delete, data: { confirm: "本当に削除しますか？" }, class: "text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 text-sm font-medium" do
                     🗑️

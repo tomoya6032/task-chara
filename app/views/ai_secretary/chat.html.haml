@@ -217,7 +217,7 @@
             .max-w-3xl.mx-auto.w-full
               = form_with url: ai_secretary_send_message_path, local: false, class: "flex items-end space-x-3", data: { ai_chat_target: "form", action: "submit->ai-chat#sendMessage" } do |form|
                 .flex-1
-                  = form.text_area :message, rows: 1, class: "w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-700 dark:text-white resize-none", placeholder: "メッセージを入力してください... （最新情報が必要な場合は「調べて」「検索して」等を含めてください）", data: { ai_chat_target: "messageInput", action: "keypress->ai-chat#handleKeyPress input->ai-chat#saveDraft" }
+                  = form.text_area :message, rows: 2, class: "w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-700 dark:text-white resize-none", placeholder: "メッセージを入力してください... （最新情報が必要な場合は「調べて」「検索して」等を含めてください）", data: { ai_chat_target: "messageInput", action: "keypress->ai-chat#handleKeyPress input->ai-chat#saveDraft" }
                 = hidden_field_tag :conversation_id, @conversation_id
                 = form.submit "送信", class: "px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-2xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed", data: { ai_chat_target: "submitButton" }
               / 送信状態の表示

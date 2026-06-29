@@ -1,28 +1,11 @@
 / プロンプトテンプレート新規作成ページ
-.min-h-screen.bg-slate-50.dark:bg-slate-900
-  / デスクトップサイドバー（lg以上で表示）
-  .hidden.lg:fixed.lg:inset-y-0.lg:z-50.lg:flex.lg:w-72.lg:flex-col
-    .flex.grow.flex-col.gap-y-5.overflow-y-auto.bg-white.dark:bg-slate-800.px-6.border-r.border-slate-200.dark:border-slate-700
-      .flex.h-16.shrink-0.items-center
-        %h1.text-lg.font-semibold.text-slate-900.dark:text-white
-          TaskChara
-        %span.ml-2.text-xs.text-slate-500 ✨
-
-      %nav.flex.flex-1.flex-col
-        %ul.flex.flex-1.flex-col.gap-y-7{role: "list"}
-          %li.pt-4
-            = link_to prompt_templates_path, class: "text-blue-600 hover:text-blue-800 text-sm flex items-center gap-x-2" do
-              ← プロンプト設定に戻る
-
-  / メインコンテンツ
-  .lg:pl-72
-    .px-4.sm:px-6.lg:px-8.py-8
-      / ページヘッダー
-      .mb-8
-        %h1.text-2xl.font-bold.text-slate-900.dark:text-white
-          ➕ プロンプトテンプレート作成
-        %p.mt-2.text-sm.text-slate-600.dark:text-slate-400
-          新しいプロンプトテンプレートを作成して、AI議事録生成をカスタマイズできます
+.px-4.sm:px-6.lg:px-8.py-8
+  / ページヘッダー
+  .mb-8
+    %h1.text-2xl.font-bold.text-slate-900.dark:text-white
+      ➕ プロンプトテンプレート作成
+    %p.mt-2.text-sm.text-slate-600.dark:text-slate-400
+      新しいプロンプトテンプレートを作成して、AI議事録生成をカスタマイズできます
 
       / エラー表示
       - if @prompt_template.errors.any?
@@ -130,9 +113,14 @@
               %span : 処理日時（将来実装予定）
 
         / アクションボタン
-        .flex.flex-col.sm:flex-row.justify-end.space-y-2.sm:space-y-0.sm:space-x-3.pt-6
+        .flex.flex-col.sm:flex-row.justify-between.items-center.space-y-2.sm:space-y-0.pt-6
           = link_to prompt_templates_path, 
               class: "w-full sm:w-auto px-6 py-3 border border-slate-300 rounded-md text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors text-center" do
-            キャンセル
-          = form.submit "テンプレートを作成", 
-              class: "w-full sm:w-auto px-6 py-3 bg-blue-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+            ← プロンプト設定に戻る
+          
+          .flex.flex-col.sm:flex-row.space-y-2.sm:space-y-0.sm:space-x-3.w-full.sm:w-auto
+            = link_to prompt_templates_path, 
+                class: "w-full sm:w-auto px-6 py-3 border border-slate-300 rounded-md text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors text-center" do
+              キャンセル
+            = form.submit "テンプレートを作成", 
+                class: "w-full sm:w-auto px-6 py-3 bg-blue-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"

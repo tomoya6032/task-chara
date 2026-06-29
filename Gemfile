@@ -30,6 +30,9 @@ gem "rubocop-rails"
 # Pagination
 gem "kaminari"
 
+# Recurring events for calendar
+gem "ice_cube"
+
 # OpenAI API integration
 gem "ruby-openai"
 
@@ -44,6 +47,7 @@ gem "line-bot-api"
 
 # Authentication
 gem "devise"
+gem "devise-i18n"
 
 # Use Active Model has_secure_password [https://guides.rubyonrails.org/active_model_basics.html#securepassword]
 gem "bcrypt", "~> 3.1.7"
@@ -102,6 +106,9 @@ group :development do
   
   # Spring speeds up development by keeping your application running in the background
   gem "spring"
+  
+  # Preview email in the browser instead of sending
+  gem "letter_opener_web"
 end
 
 group :test do

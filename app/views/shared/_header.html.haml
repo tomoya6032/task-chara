@@ -2,16 +2,16 @@
 %header.bg-white.shadow-sm.border-b.border-slate-200.dark:bg-slate-800.dark:border-slate-700.fixed.w-full.top-0.z-50
   .max-w-7xl.mx-auto.px-4.sm:px-6.lg:px-8
     .flex.justify-between.items-center.h-16
-      / 左側: ロゴとタイトル
-      .flex.items-center
-        = link_to root_path, class: "flex items-center space-x-3 hover:opacity-80 transition-opacity" do
+      / 左側: モバイル用ロゴ（lg未満で表示）
+      .flex.items-center.lg:hidden
+        = link_to root_path, class: "flex items-center space-x-2 hover:opacity-80 transition-opacity" do
           %span.text-2xl 📋
-          %span.text-xl.font-bold.text-slate-900.dark:text-white
+          %span.text-lg.font-bold.text-slate-900.dark:text-white
             TaskChara
-          %span.ml-2.text-xs.text-slate-500.bg-slate-100.dark:bg-slate-700.px-2.py-1.rounded ✨
+          %span.ml-1.text-xs.text-slate-500.bg-slate-100.dark:bg-slate-700.px-2.py-1.rounded ✨
 
       / 中央: ページタイトル表示エリア
-      .hidden.md:flex.items-center
+      .hidden.md:flex.items-center.lg:ml-0
         %span#page-title.text-lg.font-medium.text-slate-700.dark:text-slate-300
           = content_for(:page_title) || "ダッシュボード"
 
@@ -24,15 +24,10 @@
             %svg.w-6.h-6{fill: "none", stroke: "currentColor", viewBox: "0 0 24 24"}
               %path{d: "M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9", "stroke-linecap": "round", "stroke-linejoin": "round", "stroke-width": "2"}
           
-          / ユーザーメニュー
-          .relative{"data-controller": "dropdown"}
-            %button.inline-flex.items-center.px-3.py-2.border.border-slate-300.rounded-md.shadow-sm.text-sm.font-medium.text-slate-700.bg-white.hover:bg-slate-50.focus:outline-none.focus:ring-2.focus:ring-offset-2.focus:ring-blue-500.transition-colors.dark:bg-slate-800.dark:text-slate-300.dark:border-slate-600.dark:hover:bg-slate-700{"data-action": "click->dropdown#toggle"}
-              👤 
-              = current_user.name || current_user.email
-            / ドロップダウンメニュー
-            .absolute.right-0.mt-2.w-48.bg-white.rounded-md.shadow-lg.py-1.hidden{"data-dropdown-target": "menu"}
-              = link_to "アカウント設定", edit_user_registration_path, class: "block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-              = button_to "ログアウト", destroy_user_session_path, method: :delete, class: "block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+          / ユーザーメニュー（設定画面へのリンク）
+          = link_to settings_path, class: "inline-flex items-center px-3 py-2 border border-slate-300 rounded-md shadow-sm text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors dark:bg-slate-800 dark:text-slate-300 dark:border-slate-600 dark:hover:bg-slate-700" do
+            👤 
+            = current_user.name || current_user.email
         - else
           / 未ログインユーザー向け
           = link_to "ログイン", new_user_session_path, class: "inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"

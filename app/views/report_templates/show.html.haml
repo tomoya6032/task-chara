@@ -18,7 +18,7 @@
 
         - unless @report_template.system_template?
           .flex.space-x-3
-            = link_to analyze_report_template_path(@report_template), method: :post, class: "bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg" do
+            = link_to analyze_report_template_path(@report_template), data: { turbo_method: :post }, class: "bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg" do
               🔄 PDF再解析
             = link_to edit_report_template_path(@report_template), class: "bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg" do
               編集
@@ -67,28 +67,48 @@
                     = link_to @report_template.pdf_file_url, target: "_blank", class: "inline-flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm rounded-lg" do
                       📄 PDFを開く
 
-        / 右側: フォーマット指示
+        / 右側: テンプレート内容
         .lg:col-span-2
-          .bg-white.rounded-lg.shadow-sm.border.p-6
-            %h3.text-lg.font-semibold.text-gray-800.mb-4 フォーマット指示
+          .space-y-6
             
-            - if @report_template.format_instructions.present?
-              .bg-gray-50.rounded-lg.p-4.font-mono.text-sm.text-gray-800.whitespace-pre-wrap
-                = @report_template.format_instructions
-            - else
-              .text-center.py-8
-                .text-gray-400.text-4xl.mb-3 🔄
-                %p.text-gray-600 フォーマット指示がまだ生成されていません
-                %p.text-sm.text-gray-500.mb-4 PDFファイルの解析を実行してください
-                = link_to analyze_report_template_path(@report_template), method: :post, class: "bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg" do
-                  PDFを解析する
+            / テンプレート基本構成
+            .bg-white.rounded-lg.shadow-sm.border.p-6
+              %h3.text-lg.font-semibold.text-gray-800.mb-4 テンプレート基本構成（PDF解析結果）
+              
+              - if @report_template.content.present?
+                .bg-gray-50.rounded-lg.p-4.font-mono.text-sm.text-gray-800.whitespace-pre-wrap
+                  = @report_template.content
+              - else
+                .text-center.py-8
+                  .text-gray-400.text-4xl.mb-3 🔄
+                  %p.text-gray-600 基本構成がまだ生成されていません
+                  %p.text-sm.text-gray-500.mb-4 PDFファイルの解析を実行してください
+                  - unless @report_template.system_template?
+                    = link_to analyze_report_template_path(@report_template), data: { turbo_method: :post }, class: "bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg" do
+                      PDFを解析する
+
+            / 最優先フォーマット指示
+            .bg-white.rounded-lg.shadow-sm.border.p-6
+              %h3.text-lg.font-semibold.text-gray-800.mb-4 🚨 最優先フォーマット指示
+              
+              - if @report_template.format_instructions.present?
+                .bg-yellow-50.border.border-yellow-200.rounded-lg.p-4.font-mono.text-sm.text-gray-800.whitespace-pre-wrap
+                  = @report_template.format_instructions
+              - else
+                .text-center.py-8
+                  .text-gray-400.text-4xl.mb-3 ✍️
+                  %p.text-gray-600 最優先フォーマット指示はまだ設定されていません
+                  %p.text-sm.text-gray-500.mb-4 編集画面で追加の書式指示を設定できます
+                  - unless @report_template.system_template?
+                    = link_to edit_report_template_path(@report_template), class: "bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg" do
+                      編集する
 
       / 使用方法の説明
       .mt-8.bg-blue-50.border.border-blue-200.rounded-lg.p-6
         %h3.text-blue-800.font-semibold.mb-3 このテンプレートの使用方法
         .text-sm.text-blue-700.space-y-2
           %p • 支援報告書作成時に「テンプレートを選択」でこのテンプレートを指定してください
-          %p • AIがこのフォーマット指示に従って報告書を生成します
+          %p • AIは「最優先フォーマット指示」を最も重視し、「テンプレート基本構成」を参考にして報告書を生成します
           %p • 生成後も手動で内容を調整することができます
           - if @report_template.is_default?
             %p.font-medium • このテンプレートはデフォルトとして自動選択されます

@@ -94,7 +94,8 @@
               .calendar-events-area
                 - if day_data[:events].present?
                   - day_data[:events].each do |event|
-                    .calendar-event{ data: { event_id: event.id, event_type: event.event_type }, onclick: "openEventDetailsModal(#{event.id})" }
+                    - parent_id = event.recurring_event_id || event.id
+                    .calendar-event{ data: { event_id: parent_id, event_type: event.event_type, occurrence_time: event.start_time.iso8601 }, onclick: "openEventDetailsModal(#{parent_id}, '#{event.start_time.iso8601}')" }
                       = event.title.truncate(15)
         - else
           .calendar-no-data
@@ -130,12 +131,14 @@
                 / 終日イベント
                 - allday_ev = @events.select { |e| (e.all_day || e.all_day?) && e.start_time.to_date <= day && e.end_time.to_date >= day }
                 - allday_ev.each do |event|
-                  .week-allday-event{ data: { event_id: event.id, event_type: event.event_type }, onclick: "event.stopPropagation(); openEventDetailsModal(#{event.id})" }
+                  - parent_id = event.recurring_event_id || event.id
+                  .week-allday-event{ data: { event_id: parent_id, event_type: event.event_type, occurrence_time: event.start_time.iso8601 }, onclick: "event.stopPropagation(); openEventDetailsModal(#{parent_id}, '#{event.start_time.iso8601}')" }
                     = event.title.truncate(16)
                 / 時刻指定の日跨ぎイベントの中間日（開始日・終了日を除く）
                 - multiday_ev = @events.select { |e| !e.all_day && !e.all_day? && e.start_time.to_date != e.end_time.to_date && e.start_time.to_date < day && e.end_time.to_date > day }
                 - multiday_ev.each do |event|
-                  .week-allday-event.week-allday-event-span{ data: { event_id: event.id, event_type: event.event_type }, onclick: "event.stopPropagation(); openEventDetailsModal(#{event.id})" }
+                  - parent_id = event.recurring_event_id || event.id
+                  .week-allday-event.week-allday-event-span{ data: { event_id: parent_id, event_type: event.event_type, occurrence_time: event.start_time.iso8601 }, onclick: "event.stopPropagation(); openEventDetailsModal(#{parent_id}, '#{event.start_time.iso8601}')" }
                     = "→ #{event.title.truncate(14)}"
 
           / スクロール可能なタイムライン本体
@@ -212,15 +215,14 @@
                     - compact_class = col_count >= 3 ? 'week-event-compact' : ''
                     - extra_class = "#{continues_before ? 'week-event-continues-before' : ''} #{continues_after ? 'week-event-continues-after' : ''} #{compact_class}".strip
                     - event_z_index = 1 + col_index
-                    .week-event-block{ style: "top:#{top_pct}%; height:#{[height_pct, 2].max}%; left:#{left_pct}%; width:#{width_pct}%; z-index:#{event_z_index};", class: extra_class, data: { event_id: event.id, event_type: event.event_type, col_index: col_index, col_count: col_count }, onclick: "event.stopPropagation(); openEventDetailsModal(#{event.id})" }
-                      .week-event-title
+                    - parent_id = event.recurring_event_id || event.id
+                    .week-event-block{ style: "top:#{top_pct}%; height:#{[height_pct, 2].max}%; left:#{left_pct}%; width:#{width_pct}%; z-index:#{event_z_index};", class: extra_class, data: { event_id: parent_id, event_type: event.event_type, col_index: col_index, col_count: col_count, occurrence_time: event.start_time.iso8601 }, onclick: "event.stopPropagation(); openEventDetailsModal(#{parent_id}, '#{event.start_time.iso8601}')" }
+                      .week-event-title{ style: "overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: #{((end_hour - start_hour) * 2).to_i}; -webkit-box-orient: vertical; line-height: 1.3; word-break: break-word; word-wrap: break-word; white-space: normal; overflow-wrap: break-word;" }
                         - if continues_before
                           %span.week-event-arrow ↑
-                        = event.title.truncate(col_count >= 3 ? 11 : 18)
+                        = event.title
                         - if continues_after
                           %span.week-event-arrow ↓
-                      - if (end_hour - start_hour) >= 1 && !continues_before && col_count <= 2
-                      - elsif (end_hour - start_hour) >= 1 && continues_before && col_count <= 2
 
 
     / 日表示（非表示）
@@ -315,6 +317,67 @@
             %option{ value: "1440" } 1日前
             %option{ value: "4320" } 3日前
 
+        / 繰り返し設定
+        .mb-6
+          .flex.items-center.gap-2.mb-3
+            %input#event-recurring-check{ type: "checkbox", name: "event[recurring]", value: "1",
+              onchange: "toggleRecurringOptions(this.checked)",
+              class: "w-4 h-4 text-blue-600 border-gray-300 rounded" }
+            %label{ for: "event-recurring-check", class: "text-sm font-medium text-gray-700 cursor-pointer" }
+              🔄 繰り返しイベント
+
+          #recurring-options.hidden
+            .p-4.bg-gray-50.rounded-md.space-y-4
+              / 頻度選択
+              .mb-3
+                %label.block.text-sm.font-medium.text-gray-700.mb-2
+                  頻度
+                %select#recurring-frequency.w-full.border.border-gray-300.rounded-md.px-3.py-2{ name: "event[recurrence][frequency]", onchange: "updateRecurringUI()" }
+                  %option{ value: "daily" } 毎日
+                  %option{ value: "weekly", selected: true } 毎週
+                  %option{ value: "monthly" } 毎月
+
+              / サイクル（間隔）
+              .mb-3
+                %label.block.text-sm.font-medium.text-gray-700.mb-2
+                  間隔
+                .flex.items-center.gap-2
+                  %select#recurring-interval.border.border-gray-300.rounded-md.px-3.py-2{ name: "event[recurrence][interval]" }
+                    - (1..12).each do |i|
+                      %option{ value: i, selected: i == 1 }= i
+                  %span#interval-unit.text-sm.text-gray-700 週ごと
+
+              / 曜日選択（毎週の場合のみ表示）
+              #weekly-days-selector
+                %label.block.text-sm.font-medium.text-gray-700.mb-2
+                  曜日を選択
+                .flex.flex-wrap.gap-2
+                  - %w[monday tuesday wednesday thursday friday saturday sunday].each_with_index do |day, idx|
+                    - day_label = %w[月 火 水 木 金 土 日][idx]
+                    .flex.items-center
+                      %input{ type: "checkbox", id: "day-#{day}", name: "event[recurrence][days_of_week][]", value: day, class: "w-4 h-4 text-blue-600 border-gray-300 rounded" }
+                      %label{ for: "day-#{day}", class: "ml-1 text-sm text-gray-700" }= day_label
+
+              / 終了条件
+              .mb-3
+                %label.block.text-sm.font-medium.text-gray-700.mb-2
+                  終了条件
+                .space-y-2
+                  .flex.items-center.gap-2
+                    %input#end-never{ type: "radio", name: "event[recurrence][end_type]", value: "never", checked: true, class: "w-4 h-4 text-blue-600" }
+                    %label{ for: "end-never", class: "text-sm text-gray-700" } 終了なし
+                  
+                  .flex.items-center.gap-2
+                    %input#end-date{ type: "radio", name: "event[recurrence][end_type]", value: "date", class: "w-4 h-4 text-blue-600", onchange: "toggleEndDateInput()" }
+                    %label{ for: "end-date", class: "text-sm text-gray-700" } 終了日
+                    %input#end-date-input.border.border-gray-300.rounded-md.px-2.py-1.text-sm{ type: "date", name: "event[recurrence][end_date]", disabled: true }
+                  
+                  .flex.items-center.gap-2
+                    %input#end-count{ type: "radio", name: "event[recurrence][end_type]", value: "count", class: "w-4 h-4 text-blue-600", onchange: "toggleEndCountInput()" }
+                    %label{ for: "end-count", class: "text-sm text-gray-700" } 回数指定
+                    %input#end-count-input.border.border-gray-300.rounded-md.px-2.py-1.text-sm.w-20{ type: "number", name: "event[recurrence][count]", min: "1", max: "999", value: "10", disabled: true }
+                    %span.text-sm.text-gray-700 回
+
         .flex.justify-end.space-x-3
           %button.bg-gray-200.text-gray-800.px-4.py-2.rounded-md.hover:bg-gray-300.transition-colors{ type: "button", onclick: "closeEventModal()" }
             キャンセル
@@ -347,6 +410,9 @@
           .event-detail-row
             .font-medium.text-gray-700 🔔 LINE通知:
             .text-gray-900#event-detail-reminder
+          .event-detail-row
+            .font-medium.text-gray-700 🔁 繰り返し設定:
+            .text-gray-900#event-detail-recurring
 
       .flex.justify-end.space-x-3.mt-6
         %button.bg-gray-200.text-gray-800.px-4.py-2.rounded-md.hover:bg-gray-300.transition-colors{ type: "button", onclick: "closeEventDetailsModal()" }
@@ -424,6 +490,67 @@
             %option{ value: "1440" } 1日前
             %option{ value: "4320" } 3日前
 
+        / 繰り返し設定
+        .mb-6
+          .flex.items-center.gap-2.mb-3
+            %input#edit-event-recurring-check{ type: "checkbox", name: "event[recurring]", value: "1",
+              onchange: "toggleEditRecurringOptions(this.checked)",
+              class: "w-4 h-4 text-blue-600 border-gray-300 rounded" }
+            %label{ for: "edit-event-recurring-check", class: "text-sm font-medium text-gray-700 cursor-pointer" }
+              🔄 繰り返しイベント
+
+          #edit-recurring-options.hidden
+            .p-4.bg-gray-50.rounded-md.space-y-4
+              / 頻度選択
+              .mb-3
+                %label.block.text-sm.font-medium.text-gray-700.mb-2
+                  頻度
+                %select#edit-recurring-frequency.w-full.border.border-gray-300.rounded-md.px-3.py-2{ name: "event[recurrence][frequency]", onchange: "updateEditRecurringUI()" }
+                  %option{ value: "daily" } 毎日
+                  %option{ value: "weekly", selected: true } 毎週
+                  %option{ value: "monthly" } 毎月
+
+              / サイクル（間隔）
+              .mb-3
+                %label.block.text-sm.font-medium.text-gray-700.mb-2
+                  間隔
+                .flex.items-center.gap-2
+                  %select#edit-recurring-interval.border.border-gray-300.rounded-md.px-3.py-2{ name: "event[recurrence][interval]" }
+                    - (1..12).each do |i|
+                      %option{ value: i, selected: i == 1 }= i
+                  %span#edit-interval-unit.text-sm.text-gray-700 週ごと
+
+              / 曜日選択（毎週の場合のみ表示）
+              #edit-weekly-days-selector
+                %label.block.text-sm.font-medium.text-gray-700.mb-2
+                  曜日を選択
+                .flex.flex-wrap.gap-2
+                  - %w[monday tuesday wednesday thursday friday saturday sunday].each_with_index do |day, idx|
+                    - day_label = %w[月 火 水 木 金 土 日][idx]
+                    .flex.items-center
+                      %input{ type: "checkbox", id: "edit-day-#{day}", name: "event[recurrence][days_of_week][]", value: day, class: "w-4 h-4 text-blue-600 border-gray-300 rounded" }
+                      %label{ for: "edit-day-#{day}", class: "ml-1 text-sm text-gray-700" }= day_label
+
+              / 終了条件
+              .mb-3
+                %label.block.text-sm.font-medium.text-gray-700.mb-2
+                  終了条件
+                .space-y-2
+                  .flex.items-center.gap-2
+                    %input#edit-end-never{ type: "radio", name: "event[recurrence][end_type]", value: "never", checked: true, class: "w-4 h-4 text-blue-600" }
+                    %label{ for: "edit-end-never", class: "text-sm text-gray-700" } 終了なし
+                  
+                  .flex.items-center.gap-2
+                    %input#edit-end-date{ type: "radio", name: "event[recurrence][end_type]", value: "date", class: "w-4 h-4 text-blue-600", onchange: "toggleEditEndDateInput()" }
+                    %label{ for: "edit-end-date", class: "text-sm text-gray-700" } 終了日
+                    %input#edit-end-date-input.border.border-gray-300.rounded-md.px-2.py-1.text-sm{ type: "date", name: "event[recurrence][end_date]", disabled: true }
+                  
+                  .flex.items-center.gap-2
+                    %input#edit-end-count{ type: "radio", name: "event[recurrence][end_type]", value: "count", class: "w-4 h-4 text-blue-600", onchange: "toggleEditEndCountInput()" }
+                    %label{ for: "edit-end-count", class: "text-sm text-gray-700" } 回数指定
+                    %input#edit-end-count-input.border.border-gray-300.rounded-md.px-2.py-1.text-sm.w-20{ type: "number", name: "event[recurrence][count]", min: "1", max: "999", value: "10", disabled: true }
+                    %span.text-sm.text-gray-700 回
+
         .flex.justify-end.space-x-3
           %button.bg-gray-200.text-gray-800.px-4.py-2.rounded-md.hover:bg-gray-300.transition-colors{ type: "button", onclick: "closeEditEventModal()" }
             キャンセル
@@ -448,6 +575,78 @@
           キャンセル
         %button#confirm-delete-btn.bg-red-600.text-white.px-4.py-2.rounded-md.hover:bg-red-700.transition-colors{ type: "button", onclick: "confirmDeleteEvent()" }
           削除
+
+  / 繰り返し予定の削除スコープ選択モーダル
+  #delete-scope-modal.fixed.inset-0.hidden.flex.items-center.justify-center{ style: "background: rgba(0,0,0,0.72); z-index: 9999;" }
+    .bg-white.rounded-lg.shadow-lg.p-6.w-96
+      %h3.text-lg.font-medium.text-gray-800.mb-4
+        🔄 繰り返し予定の削除
+
+      %p.text-gray-700.mb-6
+        このイベントは繰り返し予定です。削除する範囲を選択してください。
+        %br
+        %strong#delete-scope-event-title
+
+      .space-y-3.mb-6
+        %label.flex.items-start.p-3.border.border-gray-300.rounded-md.hover:bg-gray-50.cursor-pointer
+          %input.mt-1{ type: "radio", name: "delete_scope", value: "one", checked: true }
+          .ml-3
+            .font-medium この予定のみ
+            .text-sm.text-gray-600 選択した日の予定だけを削除
+        
+        %label.flex.items-start.p-3.border.border-gray-300.rounded-md.hover:bg-gray-50.cursor-pointer
+          %input.mt-1{ type: "radio", name: "delete_scope", value: "future" }
+          .ml-3
+            .font-medium これ以降のすべての予定
+            .text-sm.text-gray-600 選択した日以降の予定を削除
+        
+        %label.flex.items-start.p-3.border.border-gray-300.rounded-md.hover:bg-gray-50.cursor-pointer
+          %input.mt-1{ type: "radio", name: "delete_scope", value: "all" }
+          .ml-3
+            .font-medium すべての予定
+            .text-sm.text-gray-600 シリーズ全体を削除
+
+      .flex.justify-end.space-x-3
+        %button.bg-gray-200.text-gray-800.px-4.py-2.rounded-md.hover:bg-gray-300.transition-colors{ type: "button", onclick: "closeDeleteScopeModal()" }
+          キャンセル
+        %button#confirm-delete-scope-btn.bg-red-600.text-white.px-4.py-2.rounded-md.hover:bg-red-700.transition-colors{ type: "button", onclick: "confirmDeleteWithScope()" }
+          削除
+
+  / 繰り返し予定の編集スコープ選択モーダル
+  #edit-scope-modal.fixed.inset-0.hidden.flex.items-center.justify-center{ style: "background: rgba(0,0,0,0.72); z-index: 9999;" }
+    .bg-white.rounded-lg.shadow-lg.p-6.w-96
+      %h3.text-lg.font-medium.text-gray-800.mb-4
+        🔄 繰り返し予定の編集
+
+      %p.text-gray-700.mb-6
+        このイベントは繰り返し予定です。変更を適用する範囲を選択してください。
+        %br
+        %strong#edit-scope-event-title
+
+      .space-y-3.mb-6
+        %label.flex.items-start.p-3.border.border-gray-300.rounded-md.hover:bg-gray-50.cursor-pointer
+          %input.mt-1{ type: "radio", name: "edit_scope", value: "one", checked: true }
+          .ml-3
+            .font-medium この予定のみ
+            .text-sm.text-gray-600 選択した日の予定だけを変更
+        
+        %label.flex.items-start.p-3.border.border-gray-300.rounded-md.hover:bg-gray-50.cursor-pointer
+          %input.mt-1{ type: "radio", name: "edit_scope", value: "future" }
+          .ml-3
+            .font-medium これ以降のすべての予定
+            .text-sm.text-gray-600 選択した日以降の予定を変更
+        
+        %label.flex.items-start.p-3.border.border-gray-300.rounded-md.hover:bg-gray-50.cursor-pointer
+          %input.mt-1{ type: "radio", name: "edit_scope", value: "all" }
+          .ml-3
+            .font-medium すべての予定
+            .text-sm.text-gray-600 シリーズ全体を変更
+
+      .flex.justify-end.space-x-3
+        %button.bg-gray-200.text-gray-800.px-4.py-2.rounded-md.hover:bg-gray-300.transition-colors{ type: "button", onclick: "closeEditScopeModal()" }
+          キャンセル
+        %button#confirm-edit-scope-btn.bg-blue-600.text-white.px-4.py-2.rounded-md.hover:bg-blue-700.transition-colors{ type: "button", onclick: "confirmEditWithScope()" }
+          更新
 
 :css
   /* 月ビュー: 日付番号をリンクに */
@@ -565,7 +764,7 @@
   .week-body-inner {
     display: grid;
     grid-template-columns: 52px repeat(7, 1fr);
-    min-height: 1152px; /* 24h × 48px */
+    min-height: 816px; /* 24h × 34px */
   }
 
   /* 時間ラベル列 */
@@ -654,7 +853,7 @@
   }
 
   .week-time-label {
-    height: 48px;
+    height: 34px;
     display: flex;
     align-items: flex-start;
     justify-content: flex-end;
@@ -680,7 +879,7 @@
 
   /* 1時間セル */
   .week-hour-cell {
-    height: 48px;
+    height: 34px;
     border-bottom: 1px solid #f3f4f6;
     transition: background 0.1s;
   }
@@ -736,7 +935,7 @@
     .week-header-cell { min-height: 48px; }
     .week-header-row { grid-template-columns: 36px repeat(7, 1fr); }
     .week-allday-row { grid-template-columns: 36px repeat(7, 1fr); }
-    .week-body-inner { grid-template-columns: 36px repeat(7, 1fr); }
+    .week-body-inner { grid-template-columns: 36px repeat(7, 1fr); padding-bottom: 40px; }
     .week-time-column { /* narrow */ }
     .week-time-label { font-size: 9px; padding-right: 3px; }
     .week-event-block {
@@ -1140,6 +1339,9 @@
       // ナビゲーションボタンの設定
       setupNavigationButtons();
       
+      // 週間表示の初期スクロール位置を5:00に設定
+      setWeekViewInitialScroll();
+      
       window.calendarInitialized = true;
       console.log('=== Calendar initialization complete ===');
       
@@ -1348,6 +1550,19 @@
     }
   }
 
+  // 週間表示の初期スクロール位置を5:00に設定
+  function setWeekViewInitialScroll() {
+    const weekView = document.getElementById('week-view');
+    const weekBodyScroll = document.querySelector('.week-body-scroll');
+    
+    if (weekView && !weekView.classList.contains('hidden') && weekBodyScroll) {
+      // 1時間セルの高さは34px、5時間目の位置は 34 * 5 = 170px
+      setTimeout(function() {
+        weekBodyScroll.scrollTop = 170;
+      }, 100);
+    }
+  }
+
   // ====================
   // グローバル関数定義
   // ====================
@@ -1444,10 +1659,16 @@
   };
 
   // イベント詳細モーダル
-  window.openEventDetailsModal = function(eventId) {
-    console.log('Opening details for event:', eventId);
+  window.openEventDetailsModal = function(eventId, occurrenceTime) {
+    console.log('Opening details for event:', eventId, 'occurrence:', occurrenceTime);
     
-    fetch(`/calendar/${eventId}`, {
+    // URLパラメータに開始時刻を追加（繰り返しインスタンスの識別用）
+    let url = `/calendar/${eventId}`;
+    if (occurrenceTime) {
+      url += `?occurrence_time=${encodeURIComponent(occurrenceTime)}`;
+    }
+    
+    fetch(url, {
       headers: {
         'Accept': 'application/json',
         'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
@@ -1462,6 +1683,15 @@
     })
     .then(event => {
       window.currentEvent = event;
+      // 繰り返しインスタンスの場合、occurrence_timeを保存
+      // サーバーから返された値を優先、なければ引数の値を使用
+      if (event.occurrence_time) {
+        window.currentEvent.occurrence_time = event.occurrence_time;
+      } else if (occurrenceTime) {
+        window.currentEvent.occurrence_time = occurrenceTime;
+      }
+      
+      console.log('Event loaded:', event.id, 'recurring:', event.recurring, 'occurrence_time:', window.currentEvent.occurrence_time);
       
       // 詳細情報を表示
       const titleEl = document.getElementById('event-detail-title');
@@ -1479,6 +1709,51 @@
       if (reminderEl) {
         const reminderLabels = { 30: '30分前', 60: '1時間前', 180: '3時間前', 1440: '1日前', 4320: '3日前' };
         reminderEl.textContent = event.reminder_minutes != null ? (reminderLabels[event.reminder_minutes] || event.reminder_minutes + '分前') : '通知なし';
+      }
+      
+      // 繰り返し設定を表示
+      const recurringEl = document.getElementById('event-detail-recurring');
+      if (recurringEl) {
+        if (event.recurring || event.recurring_event_id) {
+          let recurringText = '繰り返しイベント';
+          
+          if (event.recurrence_settings) {
+            const settings = event.recurrence_settings;
+            const frequencyLabels = { daily: '毎日', weekly: '毎週', monthly: '毎月' };
+            recurringText = frequencyLabels[settings.frequency] || settings.frequency;
+            
+            if (settings.interval > 1) {
+              recurringText += ` (${settings.interval}回ごと)`;
+            }
+            
+            if (settings.days_of_week && settings.days_of_week.length > 0) {
+              const dayLabels = { 
+                monday: '月', tuesday: '火', wednesday: '水', thursday: '木', 
+                friday: '金', saturday: '土', sunday: '日' 
+              };
+              const days = settings.days_of_week.map(d => dayLabels[d]).join(', ');
+              recurringText += ` (${days})`;
+            }
+            
+            if (settings.end_type === 'date' && settings.end_date) {
+              recurringText += ` 〜 ${settings.end_date}`;
+            } else if (settings.end_type === 'count' && settings.count) {
+              recurringText += ` (${settings.count}回)`;
+            }
+          }
+          
+          if (event.occurrence_time) {
+            recurringText += ' [このコマのみ]';
+          } else if (event.recurring_event_id) {
+            recurringText += ' [子イベント]';
+          } else if (event.recurring) {
+            recurringText += ' [親イベント]';
+          }
+          
+          recurringEl.textContent = recurringText;
+        } else {
+          recurringEl.textContent = 'なし';
+        }
       }
       
       // モーダルを表示
@@ -1523,6 +1798,76 @@
     if (descInput) descInput.value = window.currentEvent.description || '';
     const reminderInput = document.getElementById('edit-event-reminder-minutes');
     if (reminderInput) reminderInput.value = window.currentEvent.reminder_minutes != null ? String(window.currentEvent.reminder_minutes) : '';
+    
+    // 繰り返し設定の初期化
+    const recurringCheck = document.getElementById('edit-event-recurring-check');
+    const recurringOptions = document.getElementById('edit-recurring-options');
+    
+    if (window.currentEvent.recurring && window.currentEvent.recurrence_settings) {
+      // 繰り返しイベントの場合
+      if (recurringCheck) {
+        recurringCheck.checked = true;
+        if (recurringOptions) recurringOptions.classList.remove('hidden');
+      }
+      
+      const settings = window.currentEvent.recurrence_settings;
+      
+      // 頻度
+      const frequencySelect = document.getElementById('edit-recurring-frequency');
+      if (frequencySelect && settings.frequency) {
+        frequencySelect.value = settings.frequency;
+      }
+      
+      // 間隔
+      const intervalSelect = document.getElementById('edit-recurring-interval');
+      if (intervalSelect && settings.interval) {
+        intervalSelect.value = settings.interval.toString();
+      }
+      
+      // 曜日（週次の場合）
+      if (settings.days_of_week && Array.isArray(settings.days_of_week)) {
+        settings.days_of_week.forEach(day => {
+          const checkbox = document.getElementById(`edit-day-${day}`);
+          if (checkbox) checkbox.checked = true;
+        });
+      }
+      
+      // 終了条件
+      if (settings.end_type === 'date') {
+        const endDateRadio = document.getElementById('edit-end-date');
+        const endDateInput = document.getElementById('edit-end-date-input');
+        if (endDateRadio) endDateRadio.checked = true;
+        if (endDateInput) {
+          endDateInput.disabled = false;
+          endDateInput.value = settings.end_date || '';
+        }
+      } else if (settings.end_type === 'count') {
+        const endCountRadio = document.getElementById('edit-end-count');
+        const endCountInput = document.getElementById('edit-end-count-input');
+        if (endCountRadio) endCountRadio.checked = true;
+        if (endCountInput) {
+          endCountInput.disabled = false;
+          endCountInput.value = settings.count || '10';
+        }
+      } else {
+        const endNeverRadio = document.getElementById('edit-end-never');
+        if (endNeverRadio) endNeverRadio.checked = true;
+      }
+      
+      updateEditRecurringUI();
+    } else {
+      // 通常のイベントの場合
+      if (recurringCheck) {
+        recurringCheck.checked = false;
+        if (recurringOptions) recurringOptions.classList.add('hidden');
+      }
+      
+      // 曜日のチェックをすべて外す
+      ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].forEach(day => {
+        const checkbox = document.getElementById(`edit-day-${day}`);
+        if (checkbox) checkbox.checked = false;
+      });
+    }
     
     // CSRFトークンを設定
     const token = document.querySelector('meta[name="csrf-token"]');
@@ -1610,19 +1955,136 @@
       return;
     }
     
-    // 削除確認モーダルにイベント名とIDを設定
-    const titleEl = document.getElementById('delete-event-title');
-    const idInput = document.getElementById('delete-event-id');
+    console.log('Delete modal - Event:', window.currentEvent.id, 
+                'recurring:', window.currentEvent.recurring, 
+                'recurring_event_id:', window.currentEvent.recurring_event_id,
+                'occurrence_time:', window.currentEvent.occurrence_time,
+                'is_occurrence:', window.currentEvent.is_occurrence);
     
-    if (titleEl) titleEl.textContent = window.currentEvent.title || '';
-    if (idInput) idInput.value = window.currentEvent.id;
+    // 繰り返し予定かどうかチェック
+    // 1. 親イベントで occurrence_time がある（仮想オカレンス）
+    // 2. 子イベント（recurring_event_id がある）
+    // 3. 親イベント自体（recurring が true で recurring_event_id がない）
+    const isRecurringEvent = window.currentEvent.recurring === true || 
+                            window.currentEvent.recurring_event_id != null ||
+                            window.currentEvent.occurrence_time != null;
     
-    // 詳細モーダルを閉じて削除確認モーダルを開く
-    closeEventDetailsModal();
-    const deleteModal = document.getElementById('delete-confirm-modal');
-    if (deleteModal) {
-      deleteModal.classList.remove('hidden');
+    if (isRecurringEvent) {
+      console.log('Showing recurring delete scope modal');
+      // 繰り返し予定の場合はスコープ選択モーダルを表示
+      const titleEl = document.getElementById('delete-scope-event-title');
+      if (titleEl) titleEl.textContent = window.currentEvent.title || '';
+      
+      // 詳細モーダルを閉じるのではなく、単に隠す（window.currentEventを保持）
+      const detailsModal = document.getElementById('event-details-modal');
+      if (detailsModal) detailsModal.classList.add('hidden');
+      
+      const scopeModal = document.getElementById('delete-scope-modal');
+      if (scopeModal) {
+        scopeModal.classList.remove('hidden');
+      }
+    } else {
+      console.log('Showing standard delete modal');
+      // 通常の予定の場合は従来の削除確認モーダルを表示
+      const titleEl = document.getElementById('delete-event-title');
+      const idInput = document.getElementById('delete-event-id');
+      
+      if (titleEl) titleEl.textContent = window.currentEvent.title || '';
+      if (idInput) idInput.value = window.currentEvent.id;
+      
+      // 詳細モーダルを閉じるのではなく、単に隠す（window.currentEventを保持）
+      const detailsModal = document.getElementById('event-details-modal');
+      if (detailsModal) detailsModal.classList.add('hidden');
+      
+      const deleteModal = document.getElementById('delete-confirm-modal');
+      if (deleteModal) {
+        deleteModal.classList.remove('hidden');
+      }
     }
+  };
+
+  window.closeDeleteScopeModal = function() {
+    const modal = document.getElementById('delete-scope-modal');
+    if (modal) {
+      modal.classList.add('hidden');
+    }
+  };
+
+  window.confirmDeleteWithScope = function() {
+    console.log('confirmDeleteWithScope called');
+    console.log('window.currentEvent exists?', !!window.currentEvent);
+    console.log('window.currentEvent value:', window.currentEvent);
+    
+    if (!window.currentEvent) {
+      console.error('ERROR: window.currentEvent is null or undefined!');
+      alert('削除するイベントが見つかりません。');
+      return;
+    }
+    
+    console.log('confirmDeleteWithScope - Full event object:', JSON.stringify(window.currentEvent, null, 2));
+    
+    const selectedScope = document.querySelector('input[name="delete_scope"]:checked');
+    if (!selectedScope) {
+      alert('削除範囲を選択してください。');
+      return;
+    }
+    
+    const scope = selectedScope.value;
+    console.log('Deleting event with scope:', scope, 'Event ID:', window.currentEvent.id, 'occurrence_time:', window.currentEvent.occurrence_time);
+    
+    const deleteBtn = document.getElementById('confirm-delete-scope-btn');
+    if (deleteBtn) {
+      deleteBtn.disabled = true;
+      deleteBtn.textContent = '削除中...';
+    }
+    
+    // 開始時刻パラメータを追加
+    let url = `/calendar/${window.currentEvent.id}?edit_scope=${scope}`;
+    if (window.currentEvent.occurrence_time) {
+      url += `&occurrence_time=${encodeURIComponent(window.currentEvent.occurrence_time)}`;
+      console.log('Delete URL with occurrence_time:', url);
+    } else {
+      console.warn('No occurrence_time available for delete request');
+    }
+    
+    fetch(url, {
+      method: 'DELETE',
+      headers: {
+        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+        'Accept': 'application/json'
+      }
+    })
+    .then(response => {
+      console.log('Delete scope response status:', response.status);
+      if (response.ok) {
+        console.log('Delete successful, reloading page');
+        closeDeleteScopeModal();
+        window.location.reload();
+      } else {
+        return response.text().then(text => {
+          console.error('Delete failed with response:', text);
+          let errorMessage = 'イベントの削除に失敗しました。';
+          try {
+            const errorData = JSON.parse(text);
+            if (errorData.error) {
+              errorMessage = errorData.error;
+            } else if (errorData.errors && errorData.errors.length > 0) {
+              errorMessage = errorData.errors.join(', ');
+            }
+          } catch (e) {
+            // JSONパースエラー
+          }
+          throw new Error(errorMessage);
+        });
+      }
+    })
+    .catch(error => {
+      alert(error.message);
+      if (deleteBtn) {
+        deleteBtn.disabled = false;
+        deleteBtn.textContent = '削除';
+      }
+    });
   };
 
   window.closeDeleteConfirmModal = function() {
@@ -1639,13 +2101,27 @@
       return;
     }
     
+    console.log('confirmDeleteEvent - Event ID:', eventId);
+    console.log('confirmDeleteEvent - currentEvent:', window.currentEvent);
+    
     const deleteBtn = document.getElementById('confirm-delete-btn');
     if (deleteBtn) {
       deleteBtn.disabled = true;
       deleteBtn.textContent = '削除中...';
     }
     
-    fetch(`/calendar/${eventId}`, {
+    // 開始時刻パラメータを追加（繰り返しインスタンスの場合）
+    let url = `/calendar/${eventId}`;
+    if (window.currentEvent && window.currentEvent.occurrence_time) {
+      url += `?occurrence_time=${encodeURIComponent(window.currentEvent.occurrence_time)}`;
+      console.log('Added occurrence_time to delete URL:', url);
+    } else {
+      console.log('No occurrence_time for standard delete');
+    }
+    
+    console.log('Deleting event at URL:', url);
+    
+    fetch(url, {
       method: 'DELETE',
       headers: {
         'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
@@ -1653,11 +2129,14 @@
       }
     })
     .then(response => {
+      console.log('Delete response status:', response.status);
       if (response.ok) {
+        console.log('Delete successful, reloading page');
         closeDeleteConfirmModal();
         window.location.reload();
       } else {
         return response.text().then(text => {
+          console.error('Delete failed with response:', text);
           let errorMessage = 'イベントの削除に失敗しました。';
           try {
             const errorData = JSON.parse(text);
@@ -1668,8 +2147,10 @@
             }
           } catch (e) {
             // JSON以外のレスポンス
+            errorMessage += ' (サーバーエラー)';
           }
           alert(errorMessage);
+          throw new Error(errorMessage);
         });
       }
     })
@@ -1911,6 +2392,73 @@
       return;
     }
     
+    console.log('Edit submit - Event:', window.currentEvent?.id, 
+                'recurring:', window.currentEvent?.recurring, 
+                'recurring_event_id:', window.currentEvent?.recurring_event_id,
+                'occurrence_time:', window.currentEvent?.occurrence_time,
+                'is_occurrence:', window.currentEvent?.is_occurrence);
+    
+    // 繰り返し予定かどうかチェック
+    const isRecurringEvent = window.currentEvent && (
+      window.currentEvent.recurring === true || 
+      window.currentEvent.recurring_event_id != null ||
+      window.currentEvent.occurrence_time != null
+    );
+    
+    if (isRecurringEvent) {
+      console.log('Showing recurring edit scope modal');
+      // 繰り返し予定の場合はスコープ選択モーダルを表示
+      const titleEl = document.getElementById('edit-scope-event-title');
+      if (titleEl) titleEl.textContent = window.currentEvent.title || '';
+      
+      // 編集モーダルを閉じるのではなく、単に隠す（window.currentEventを保持）
+      const editModal = document.getElementById('event-edit-modal');
+      if (editModal) editModal.classList.add('hidden');
+      
+      const scopeModal = document.getElementById('edit-scope-modal');
+      if (scopeModal) {
+        scopeModal.classList.remove('hidden');
+      }
+      return;
+    }
+    
+    console.log('Performing standard edit update');
+    // 通常の予定の場合は従来通り更新を実行
+    performEditEventUpdate(null);
+  }
+
+  window.closeEditScopeModal = function() {
+    const modal = document.getElementById('edit-scope-modal');
+    if (modal) {
+      modal.classList.add('hidden');
+    }
+  };
+
+  window.confirmEditWithScope = function() {
+    const selectedScope = document.querySelector('input[name="edit_scope"]:checked');
+    if (!selectedScope) {
+      alert('変更範囲を選択してください。');
+      return;
+    }
+    
+    const scope = selectedScope.value;
+    closeEditScopeModal();
+    performEditEventUpdate(scope);
+  };
+
+  function performEditEventUpdate(scope) {
+    const form = document.getElementById('event-edit-form');
+    const submitBtn = document.getElementById('edit-submit-btn');
+    const eventId = document.getElementById('edit-event-id');
+    
+    if (!form || !eventId || !eventId.value) {
+      alert('フォームデータが不正です。');
+      return;
+    }
+    
+    console.log('performEditEventUpdate - Full event object:', JSON.stringify(window.currentEvent, null, 2));
+    console.log('Updating event with scope:', scope, 'Event ID:', eventId.value, 'occurrence_time:', window.currentEvent?.occurrence_time);
+    
     const formData = new FormData(form);
     const token = document.querySelector('meta[name="csrf-token"]');
     
@@ -1918,8 +2466,24 @@
       formData.append('authenticity_token', token.getAttribute('content'));
     }
     
-    submitBtn.disabled = true;
-    submitBtn.textContent = '更新中...';
+    if (scope) {
+      formData.append('edit_scope', scope);
+    }
+    
+    // 開始時刻パラメータを追加（繰り返しインスタンスの場合）
+    if (window.currentEvent && window.currentEvent.occurrence_time) {
+      formData.append('occurrence_time', window.currentEvent.occurrence_time);
+      console.log('Added occurrence_time to form:', window.currentEvent.occurrence_time);
+    } else {
+      console.warn('No occurrence_time available to send');
+    }
+    
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = '更新中...';
+    }
+    
+    const editModal = document.getElementById('event-edit-modal');
     
     fetch(`/calendar/${eventId.value}`, {
       method: 'PUT',
@@ -1931,7 +2495,7 @@
     })
     .then(response => {
       if (response.ok) {
-        closeEditEventModal();
+        if (editModal) editModal.classList.add('hidden');
         window.location.reload();
       } else {
         return response.text().then(text => {
@@ -1956,16 +2520,155 @@
               errorMessage = [`サーバーエラー: ${response.status} ${response.statusText}`];
             }
           }
+          // 編集モーダルを再表示してエラーを表示
+          if (editModal) editModal.classList.remove('hidden');
           showEditErrorMessages(errorMessage);
         });
       }
     })
     .catch(error => {
       console.error('Edit network error:', error);
+      if (editModal) editModal.classList.remove('hidden');
       showEditErrorMessages(['ネットワークエラーが発生しました: ' + error.message]);
     })
     .finally(() => {
-      submitBtn.disabled = false;
-      submitBtn.textContent = '更新';
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = '更新';
+      }
     });
   }
+
+  // === 繰り返しイベント設定UI制御 ===
+  
+  function toggleRecurringOptions(isChecked) {
+    const options = document.getElementById('recurring-options');
+    if (options) {
+      if (isChecked) {
+        options.classList.remove('hidden');
+        updateRecurringUI();
+      } else {
+        options.classList.add('hidden');
+      }
+    }
+  }
+
+  function updateRecurringUI() {
+    const frequency = document.getElementById('recurring-frequency');
+    const intervalUnit = document.getElementById('interval-unit');
+    const weeklyDays = document.getElementById('weekly-days-selector');
+    
+    if (!frequency || !intervalUnit) return;
+    
+    const freq = frequency.value;
+    
+    // 間隔の単位を更新
+    switch(freq) {
+      case 'daily':
+        intervalUnit.textContent = '日ごと';
+        if (weeklyDays) weeklyDays.classList.add('hidden');
+        break;
+      case 'weekly':
+        intervalUnit.textContent = '週ごと';
+        if (weeklyDays) weeklyDays.classList.remove('hidden');
+        break;
+      case 'monthly':
+        intervalUnit.textContent = 'ヶ月ごと';
+        if (weeklyDays) weeklyDays.classList.add('hidden');
+        break;
+    }
+  }
+
+  function toggleEndDateInput() {
+    const endDateRadio = document.getElementById('end-date');
+    const endDateInput = document.getElementById('end-date-input');
+    const endCountInput = document.getElementById('end-count-input');
+    
+    if (endDateRadio && endDateRadio.checked) {
+      if (endDateInput) endDateInput.disabled = false;
+      if (endCountInput) endCountInput.disabled = true;
+    }
+  }
+
+  function toggleEndCountInput() {
+    const endCountRadio = document.getElementById('end-count');
+    const endDateInput = document.getElementById('end-date-input');
+    const endCountInput = document.getElementById('end-count-input');
+    
+    if (endCountRadio && endCountRadio.checked) {
+      if (endDateInput) endDateInput.disabled = true;
+      if (endCountInput) endCountInput.disabled = false;
+    }
+  }
+
+  // === 編集モーダル用の繰り返しイベント設定UI制御 ===
+  
+  function toggleEditRecurringOptions(isChecked) {
+    const options = document.getElementById('edit-recurring-options');
+    if (options) {
+      if (isChecked) {
+        options.classList.remove('hidden');
+        updateEditRecurringUI();
+      } else {
+        options.classList.add('hidden');
+      }
+    }
+  }
+
+  function updateEditRecurringUI() {
+    const frequency = document.getElementById('edit-recurring-frequency');
+    const intervalUnit = document.getElementById('edit-interval-unit');
+    const weeklyDays = document.getElementById('edit-weekly-days-selector');
+    
+    if (!frequency || !intervalUnit) return;
+    
+    const freq = frequency.value;
+    
+    // 間隔の単位を更新
+    switch(freq) {
+      case 'daily':
+        intervalUnit.textContent = '日ごと';
+        if (weeklyDays) weeklyDays.classList.add('hidden');
+        break;
+      case 'weekly':
+        intervalUnit.textContent = '週ごと';
+        if (weeklyDays) weeklyDays.classList.remove('hidden');
+        break;
+      case 'monthly':
+        intervalUnit.textContent = 'ヶ月ごと';
+        if (weeklyDays) weeklyDays.classList.add('hidden');
+        break;
+    }
+  }
+
+  function toggleEditEndDateInput() {
+    const endDateRadio = document.getElementById('edit-end-date');
+    const endDateInput = document.getElementById('edit-end-date-input');
+    const endCountInput = document.getElementById('edit-end-count-input');
+    
+    if (endDateRadio && endDateRadio.checked) {
+      if (endDateInput) endDateInput.disabled = false;
+      if (endCountInput) endCountInput.disabled = true;
+    }
+  }
+
+  function toggleEditEndCountInput() {
+    const endCountRadio = document.getElementById('edit-end-count');
+    const endDateInput = document.getElementById('edit-end-date-input');
+    const endCountInput = document.getElementById('edit-end-count-input');
+    
+    if (endCountRadio && endCountRadio.checked) {
+      if (endDateInput) endDateInput.disabled = true;
+      if (endCountInput) endCountInput.disabled = false;
+    }
+  }
+
+  // === 終日トグル処理（既存） ===
+  window.toggleRecurringOptions = toggleRecurringOptions;
+  window.updateRecurringUI = updateRecurringUI;
+  window.toggleEndDateInput = toggleEndDateInput;
+  window.toggleEndCountInput = toggleEndCountInput;
+  window.toggleEditRecurringOptions = toggleEditRecurringOptions;
+  window.updateEditRecurringUI = updateEditRecurringUI;
+  window.toggleEditEndDateInput = toggleEditEndDateInput;
+  window.toggleEditEndCountInput = toggleEditEndCountInput;

@@ -1,4 +1,9 @@
 Rails.application.routes.draw do
+  # Letter Opener Web (development only)
+  if Rails.env.development? && defined?(LetterOpenerWeb)
+    mount LetterOpenerWeb::Engine, at: "/letter_opener"
+  end
+
   devise_for :users
   # LINE Messaging API Webhook
   post "line/callback", to: "line_webhooks#callback"

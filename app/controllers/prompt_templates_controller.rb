@@ -81,7 +81,10 @@ class PromptTemplatesController < ApplicationController
   end
 
   def set_prompt_template
-    @prompt_template = PromptTemplate.find(params[:id])
+    # セキュリティ: 現在の組織または汎用テンプレートのみアクセス可能
+    @prompt_template = PromptTemplate.general_or_organization(@organization&.id).find(params[:id])
+  rescue ActiveRecord::RecordNotFound
+    redirect_to prompt_templates_path, alert: "テンプレートが見つかりません。"
   end
 
   def prompt_template_params

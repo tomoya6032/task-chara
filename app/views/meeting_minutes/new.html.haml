@@ -37,10 +37,25 @@
                 placeholder: "例: 利用者A様 月次支援会議"
 
           / 会議タイプ
+          / 議事録タイプ
           .mb-6
-            = form.label :meeting_type, "会議種別", class: "block text-sm font-medium text-slate-700 mb-2"
+            = form.label :meeting_type, "議事録タイプ", class: "block text-sm font-medium text-slate-700 mb-2"
             %span.text-red-500.text-sm *必須
-            = form.select :meeting_type, [['利用者支援会議', 'support_meeting'], ['専門職団体会議', 'professional_meeting']], { prompt: '会議種別を選択してください', selected: @meeting_minute.meeting_type }, { class: "w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500", required: true }
+            .text-xs.text-slate-600.mb-2
+              作成する議事録のタイプを選択してください。選択したタイプに応じて、AIが適切な形式で議事録を生成します。
+            = form.select :meeting_type, 
+                [['📝 通常の会議議事録', 'regular_meeting'], ['🏥 診察同行の要約', 'medical_visit']], 
+                { prompt: '議事録タイプを選択してください', selected: @meeting_minute.meeting_type }, 
+                { class: "w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500", required: true }
+            .mt-2.space-y-2.text-xs.text-slate-600
+              .p-2.bg-blue-50.rounded.border.border-blue-200
+                %strong 📝 通常の会議議事録：
+                会議の概要、決定事項、今後のタスク、会議の雰囲気を記録
+              .p-2.bg-green-50.rounded.border.border-green-200
+                %strong 🏥 診察同行の要約：
+                受診概要、医師の説明、処方薬の変更、本人の様子を記録
+                %strong 🏥 診察同行の要約：
+                受診概要、医師の説明、処方薬の変更、本人の様子を記録
 
           / プロンプトテンプレート選択
           .mb-6
@@ -235,5 +250,4 @@
             = form.submit "💾 議事録を作成", 
                 id: "save-button",
                 class: "px-6 py-3 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-all duration-200 disabled:opacity-75 disabled:cursor-not-allowed shadow-md hover:shadow-lg transform hover:scale-105 active:scale-95",
-                data: { file_upload_target: "saveButton" },
-                style: "min-width: 140px; transition: all 0.3s ease;"
+                data: { file_upload_target: "saveButton" }

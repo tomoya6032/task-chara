@@ -23,10 +23,33 @@ class CalendarController < ApplicationController
   end
 
   def show
-    @event = Event.find(params[:id])
+    # セキュリティ: 現在のユーザーのイベントのみアクセス可能
+    @event = @character.events.find(params[:id])
+
+    # JSONレスポンス用のハッシュを準備
+    response_data = @event.as_json.merge(
+      recurring: @event.recurring?,
+      recurring_event_id: @event.recurring_event_id,
+      recurrence_settings: @event.recurrence_settings
+    )
+
+    # 繰り返しインスタンスの場合、occurrence_timeの情報を追加
+    if params[:occurrence_time].present? && @event.recurring_parent?
+      occurrence_time = Time.zone.parse(params[:occurrence_time])
+      duration = @event.end_time - @event.start_time
+
+      Rails.logger.info "📝 Show event - parent_id: #{@event.id}, occurrence_time: #{occurrence_time.iso8601}"
+
+      # 親イベントのIDはそのままで、start_timeとend_timeをオカレンスの時刻に変更
+      response_data["start_time"] = occurrence_time.iso8601
+      response_data["end_time"] = (occurrence_time + duration).iso8601
+      response_data["occurrence_time"] = occurrence_time.iso8601  # 明示的に追加
+      response_data["is_occurrence"] = true
+    end
+
     respond_to do |format|
       format.html { redirect_to calendar_index_path }
-      format.json { render json: @event }
+      format.json { render json: response_data }
     end
   end
 
@@ -50,12 +73,36 @@ class CalendarController < ApplicationController
     @event = Event.new(normalized_event_attributes)
     @event.character = @character
 
+    # 繰り返しイベントの処理
+    if params[:event][:recurring] == "1" && params[:event][:recurrence].present?
+      recurrence_params = params[:event][:recurrence]
+      schedule = Event.build_schedule_from_params(@event.start_time, recurrence_params)
+
+      if schedule
+        @event.recurrence_rule = schedule.to_yaml
+        @event.recurring = true
+
+        # 終了日の設定
+        if recurrence_params[:end_type] == "date" && recurrence_params[:end_date].present?
+          @event.recurrence_end_date = recurrence_params[:end_date].to_date
+        elsif recurrence_params[:end_type] == "count" && recurrence_params[:count].present?
+          @event.recurrence_count = recurrence_params[:count].to_i
+        end
+      end
+    end
+
     Rails.logger.info "📝 Event object: #{@event.inspect}"
     Rails.logger.info "📝 Event valid?: #{@event.valid?}"
     Rails.logger.info "📝 Event errors: #{@event.errors.full_messages}" unless @event.valid?
 
     if @event.save
       Rails.logger.info "📝 Event saved successfully: #{@event.id}"
+
+      # 繰り返しイベントのインスタンスを生成
+      if @event.recurring?
+        @event.generate_recurring_instances!(up_to_date: 1.year.from_now)
+      end
+
       # タスクの期限などもカレンダーに同期
       sync_tasks_to_calendar if @event.task_deadline?
 
@@ -82,18 +129,185 @@ class CalendarController < ApplicationController
   def edit
     @calendar_settings = load_calendar_settings
     @custom_categories = @calendar_settings[:custom_categories] || default_categories
-    @event = Event.find(params[:id])
+    # セキュリティ: 現在のユーザーのイベントのみアクセス可能
+    @event = @character.events.find(params[:id])
   end
 
   def update
-    @event = Event.find(params[:id])
+    # 1. まず送られてきたIDでイベントを取得
+    base_event = @character.events.find(params[:id])
+    scope = params[:edit_scope] || "one"
 
-    Rails.logger.info "📝 Event update started for ID: #{@event.id}"
+    Rails.logger.info "📝 Event update - ID: #{base_event.id}, recurring: #{base_event.recurring?}, occurrence_time: #{params[:occurrence_time]}, scope: #{scope}"
+
+    # 2. 親イベント + occurrence_time の場合、該当する子レコードを特定・作成
+    @event = base_event
+
+    if params[:occurrence_time].present?
+      occurrence_time = Time.zone.parse(params[:occurrence_time])
+      Rails.logger.info "📝 Parsed occurrence_time: #{occurrence_time.iso8601}"
+
+      # 親イベントの場合、該当する子インスタンスを取得または作成（確実に保存）
+      if base_event.recurring_parent?
+        @event = base_event.find_or_create_occurrence!(occurrence_time)
+        Rails.logger.info "📝 Target event created/found: ID=#{@event.id}, start_time=#{@event.start_time.iso8601}"
+      elsif base_event.recurring_instance?
+        # 既に子インスタンスの場合はそのまま使用
+        @event = base_event
+        Rails.logger.info "📝 Using existing child instance: ID=#{@event.id}"
+      end
+    end
+
     Rails.logger.info "📝 Update params: #{event_params.inspect}"
 
+    # 3. 特定した @event を基準に、スコープ別の更新を実行
+
+    begin
+      case scope
+      when "one"
+        # この予定のみを更新
+        handle_single_event_update
+
+      when "future"
+        # これ以降のすべての予定を更新
+        handle_future_events_update
+
+      when "all"
+        # すべての予定（シリーズ全体）を更新
+        handle_all_events_update
+
+      else
+        # デフォルトは「この予定のみ」
+        handle_single_event_update
+      end
+
+      Rails.logger.info "📝 Event updated successfully with scope: #{scope}"
+      respond_to do |format|
+        format.html { redirect_to calendar_index_path(date: @event.start_time.to_date), notice: "イベントが更新されました。" }
+        format.json { render json: { success: true, event: @event }, status: :ok }
+      end
+    rescue => e
+      Rails.logger.error "📝 Exception in update: #{e.message}"
+      Rails.logger.error "📝 Backtrace: #{e.backtrace.first(5)}"
+      respond_to do |format|
+        format.html { redirect_to calendar_index_path, alert: "エラーが発生しました: #{e.message}" }
+        format.json { render json: { success: false, error: e.message }, status: :unprocessable_entity }
+      end
+    end
+  end
+
+  def destroy
+    # 1. まず送られてきたIDでイベントを取得
+    base_event = @character.events.find(params[:id])
+    scope = params[:edit_scope] || "one"
+
+    Rails.logger.info "📝 Event deletion - ID: #{base_event.id}, recurring: #{base_event.recurring?}, recurring_parent: #{base_event.recurring_parent?}, occurrence_time: #{params[:occurrence_time]}, scope: #{scope}"
+    Rails.logger.info "📝 Base event details - start_time: #{base_event.start_time}, recurring_event_id: #{base_event.recurring_event_id}"
+
+    # 2. 親イベント + occurrence_time の場合、該当する子レコードを特定・作成
+    target_event = base_event
+    occurrence_time = nil
+
+    if params[:occurrence_time].present?
+      occurrence_time = Time.zone.parse(params[:occurrence_time])
+      Rails.logger.info "📝 Parsed occurrence_time: #{occurrence_time.iso8601}"
+
+      # 親イベントの場合、該当する子インスタンスを取得または作成（確実に保存）
+      if base_event.recurring_parent?
+        Rails.logger.info "📝 Base event is recurring parent, creating/finding occurrence"
+        target_event = base_event.find_or_create_occurrence!(occurrence_time)
+        Rails.logger.info "📝 Target event created/found: ID=#{target_event.id}, start_time=#{target_event.start_time.iso8601}"
+      elsif base_event.recurring_instance?
+        # 既に子インスタンスの場合はそのまま使用
+        target_event = base_event
+        Rails.logger.info "📝 Using existing child instance: ID=#{target_event.id}"
+      else
+        Rails.logger.info "📝 Base event is neither parent nor child, using as-is"
+      end
+    else
+      Rails.logger.info "📝 No occurrence_time provided"
+    end
+
+    # 3. 特定した target_event を基準に、スコープ別の削除を実行
+    Rails.logger.info "📝 Proceeding with deletion - target_event ID: #{target_event.id}, scope: #{scope}"
+
+    begin
+      case scope
+      when "one"
+        # この予定のみを削除
+        target_event.destroy!
+        message = "イベントが削除されました。"
+
+      when "future"
+        # これ以降のすべての予定を削除
+        parent_event = target_event.recurring_event || (target_event.recurring_parent? ? target_event : nil)
+
+        if parent_event
+          # この日以降の子インスタンスを削除
+          deleted_count = parent_event.recurring_instances.where("start_time >= ?", target_event.start_time).destroy_all.count
+          Rails.logger.info "📝 Deleted #{deleted_count} future instances"
+
+          # 親イベントの繰り返し終了日を更新（この日の前日に設定）
+          new_end_date = target_event.start_time.to_date - 1.day
+          parent_event.update_recurrence_until!(new_end_date)
+
+          message = "選択した日以降の予定が削除されました。"
+        else
+          # 通常のイベントの場合
+          target_event.destroy!
+          message = "イベントが削除されました。"
+        end
+
+      when "all"
+        # すべての予定（シリーズ全体）を削除
+        parent_event = target_event.recurring_event || (target_event.recurring_parent? ? target_event : nil)
+
+        if parent_event
+          # 親を削除（dependent: :destroyで子も削除される）
+          parent_event.destroy!
+          message = "繰り返し予定のシリーズ全体が削除されました。"
+        else
+          # 通常のイベントの場合
+          target_event.destroy!
+          message = "イベントが削除されました。"
+        end
+
+      else
+        # デフォルトは「この予定のみ」
+        target_event.destroy!
+        message = "イベントが削除されました。"
+      end
+
+      Rails.logger.info "📝 Event deleted successfully with scope: #{scope}"
+      respond_to do |format|
+        format.html { redirect_to calendar_index_path, notice: message }
+        format.json { render json: { success: true, message: message }, status: :ok }
+      end
+    rescue => e
+      Rails.logger.error "📝 Exception in destroy: #{e.message}"
+      Rails.logger.error "📝 Backtrace: #{e.backtrace.first(5)}"
+      respond_to do |format|
+        format.html { redirect_to calendar_index_path, alert: "エラーが発生しました: #{e.message}" }
+        format.json { render json: { success: false, error: e.message }, status: :internal_server_error }
+      end
+    end
+  end
+
+  private
+
+  def handle_single_event_update
+    # 繰り返しイベントの子の場合、独立させて単発イベントとして更新
+    if @event.recurring_event_id.present?
+      @event.recurring_event_id = nil
+      @event.recurring = false
+      @event.recurrence_rule = nil
+      @event.recurrence_end_date = nil
+      @event.recurrence_count = nil
+    end
+
+    # 通常の更新処理
     if @event.update(normalized_event_attributes)
-      Rails.logger.info "📝 Event updated successfully: #{@event.id}"
-      # タスク期限イベントの場合、対応するタスクのdescriptionも更新（逆方向同期）
+      # タスク期限イベントの場合、対応するタスクのdescriptionも更新
       if @event.task_deadline? && @event.external_id&.start_with?("task_")
         task_id = @event.external_id.sub("task_", "").to_i
         task = @character&.tasks&.find_by(id: task_id)
@@ -103,50 +317,160 @@ class CalendarController < ApplicationController
           task.update_columns(description: custom_desc)
         end
       end
-      respond_to do |format|
-        format.html { redirect_to calendar_index_path(date: @event.start_time.to_date), notice: "イベントが更新されました。" }
-        format.json { render json: { success: true, event: @event }, status: :ok }
-      end
     else
-      Rails.logger.error "📝 Event update failed: #{@event.errors.full_messages}"
-      respond_to do |format|
-        format.html { redirect_to calendar_index_path, alert: "イベントの更新に失敗しました: #{@event.errors.full_messages.join(', ')}" }
-        format.json { render json: { success: false, errors: @event.errors.full_messages }, status: :unprocessable_entity }
-      end
-    end
-  rescue => e
-    Rails.logger.error "📝 Exception in update: #{e.message}"
-    Rails.logger.error "📝 Backtrace: #{e.backtrace.first(5)}"
-    respond_to do |format|
-      format.html { redirect_to calendar_index_path, alert: "エラーが発生しました: #{e.message}" }
-      format.json { render json: { success: false, error: e.message }, status: :internal_server_error }
+      raise "更新に失敗しました: #{@event.errors.full_messages.join(', ')}"
     end
   end
 
-  def destroy
-    @event = Event.find(params[:id])
+  def handle_future_events_update
+    parent_event = @event.recurring_event_id.present? ? @event.recurring_event : @event
 
-    Rails.logger.info "📝 Event deletion started for ID: #{@event.id}"
+    return handle_single_event_update unless parent_event
 
-    if @event.destroy
-      Rails.logger.info "📝 Event deleted successfully: #{@event.id}"
-      respond_to do |format|
-        format.html { redirect_to calendar_index_path, notice: "イベントが削除されました。" }
-        format.json { render json: { success: true, message: "イベントが削除されました。" }, status: :ok }
+    # この日以降の兄弟イベントを削除
+    if @event.recurring_event_id.present?
+      parent_event.recurring_instances.where("start_time >= ?", @event.start_time).destroy_all
+    else
+      # 親イベント自身の場合も、今日以降の子を削除
+      parent_event.recurring_instances.destroy_all
+    end
+
+    # 新しい繰り返し設定の処理
+    if params[:event][:recurring] == "1" && params[:event][:recurrence].present?
+      recurrence_params = params[:event][:recurrence]
+
+      # 更新後の開始時刻を取得
+      updated_attrs = normalized_event_attributes
+      start_time = updated_attrs["start_time"] || @event.start_time
+
+      schedule = Event.build_schedule_from_params(start_time, recurrence_params)
+
+      if schedule
+        # 新しい親イベントを作成または既存の親を更新
+        if @event.recurring_event_id.present?
+          # 子イベントの場合、新しい親イベントを作成
+          new_parent = @character.events.create!(
+            title: updated_attrs["title"] || @event.title,
+            description: updated_attrs["description"] || @event.description,
+            start_time: start_time,
+            end_time: updated_attrs["end_time"] || @event.end_time,
+            location: updated_attrs["location"] || @event.location,
+            all_day: updated_attrs["all_day"] || @event.all_day,
+            status: updated_attrs["status"] || @event.status,
+            event_type: updated_attrs["event_type"] || @event.event_type,
+            color: updated_attrs["color"] || @event.color,
+            user: @event.user,
+            reminder_minutes: updated_attrs["reminder_minutes"] || @event.reminder_minutes,
+            recurring: true,
+            recurrence_rule: schedule.to_yaml
+          )
+
+          # 終了日の設定
+          if recurrence_params[:end_type] == "date" && recurrence_params[:end_date].present?
+            new_parent.recurrence_end_date = recurrence_params[:end_date].to_date
+          elsif recurrence_params[:end_type] == "count" && recurrence_params[:count].present?
+            new_parent.recurrence_count = recurrence_params[:count].to_i
+          end
+          new_parent.save!
+
+          # 新しいインスタンスを生成
+          new_parent.generate_recurring_instances!(up_to_date: 1.year.from_now)
+
+          # 元のイベントは削除
+          @event.destroy
+          @event = new_parent
+        else
+          # 親イベント自身の場合、親を更新
+          @event.recurrence_rule = schedule.to_yaml
+          @event.recurring = true
+
+          if recurrence_params[:end_type] == "date" && recurrence_params[:end_date].present?
+            @event.recurrence_end_date = recurrence_params[:end_date].to_date
+          elsif recurrence_params[:end_type] == "count" && recurrence_params[:count].present?
+            @event.recurrence_count = recurrence_params[:count].to_i
+          else
+            @event.recurrence_end_date = nil
+            @event.recurrence_count = nil
+          end
+
+          if @event.update(normalized_event_attributes)
+            @event.generate_recurring_instances!(up_to_date: 1.year.from_now)
+          else
+            raise "更新に失敗しました: #{@event.errors.full_messages.join(', ')}"
+          end
+        end
       end
     else
-      Rails.logger.error "📝 Event deletion failed: #{@event.errors.full_messages}"
-      respond_to do |format|
-        format.html { redirect_to calendar_index_path, alert: "イベントの削除に失敗しました: #{@event.errors.full_messages.join(', ')}" }
-        format.json { render json: { success: false, errors: @event.errors.full_messages }, status: :unprocessable_entity }
-      end
+      # 繰り返し設定がない場合、単発イベントとして更新
+      handle_single_event_update
     end
-  rescue => e
-    Rails.logger.error "📝 Exception in destroy: #{e.message}"
-    Rails.logger.error "📝 Backtrace: #{e.backtrace.first(5)}"
-    respond_to do |format|
-      format.html { redirect_to calendar_index_path, alert: "エラーが発生しました: #{e.message}" }
-      format.json { render json: { success: false, error: e.message }, status: :internal_server_error }
+  end
+
+  def handle_all_events_update
+    parent_event = @event.recurring_event_id.present? ? @event.recurring_event : @event
+
+    return handle_single_event_update unless parent_event
+
+    # 親イベントを更新
+    target_event = parent_event
+
+    # 繰り返しイベントの処理
+    if params[:event][:recurring] == "1" && params[:event][:recurrence].present?
+      recurrence_params = params[:event][:recurrence]
+
+      # 開始時刻を取得（更新後の値を使用）
+      updated_attrs = normalized_event_attributes
+      start_time = updated_attrs["start_time"] || target_event.start_time
+
+      schedule = Event.build_schedule_from_params(start_time, recurrence_params)
+
+      if schedule
+        target_event.recurrence_rule = schedule.to_yaml
+        target_event.recurring = true
+
+        # 終了日の設定
+        if recurrence_params[:end_type] == "date" && recurrence_params[:end_date].present?
+          target_event.recurrence_end_date = recurrence_params[:end_date].to_date
+        elsif recurrence_params[:end_type] == "count" && recurrence_params[:count].present?
+          target_event.recurrence_count = recurrence_params[:count].to_i
+        else
+          target_event.recurrence_end_date = nil
+          target_event.recurrence_count = nil
+        end
+      end
+    else
+      # 繰り返し設定が無効化された場合
+      target_event.recurring = false
+      target_event.recurrence_rule = nil
+      target_event.recurrence_end_date = nil
+      target_event.recurrence_count = nil
+    end
+
+    if target_event.update(normalized_event_attributes)
+      # 繰り返しイベントのインスタンスを再生成
+      if target_event.recurring?
+        # 既存のインスタンスを削除して再生成
+        target_event.recurring_instances.destroy_all
+        target_event.generate_recurring_instances!(up_to_date: 1.year.from_now)
+      else
+        # 繰り返しが無効化された場合は、子インスタンスを削除
+        target_event.recurring_instances.destroy_all
+      end
+
+      # タスク期限イベントの場合、対応するタスクのdescriptionも更新
+      if target_event.task_deadline? && target_event.external_id&.start_with?("task_")
+        task_id = target_event.external_id.sub("task_", "").to_i
+        task = @character&.tasks&.find_by(id: task_id)
+        if task
+          event_desc = target_event.description.to_s
+          custom_desc = event_desc.include?("\n\n") ? event_desc.split("\n\n", 2).last.presence : nil
+          task.update_columns(description: custom_desc)
+        end
+      end
+
+      @event = target_event
+    else
+      raise "更新に失敗しました: #{target_event.errors.full_messages.join(', ')}"
     end
   end
 
@@ -167,8 +491,8 @@ class CalendarController < ApplicationController
     start_date = Date.parse(params[:start]) rescue @date.beginning_of_month
     end_date = Date.parse(params[:end]) rescue @date.end_of_month
 
-    events = Event.for_date_range(start_date, end_date)
-                  .includes(:character)
+    # セキュリティ: 現在のユーザーのキャラクターに紐づくイベントのみ取得
+    events = @character.events.for_date_range(start_date, end_date)
 
     # カスタムカテゴリの設定を取得
     settings = load_calendar_settings
@@ -217,7 +541,8 @@ class CalendarController < ApplicationController
 
   # 単一イベントを手動でLINE通知
   def notify_line
-    event = Event.includes(character: :user).find(params[:id])
+    # セキュリティ: 現在のユーザーのイベントのみアクセス可能
+    event = @character.events.includes(character: :user).find(params[:id])
     user = event.character&.user
 
     if user.nil? || user.line_user_id.blank?
@@ -336,8 +661,25 @@ class CalendarController < ApplicationController
 
     Rails.logger.info "📅 Date range: #{@start_date} - #{@end_date}"
 
-    @events = Event.for_date_range(@start_date, @end_date).includes(:character)
-    Rails.logger.info "📅 Found #{@events.count} events"
+    # セキュリティ: 現在のユーザーのキャラクターに紐づくイベントのみ取得
+    # 通常のイベントと繰り返しイベントのインスタンスの両方を取得
+    @events = @character.events.for_date_range(@start_date, @end_date).to_a
+
+    # 繰り返しイベントの親（マスター）も取得して、表示期間内のインスタンスを追加
+    recurring_parents = @character.events.recurring_parents.where("start_time <= ?", @end_date)
+    recurring_parents.each do |parent|
+      occurrences = parent.occurrences_between(@start_date, @end_date)
+      # すでに生成されたインスタンスは含まれているため、重複チェック（日時ベース）
+      existing_times = @events.map { |e| [ e.start_time, e.end_time ] }
+      occurrences.each do |occurrence|
+        time_pair = [ occurrence.start_time, occurrence.end_time ]
+        unless existing_times.include?(time_pair)
+          @events << occurrence
+        end
+      end
+    end
+
+    Rails.logger.info "📅 Found #{@events.count} events (including recurring instances)"
 
     # 祝日データを取得（設定により表示/非表示切り替え）
     @holidays = @calendar_settings[:show_holidays] ?
@@ -360,7 +702,23 @@ class CalendarController < ApplicationController
   def show_week
     @start_date = @date.beginning_of_week(:sunday)
     @end_date = @date.end_of_week(:sunday)
-    @events = Event.for_date_range(@start_date, @end_date).includes(:character)
+    # セキュリティ: 現在のユーザーのキャラクターに紐づくイベントのみ取得
+    # 通常のイベントと繰り返しイベントのインスタンスの両方を取得
+    @events = @character.events.for_date_range(@start_date, @end_date).to_a
+
+    # 繰り返しイベントの親（マスター）も取得して、表示期間内のインスタンスを追加
+    recurring_parents = @character.events.recurring_parents.where("start_time <= ?", @end_date)
+    recurring_parents.each do |parent|
+      occurrences = parent.occurrences_between(@start_date, @end_date)
+      # すでに生成されたインスタンスは含まれているため、重複チェック（日時ベース）
+      existing_times = @events.map { |e| [ e.start_time, e.end_time ] }
+      occurrences.each do |occurrence|
+        time_pair = [ occurrence.start_time, occurrence.end_time ]
+        unless existing_times.include?(time_pair)
+          @events << occurrence
+        end
+      end
+    end
 
     # 週表示用の祝日データ取得
     @holidays = @calendar_settings[:show_holidays] ?
@@ -373,9 +731,9 @@ class CalendarController < ApplicationController
   def show_day
     @start_date = @date.beginning_of_day
     @end_date = @date.end_of_day
-    @events = Event.for_date_range(@start_date, @end_date)
+    # セキュリティ: 現在のユーザーのキャラクターに紐づくイベントのみ取得
+    @events = @character.events.for_date_range(@start_date, @end_date)
                    .order(:start_time)
-                   .includes(:character)
 
     # 日表示用の祝日データ取得
     @holidays = @calendar_settings[:show_holidays] ?
@@ -475,7 +833,9 @@ class CalendarController < ApplicationController
                                   :all_day, :event_type, :status, :color, :attendees,
                                   :reminder_minutes,
                                   :start_date_part, :start_hour_part, :start_min_part,
-                                  :end_date_part, :end_hour_part, :end_min_part)
+                                  :end_date_part, :end_hour_part, :end_min_part,
+                                  :recurring,
+                                  recurrence: [ :frequency, :interval, :end_type, :end_date, :count, days_of_week: [] ])
   end
 
   def normalized_event_attributes
@@ -502,7 +862,8 @@ class CalendarController < ApplicationController
       ending: true
     )
 
-    attrs.except!("start_date_part", "start_hour_part", "start_min_part", "end_date_part", "end_hour_part", "end_min_part")
+    # 繰り返し関連のパラメータはEvent.newに渡さない（コントローラー側で別途処理）
+    attrs.except!("start_date_part", "start_hour_part", "start_min_part", "end_date_part", "end_hour_part", "end_min_part", "recurring", "recurrence")
     attrs
   end
 

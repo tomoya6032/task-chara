@@ -5,16 +5,16 @@ class ProcessImageOcrJob < ApplicationJob
     Rails.logger.info "=== OCR Job Started for activity_id: #{activity_id} ==="
     Rails.logger.info "Image path: #{image_path}"
     Rails.logger.info "File exists: #{File.exist?(image_path)}"
-    
+
     begin
       # OpenAI Vision APIで画像を分析
       client = OpenAI::Client.new
       Rails.logger.info "OpenAI client initialized"
-      
+
       # 画像をBase64エンコード
       image_data = File.read(image_path)
       Rails.logger.info "Image file size: #{image_data.size} bytes"
-      
+
       # 画像形式を判定
       image_format = case image_data[0, 4]
       when "\xFF\xD8\xFF".b
@@ -28,12 +28,12 @@ class ProcessImageOcrJob < ApplicationJob
       else
         "jpeg" # デフォルト
       end
-      
+
       Rails.logger.info "Detected image format: #{image_format}"
-      
+
       base64_image = Base64.strict_encode64(image_data)
       Rails.logger.info "Base64 encoding completed"
-      
+
       Rails.logger.info "Sending request to OpenAI Vision API..."
       response = client.chat(
         parameters: {
@@ -44,15 +44,24 @@ class ProcessImageOcrJob < ApplicationJob
               content: [
                 {
                   type: "text",
-                  text: "この画像の内容を業務報告書として適切な形で要約してください。画像に含まれる情報を参考にして、以下の観点で報告書を作成してください：
+                  text: "この画像の内容を日報として整理してください。必ず以下の4つの項目で構成し、全体の文字数は500〜800文字の範囲内（600文字程度が目安）に収めてください。マークダウン記号（#や##、-など）は一切使わず、項目名を段落の頭に明記してください。親しみやすく分かりやすい自然な文章（丁寧語・ですます調）で記述してください。
 
-1. 訪問・面談・会議などの業務活動の概要
-2. 相談内容や議題の要点（具体的な内容は要約形式で）
-3. 実施した支援や対応の概要
-4. 気づいた点や今後の課題
-5. その他特筆すべき事項
+【作成する日報の構成】
 
-※画像内のテキストをそのまま転写するのではなく、業務報告として適切に整理・要約してください。個人情報や機密情報に該当する可能性のある具体的な固有名詞は避け、一般的な表現に置き換えてください。"
+① 本日の訪問内容
+画像の内容から、訪問や業務の概要を大学生でも一読して状況が理解できるレベルに分かりやすく要約して記載してください。
+
+② 課題や修正点
+画像の内容から見えてくる課題、今後修正や確認が必要な点があれば、それらを具体的に書き残してください。特になければ「特になし」と記載してください。
+
+③ 今後の方向性
+今後の流れとして、次回の訪問時に行うこと、約束ごと、次に発生するタスクを明確にし、チームや大学生スタッフに伝えるようにまとめてください。
+
+④ その他
+世間話をしている感じや、現場で談笑している雰囲気が伝わるように記述してください。また、利用者様の様子や、スタッフ自身の感情（嬉しかったこと、感じたこと、安心したことなど）が見えてくるように、温かみを持たせて書き残してください。
+
+※画像内の具体的な固有名詞は一般的な表現に置き換えて、プライバシーに配慮してください。
+※4つの項目すべてを含む日報を500〜800文字程度で作成してください。マークダウン記号は使わず、自然で温かみのある丁寧語で記述してください。"
                 },
                 {
                   type: "image_url",
@@ -64,29 +73,29 @@ class ProcessImageOcrJob < ApplicationJob
               ]
             }
           ],
-          max_tokens: 1500,
-          temperature: 0.3 # 創造性を少し上げて報告書らしい表現にする
+          max_tokens: 1200,
+          temperature: 0.5 # 温かみのある自然な表現のために適度な創造性を設定
         }
       )
-      
+
       Rails.logger.info "OpenAI API response received"
       Rails.logger.info "Full response: #{response.inspect}"
-      
+
       extracted_text = response.dig("choices", 0, "message", "content")
       Rails.logger.info "Extracted text length: #{extracted_text&.length || 0} characters"
       Rails.logger.info "Extracted text preview: #{extracted_text&.[](0, 200) || 'No content'}"
-      
+
       if extracted_text.present?
         Rails.logger.info "=== OCR completed successfully, broadcasting result ==="
         Rails.logger.info "Broadcasting to channel: ai_processing_#{activity_id}"
         Rails.logger.info "Content preview: #{extracted_text[0..100]}..."
-        
+
         # WebSocket経由でフロントエンドに結果を送信
         ActionCable.server.broadcast(
           "ai_processing_#{activity_id}",
           {
-            type: 'image_ocr',
-            status: 'completed',
+            type: "image_ocr",
+            status: "completed",
             content: extracted_text
           }
         )
@@ -94,17 +103,17 @@ class ProcessImageOcrJob < ApplicationJob
       else
         raise "文字起こしに失敗しました - extracted_text is blank"
       end
-      
+
     rescue => e
       Rails.logger.error "=== OCR processing error ==="
       Rails.logger.error "Error: #{e.message}"
       Rails.logger.error e.backtrace.join("\n")
-      
+
       ActionCable.server.broadcast(
         "ai_processing_#{activity_id}",
         {
-          type: 'image_ocr',
-          status: 'error',
+          type: "image_ocr",
+          status: "error",
           error: e.message
         }
       )

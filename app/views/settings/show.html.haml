@@ -1,19 +1,30 @@
 .max-w-4xl.mx-auto.p-6
-  %h1.text-3xl.font-bold.text-slate-900.dark:text-white.mb-8
+  %h1{ class: "text-3xl font-bold text-slate-900 dark:text-white mb-8" }
     ⚙️ 設定
 
-  .bg-white.dark:bg-slate-800.rounded-lg.shadow-md.overflow-hidden
+  .rounded-lg.shadow-md.overflow-hidden{ class: "bg-white dark:bg-slate-800" }
     / プロフィール情報セクション
-    .border-b.border-slate-200.dark:border-slate-700.p-6
-      %h2.text-xl.font-semibold.text-slate-900.dark:text-white.mb-4
+    .p-6{ class: "border-b border-slate-200 dark:border-slate-700" }
+      %h2{ class: "text-xl font-semibold text-slate-900 dark:text-white mb-4" }
         👤 プロフィール情報
 
       = form_with model: @user, url: settings_path, method: :patch, local: true, class: "space-y-4" do |f|
         .space-y-4
-          / 名前
+          / ユーザー名
           .form-group
-            = f.label :name, "お名前", class: "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
+            = f.label :name, "お名前（ユーザー名）", class: "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
             = f.text_field :name, class: "w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-white", placeholder: "山田太郎"
+            %p{ class: "text-xs text-slate-500 dark:text-slate-400 mt-1" }
+              ダッシュボードやヘッダーに表示される、あなた自身の名前です
+
+          / キャラクター名
+          - if @character
+            = fields_for :character, @character do |cf|
+              .form-group
+                = cf.label :name, "キャラクターの名前", class: "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
+                = cf.text_field :name, class: "w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-white", placeholder: "相棒の名前"
+                %p{ class: "text-xs text-slate-500 dark:text-slate-400 mt-1" }
+                  あなたの相棒キャラクターの名前です（ダッシュボードに表示されます）
 
           / メールアドレス
           .form-group
@@ -21,7 +32,7 @@
             = f.email_field :email, class: "w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-white", placeholder: "example@email.com"
 
           - if @user.errors.any?
-            .bg-red-50.dark:bg-red-900.border.border-red-400.text-red-700.dark:text-red-200.px-4.py-3.rounded.relative{role: "alert"}
+            .border.border-red-400.px-4.py-3.rounded.relative{ role: "alert", class: "bg-red-50 dark:bg-red-900 text-red-700 dark:text-red-200" }
               %ul.list-disc.list-inside
                 - @user.errors.full_messages.each do |message|
                   %li= message
@@ -31,7 +42,7 @@
 
     / パスワード変更セクション
     .p-6
-      %h2.text-xl.font-semibold.text-slate-900.dark:text-white.mb-4
+      %h2{ class: "text-xl font-semibold text-slate-900 dark:text-white mb-4" }
         🔐 パスワード変更
 
       = form_with model: @user, url: settings_path, method: :patch, local: true, class: "space-y-4" do |f|
@@ -45,8 +56,10 @@
           .form-group
             = f.label :password, "新しいパスワード", class: "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
             = f.password_field :password, class: "w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-white", autocomplete: "new-password"
-            %p.text-sm.text-slate-500.dark:text-slate-400.mt-1
-              6文字以上で入力してください
+            %p.border.rounded.p-2{ class: "text-xs text-slate-600 dark:text-slate-400 mt-2 bg-blue-50 dark:bg-blue-900 border-blue-200 dark:border-blue-700" }
+              %strong= "以下をすべて含む必要があります："
+              %br
+              = "✓ 8文字以上 / ✓ 小文字(a-z) / ✓ 大文字(A-Z) / ✓ 数字(0-9) / ✓ 記号(!@#$%等)"
 
           / パスワード確認
           .form-group
@@ -57,18 +70,18 @@
             = f.submit "パスワードを変更", class: "px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
 
     / LINE通知連携セクション（リマインド用）
-    .border-t.border-slate-200.dark:border-slate-700.p-6
-      %h2.text-xl.font-semibold.text-slate-900.dark:text-white.mb-4
+    .p-6{ class: "border-t border-slate-200 dark:border-slate-700" }
+      %h2{ class: "text-xl font-semibold text-slate-900 dark:text-white mb-4" }
         📱 LINE通知連携（リマインド用）
 
       - if @user.line_user_id.present?
         / 連携済みの場合
-        .bg-green-50.dark:bg-green-900.border.border-green-200.dark:border-green-700.rounded-lg.p-4.mb-4
+        .border.rounded-lg.p-4.mb-4{ class: "bg-green-50 dark:bg-green-900 border-green-200 dark:border-green-700" }
           .flex.items-center.mb-2
             %span.text-2xl.mr-2 ✅
-            %span.text-green-800.dark:text-green-200.font-semibold 連携済み（通知オン）
+            %span.font-semibold{ class: "text-green-800 dark:text-green-200" }= "連携済み（通知オン）"
           
-          %p.text-sm.text-green-700.dark:text-green-300.mb-2
+          %p.text-sm.mb-2{ class: "text-green-700 dark:text-green-300" }
             LINEでタスクやカレンダーのリマインド通知を受け取ることができます。
 
         .flex.justify-end
@@ -76,18 +89,18 @@
 
       - else
         / 未連携の場合
-        .bg-blue-50.dark:bg-blue-900.border.border-blue-200.dark:border-blue-700.rounded-lg.p-6.mb-4
+        .border.rounded-lg.p-6.mb-4{ class: "bg-blue-50 dark:bg-blue-900 border-blue-200 dark:border-blue-700" }
           .flex.items-center.mb-4
             %span.text-3xl.mr-3 💬
-            %span.text-blue-800.dark:text-blue-200.font-bold.text-lg LINE通知連携の設定
+            %span.font-bold.text-lg{ class: "text-blue-800 dark:text-blue-200" }= "LINE通知連携の設定"
 
-          %p.text-sm.text-blue-700.dark:text-blue-300.mb-6
+          %p.text-sm.mb-6{ class: "text-blue-700 dark:text-blue-300" }
             LINEでタスク期限やスケジュールのリマインド通知を受け取れます。
             %br
             %strong ※個人のLINE IDを入力する必要はありません。ボタンを押すだけで安全に連携されます。
 
-          .bg-white.dark:bg-slate-800.rounded-lg.p-4.mb-4.border.border-blue-300.dark:border-blue-600
-            %h3.font-bold.text-slate-900.dark:text-white.text-base.mb-3.flex.items-center
+          .rounded-lg.p-4.mb-4.border{ class: "bg-white dark:bg-slate-800 border-blue-300 dark:border-blue-600" }
+            %h3.font-bold.text-base.mb-3.flex.items-center{ class: "text-slate-900 dark:text-white" }
               %span.text-2xl.mr-2 📋
               連携手順（3ステップ）
 
@@ -96,32 +109,31 @@
               .flex.items-start
                 .flex-shrink-0.w-8.h-8.bg-blue-600.text-white.rounded-full.flex.items-center.justify-center.font-bold.mr-3
                   1
-                .flex-1
-                  %h4.font-bold.text-slate-900.dark:text-white.mb-1
+                .flex-1.min-w-0
+                  %h4.font-bold.mb-1{ class: "text-slate-900 dark:text-white" }
                     公式LINEアカウントを友だち追加
-                  %p.text-sm.text-slate-700.dark:text-slate-300.mb-2
+                  %p.text-sm.mb-2{ class: "text-slate-700 dark:text-slate-300" }
                     まず当サイトの公式LINEアカウントを友だち追加してください。
                   / QRコードまたは友だち追加リンクをここに配置
-                  .bg-slate-100.dark:bg-slate-700.p-4.rounded.text-center
+                  .p-4.rounded.text-center{ class: "bg-slate-100 dark:bg-slate-700" }
                     - qr_image_path = ENV['LINE_QR_CODE_IMAGE'] || 'M_gainfriends_2dbarcodes_BW.png'
                     - qr_file_exists = File.exist?(Rails.root.join('app', 'assets', 'images', qr_image_path))
                     
                     - if qr_file_exists
                       / QRコード画像を表示
-                      %p.text-xs.text-slate-600.dark:text-slate-400.mb-3
+                      %p.text-xs.mb-3{ class: "text-slate-600 dark:text-slate-400" }
                         QRコードをスマホで読み取って友だち追加
-                      .mb-3
-                        = image_tag qr_image_path, alt: 'LINE友だち追加QRコード', class: 'mx-auto w-48 h-48 border-2 border-slate-300 dark:border-slate-600 rounded-lg'
+                      = image_tag qr_image_path, alt: 'LINE友だち追加QRコード', class: 'max-w-full h-auto border-2 border-slate-300 dark:border-slate-600 rounded-lg mb-3', style: 'object-fit: contain; display: inline-block; max-height: 192px;'
                       
                       - if ENV['LINE_ADD_FRIEND_URL'].present?
-                        %p.text-xs.text-slate-500.dark:text-slate-400.mb-2 または
+                        %p.text-xs.mb-2{ class: "text-slate-500 dark:text-slate-400" }= "または"
                         = link_to ENV['LINE_ADD_FRIEND_URL'], target: '_blank', rel: 'noopener', class: 'inline-flex items-center px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm font-semibold' do
                           %span.mr-2 📱
                           リンクから友だち追加
                     
                     - elsif ENV['LINE_ADD_FRIEND_URL'].present?
                       / URLのみの場合
-                      %p.text-xs.text-slate-600.dark:text-slate-400.mb-2
+                      %p.text-xs.mb-2{ class: "text-slate-600 dark:text-slate-400" }
                         以下のリンクから友だち追加できます
                       = link_to ENV['LINE_ADD_FRIEND_URL'], target: '_blank', rel: 'noopener', class: 'inline-flex items-center px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm font-semibold' do
                         %span.mr-2 📱
@@ -129,20 +141,20 @@
                     
                     - else
                       / 未設定の場合
-                      %p.text-xs.text-amber-600.dark:text-amber-400.mb-2
+                      %p.text-xs.mb-2{ class: "text-amber-600 dark:text-amber-400" }
                         ※管理者がQRコード画像またはLINE_ADD_FRIEND_URLを設定してください
-                      %p.text-xs.text-slate-500.dark:text-slate-400
+                      %p.text-xs{ class: "text-slate-500 dark:text-slate-400" }
                         QRコード画像：
-                        %code.bg-slate-200.dark:bg-slate-600.px-2.py-1.rounded app/assets/images/line_friend_qr.png
+                        %code.px-2.py-1.rounded{ class: "bg-slate-200 dark:bg-slate-600" }= "app/assets/images/line_friend_qr.png"
 
               / ステップ2
               .flex.items-start
                 .flex-shrink-0.w-8.h-8.bg-blue-600.text-white.rounded-full.flex.items-center.justify-center.font-bold.mr-3
                   2
                 .flex-1
-                  %h4.font-bold.text-slate-900.dark:text-white.mb-1
+                  %h4.font-bold.mb-1{ class: "text-slate-900 dark:text-white" }
                     下の「LINEと連携する」ボタンを押す
-                  %p.text-sm.text-slate-700.dark:text-slate-300
+                  %p.text-sm{ class: "text-slate-700 dark:text-slate-300" }
                     LINEの認証画面に移動します。
 
               / ステップ3
@@ -150,9 +162,9 @@
                 .flex-shrink-0.w-8.h-8.bg-blue-600.text-white.rounded-full.flex.items-center.justify-center.font-bold.mr-3
                   3
                 .flex-1
-                  %h4.font-bold.text-slate-900.dark:text-white.mb-1
+                  %h4.font-bold.mb-1{ class: "text-slate-900 dark:text-white" }
                     LINEの認証画面で「同意」する
-                  %p.text-sm.text-slate-700.dark:text-slate-300
+                  %p.text-sm{ class: "text-slate-700 dark:text-slate-300" }
                     同意すると、自動的に当サイトに戻り連携が完了します。
 
           .flex.justify-center
@@ -161,14 +173,14 @@
               LINEと連携する
 
   / アカウント情報
-  .bg-white.dark:bg-slate-800.rounded-lg.shadow-md.p-6.mt-6
-    %h2.text-xl.font-semibold.text-slate-900.dark:text-white.mb-4
+  .rounded-lg.shadow-md.p-6.mt-6{ class: "bg-white dark:bg-slate-800" }
+    %h2{ class: "text-xl font-semibold text-slate-900 dark:text-white mb-4" }
       📊 アカウント情報
 
     .space-y-3
-      .flex.justify-between.py-2.border-b.border-slate-200.dark:border-slate-700
-        %span.text-slate-600.dark:text-slate-400 アカウント種別
-        %span.font-semibold.text-slate-900.dark:text-white
+      .flex.justify-between.py-2{ class: "border-b border-slate-200 dark:border-slate-700" }
+        %span{ class: "text-slate-600 dark:text-slate-400" }= "アカウント種別"
+        %span.font-semibold{ class: "text-slate-900 dark:text-white" }
           - case @user.role
           - when 'individual'
             個人アカウント
@@ -180,21 +192,21 @@
             = @user.role
 
       - if @user.organization.present?
-        .flex.justify-between.py-2.border-b.border-slate-200.dark:border-slate-700
-          %span.text-slate-600.dark:text-slate-400 所属組織
-          %span.font-semibold.text-slate-900.dark:text-white= @user.organization.name
+        .flex.justify-between.py-2{ class: "border-b border-slate-200 dark:border-slate-700" }
+          %span{ class: "text-slate-600 dark:text-slate-400" }= "所属組織"
+          %span.font-semibold{ class: "text-slate-900 dark:text-white" }= @user.organization.name
 
       .flex.justify-between.py-2
-        %span.text-slate-600.dark:text-slate-400 登録日
-        %span.font-semibold.text-slate-900.dark:text-white= @user.created_at.strftime('%Y年%m月%d日')
+        %span{ class: "text-slate-600 dark:text-slate-400" }= "登録日"
+        %span.font-semibold{ class: "text-slate-900 dark:text-white" }= @user.created_at.strftime('%Y年%m月%d日')
 
   / ログアウトセクション
-  .bg-white.dark:bg-slate-800.rounded-lg.shadow-md.p-6.mt-6
-    %h2.text-xl.font-semibold.text-slate-900.dark:text-white.mb-4
+  .rounded-lg.shadow-md.p-6.mt-6.mb-12{ class: "bg-white dark:bg-slate-800" }
+    %h2{ class: "text-xl font-semibold text-slate-900 dark:text-white mb-4" }
       🚪 アカウント管理
 
     .space-y-3
-      %p.text-sm.text-slate-600.dark:text-slate-400.mb-4
+      %p.text-sm.mb-4{ class: "text-slate-600 dark:text-slate-400" }
         ログアウトすると、再度ログインが必要になります。
 
       .flex.justify-end

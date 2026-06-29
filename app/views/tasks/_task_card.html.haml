@@ -81,6 +81,7 @@
               📲
 
         .text-xs.text-slate-600.dark:text-slate-400.mt-2.leading-relaxed
+          カテゴリ: #{task.category_display} | 
           嫌い度: #{task.dislike_level}/10 | 
           作成: #{task.created_at.strftime("%m/%d %H:%M")}
         - if task.description.present?
@@ -100,5 +101,5 @@
             ⏰ #{task.due_date_display} (#{task.due_status})
         = button_to complete_task_path(task), method: :patch, class: "bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm transition-colors", data: { confirm: "「#{task.title}」を完了しますか？\n強靭さ+#{(task.dislike_level || 1) * 1.5}pt獲得できます！", turbo: false }, form_class: "inline" do
           🎯 完了
-        = button_to hide_task_path(task), method: :patch, class: "bg-slate-600 hover:bg-slate-700 text-white px-3 py-1 rounded text-sm transition-colors", data: { turbo: false }, form_class: "inline" do
+        = button_to hide_task_path(task), method: :patch, class: "bg-slate-600 hover:bg-slate-700 text-white px-3 py-1 rounded text-sm transition-colors", data: { turbo: false }, form_class: "inline ml-5" do
           👁️ 非表示

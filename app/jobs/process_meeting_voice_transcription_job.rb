@@ -61,7 +61,7 @@ class ProcessMeetingVoiceTranscriptionJob < ApplicationJob
         Rails.logger.info "Starting GPT formatting for transcribed text..."
 
         # 会議タイプとプロンプトテンプレートを判定
-        meeting_type = "support_meeting" # デフォルト値
+        meeting_type = "regular_meeting" # デフォルト値（通常の会議議事録）
         selected_prompt_template_id = prompt_template_id # parameterから取得
 
         if session_id.present?

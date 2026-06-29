@@ -27,7 +27,7 @@ class ProcessMeetingImageOcrJob < ApplicationJob
       base64_image = Base64.strict_encode64(image_data)
 
       # 会議タイプとプロンプトテンプレートを判定
-      meeting_type = "support_meeting" # デフォルト値
+      meeting_type = "regular_meeting" # デフォルト値（通常の会議議事録）
       selected_prompt_template_id = prompt_template_id # parameterから取得
 
       if session_id.present?

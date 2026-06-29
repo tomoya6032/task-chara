@@ -13,14 +13,34 @@ class MeetingMinutesController < ApplicationController
     @meeting_minute = @character.meeting_minutes.build
     # デフォルトで今日の日時を設定
     @meeting_minute.meeting_date = Time.current
+
     # プロンプトテンプレートのリストを取得
-    @prompt_templates = PromptTemplate.active.order(:meeting_type, :prompt_type, :name)
+    begin
+      @prompt_templates = PromptTemplate.active.order(:meeting_type, :prompt_type, :name)
+    rescue => e
+      Rails.logger.error "Failed to load prompt templates: #{e.message}"
+      @prompt_templates = []
+    end
+
     # AIチャットの会話履歴を取得
     @ai_conversations = get_ai_conversations
+
     # チャット内容をプリセット用にセット（パラメーターで指定されている場合）
     if params[:from_chat].present?
       @meeting_minute.content = params[:content] if params[:content].present?
     end
+  rescue => e
+    Rails.logger.error "Error in meeting_minutes#new: #{e.message}"
+    Rails.logger.error e.backtrace.join("\n")
+
+    # エラー時でも基本的な情報は設定
+    @meeting_minute ||= @character.meeting_minutes.build
+    @meeting_minute.meeting_date ||= Time.current
+    @prompt_templates ||= []
+    @ai_conversations ||= []
+
+    # エラーメッセージを表示
+    flash.now[:alert] = "データの読み込み中にエラーが発生しました: #{e.message}"
   end
 
   def create
@@ -359,30 +379,39 @@ class MeetingMinutesController < ApplicationController
 
   # AIチャットの会話履歴を取得
   def get_ai_conversations
-    # 最近の会話の一意な conversation_id を取得
-    conversation_ids = AiChat.where(character: @character)
-                             .select(:conversation_id)
-                             .distinct
-                             .order("MIN(created_at) DESC")
-                             .group(:conversation_id)
-                             .limit(10)
-                             .pluck(:conversation_id)
+    return [] unless defined?(AiChat)
+    return [] unless @character
 
-    # 各会話の詳細情報を取得
-    conversations = conversation_ids.map do |conv_id|
-      messages = AiChat.for_conversation(conv_id).recent.limit(5)
-      next if messages.empty?
+    begin
+      # 最近の会話の一意な conversation_id を取得
+      conversation_ids = AiChat.where(character: @character)
+                               .select(:conversation_id)
+                               .distinct
+                               .order("MIN(created_at) DESC")
+                               .group(:conversation_id)
+                               .limit(10)
+                               .pluck(:conversation_id)
 
-      {
-        conversation_id: conv_id,
-        created_at: messages.last.created_at,
-        preview: truncate_text(messages.first.content, 100),
-        message_count: AiChat.for_conversation(conv_id).count,
-        last_message_at: messages.first.created_at
-      }
-    end.compact.sort_by { |conv| conv[:last_message_at] }.reverse
+      # 各会話の詳細情報を取得
+      conversations = conversation_ids.map do |conv_id|
+        messages = AiChat.for_conversation(conv_id).recent.limit(5)
+        next if messages.empty?
 
-    conversations
+        {
+          conversation_id: conv_id,
+          created_at: messages.last.created_at,
+          preview: truncate_text(messages.first.content, 100),
+          message_count: AiChat.for_conversation(conv_id).count,
+          last_message_at: messages.first.created_at
+        }
+      end.compact.sort_by { |conv| conv[:last_message_at] }.reverse
+
+      conversations
+    rescue => e
+      Rails.logger.error "Failed to get AI conversations: #{e.message}"
+      Rails.logger.error e.backtrace.join("\n")
+      []
+    end
   end
 
   # AIチャット履歴から議事録を生成
@@ -420,37 +449,42 @@ class MeetingMinutesController < ApplicationController
     <<~PROMPT
       あなたは会議議事録作成の専門家です。AI秘書との会話履歴から、会議または打ち合わせに関連する情報を抽出し、適切な議事録形式で整理してください。
 
+      【重要】Markdown記号（##、**、*、-、_、`など）は一切使用せず、プレーンテキストで出力してください。
+
       【議事録の構成】
       1. 会議概要
-         - 会議名/打ち合わせの目的
-         - 日時（推定可能な場合）
-         - 参加者（会話から推測）
+         ・会議名/打ち合わせの目的
+         ・日時（推定可能な場合）
+         ・参加者（会話から推測）
       #{'   '}
       2. 議題・検討事項
-         - 主要な話題
-         - 検討された課題
+         ・主要な話題
+         ・検討された課題
       #{'   '}
       3. 主な内容・発言
-         - 重要なポイント
-         - 意見や提案
+         ・重要なポイント
+         ・意見や提案
       #{'   '}
       4. 決定事項・合意内容
-         - 決まったこと
-         - 合意された内容
+         ・決まったこと
+         ・合意された内容
       #{'   '}
       5. 今後のアクション・課題
-         - 次に行うべきこと
-         - 持ち越し課題
+         ・次に行うべきこと
+         ・持ち越し課題
       #{'   '}
       6. その他
-         - 補足事項
-         - 参考情報
+         ・補足事項
+         ・参考情報
 
       【注意事項】
       - 会話の文脈から会議の性質を推測し、適切な議事録として整理してください
       - 個人情報や機密性の高い内容は適切に匿名化してください
       - 会話にない情報は推測せず、「（詳細は要確認）」等の注釈を入れてください
       - 読みやすく、実用的な議事録として作成してください
+      - 見出しには「【】」や数字を使い、Markdown記号（##、**など）は一切使わないでください
+      - 箇条書きは「・」または数字（1. 2. 3.）を使用してください
+      - プレーンテキストとして自然に読める形式で出力してください
     PROMPT
   end
 

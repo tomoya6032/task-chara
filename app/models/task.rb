@@ -94,12 +94,31 @@ class Task < ApplicationRecord
   def category_display
     case category
     when "welfare"
-      "\u8A2A\u554F\u798F\u7949 \u{1F3E0}"
+      "訪問福祉 🏠"
     when "web"
-      "Web\u5236\u4F5C \u{1F4BB}"
+      "Web制作 💻"
     when "admin"
-      "\u4E8B\u52D9\u4F5C\u696D \u{1F4CB}"
+      "事務作業 📋"
+    when "personal"
+      "個人"
+    when "work"
+      "仕事"
+    when "meeting"
+      "ミーティング"
+    when "task_deadline"
+      "タスク期限"
     else
+      # カスタムカテゴリの名前を取得
+      if character&.calendar_settings.present?
+        settings = character.calendar_settings_hash
+        cats = settings["custom_categories"]
+        # インデックス付きハッシュを配列に変換
+        cats = cats.values if cats.is_a?(Hash) && cats.keys.all? { |k| k.to_s =~ /^\d+$/ }
+        if cats.is_a?(Array)
+          custom_cat = cats.find { |c| c["id"] == category }
+          return custom_cat["name"] if custom_cat
+        end
+      end
       category
     end
   end

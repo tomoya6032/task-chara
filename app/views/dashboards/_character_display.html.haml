@@ -1,9 +1,17 @@
 / app/views/dashboards/_character_display.html.haml
 .bg-white.dark:bg-slate-800.overflow-hidden.shadow-xl.rounded-2xl.mb-8
   .px-4.py-6.sm:px-6.lg:px-8
+    / ユーザーウェルカムメッセージ
+    .text-center.mb-4
+      %h1.text-3xl.font-bold.text-slate-900.dark:text-white
+        = current_user.name
+        %span.text-slate-600.dark:text-slate-400 さん、こんにちは👋
+    
     / キャラクター表示エリア
     .text-center.mb-6
-      %h2.text-2xl.font-bold.text-slate-900.dark:text-white.mb-2
+      %p.text-base.text-slate-600.dark:text-slate-400.mb-1
+        あなたのキャラクター
+      %h2.text-xl.font-semibold.text-blue-600.dark:text-blue-400.mb-2
         = character.name
       %p.text-sm.text-slate-500.dark:text-slate-400
         = character.overall_status

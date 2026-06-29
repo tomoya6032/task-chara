@@ -5,8 +5,8 @@ class MeetingMinute < ApplicationRecord
 
   # 会議タイプ定義
   enum :meeting_type, {
-    support_meeting: 0,    # 利用者支援会議
-    professional_meeting: 1 # 専門職団体会議
+    regular_meeting: 0,    # 通常の会議議事録
+    medical_visit: 1       # 診察同行の要約
   }
 
   # ステータス定義
@@ -26,12 +26,12 @@ class MeetingMinute < ApplicationRecord
 
   def meeting_type_display
     case meeting_type
-    when "support_meeting"
-      "\u5229\u7528\u8005\u652F\u63F4\u4F1A\u8B70"
-    when "professional_meeting"
-      "\u5C02\u9580\u8077\u56E3\u4F53\u4F1A\u8B70"
+    when "regular_meeting"
+      "通常の会議議事録"
+    when "medical_visit"
+      "診察同行の要約"
     else
-      "\u4E0D\u660E"
+      "不明"
     end
   end
 

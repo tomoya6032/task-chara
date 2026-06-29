@@ -27,9 +27,15 @@ class ApplicationController < ActionController::Base
 
   # 現在のユーザーのキャラクターを取得
   def set_character
+    unless current_user
+      redirect_to root_path, alert: "ログインが必要です。"
+      return
+    end
+
     @character = current_user.character
     unless @character
       redirect_to root_path, alert: "キャラクターが見つかりません。"
+      nil
     end
   end
 
