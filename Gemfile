@@ -117,4 +117,9 @@ group :test do
   gem "selenium-webdriver"
 end
 
+group :production do
+  # AWS S3 for Active Storage in production
+  gem "aws-sdk-s3", require: false
+end
+
 gem "tailwindcss-rails", "~> 4.4"
