@@ -557,6 +557,7 @@ DEPENDENCIES
   letter_opener_web
   line-bot-api
   listen
+  matrix
   mini_magick (~> 4.11)
   pg (~> 1.1)
   prawn

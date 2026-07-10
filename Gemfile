@@ -68,6 +68,7 @@ gem "mini_magick", "~> 4.11"
 gem "prawn"
 gem "wicked_pdf"
 gem "wkhtmltopdf-binary"
+gem "matrix"
 
 # Reduces boot times through caching; required in config/boot.rb
 gem "bootsnap", require: false
