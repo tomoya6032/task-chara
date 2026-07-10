@@ -9,8 +9,9 @@ module LineBotClient
     token = ENV["LINE_CHANNEL_TOKEN"] || ENV["LINE_CHANNEL_ACCESS_TOKEN"] || Rails.application.credentials.dig(:line, :channel_token)
 
     if token.blank?
-      Rails.logger.error "[LINE Bot] LINE_CHANNEL_TOKEN not configured"
-      raise "LINE_CHANNEL_TOKEN is not set. Please configure environment variables."
+      Rails.logger.warn "[LINE Bot] ⚠️ LINE_CHANNEL_TOKEN not configured"
+      # アセットコンパイル時やRakeタスク実行時は警告のみ、エラーで落とさない
+      return nil
     end
 
     Line::Bot::V2::MessagingApi::ApiClient.new(channel_access_token: token)
@@ -21,28 +22,26 @@ module LineBotClient
     secret = ENV["LINE_CHANNEL_SECRET"] || Rails.application.credentials.dig(:line, :channel_secret)
 
     if secret.blank?
-      Rails.logger.error "[LINE Bot] LINE_CHANNEL_SECRET not configured"
-      raise "LINE_CHANNEL_SECRET is not set. Please configure environment variables."
+      Rails.logger.warn "[LINE Bot] ⚠️ LINE_CHANNEL_SECRET not configured"
+      # アセットコンパイル時やRakeタスク実行時は警告のみ、エラーで落とさない
+      return nil
     end
 
     Line::Bot::V2::WebhookParser.new(channel_secret: secret)
   end
 end
 
-# 起動時に設定を確認（本番環境のみ）
-if Rails.env.production?
-  begin
-    token = ENV["LINE_CHANNEL_TOKEN"] || ENV["LINE_CHANNEL_ACCESS_TOKEN"]
-    secret = ENV["LINE_CHANNEL_SECRET"]
+# アセットコンパイル時以外（通常のアプリ起動時）のみ、エラーチェックを行う
+unless ENV["RAILS_GROUPS"] == "assets" || defined?(Rake) && Rake.application.top_level_tasks.include?("assets:precompile")
+  token = ENV["LINE_CHANNEL_TOKEN"] || ENV["LINE_CHANNEL_ACCESS_TOKEN"]
+  secret = ENV["LINE_CHANNEL_SECRET"]
 
-    if token.present? && secret.present?
-      Rails.logger.info "[LINE Bot] ✅ LINE credentials configured successfully"
-    else
-      Rails.logger.warn "[LINE Bot] ⚠️  LINE credentials not fully configured"
-      Rails.logger.warn "[LINE Bot]    - TOKEN: #{token.present? ? 'OK' : 'MISSING'}"
-      Rails.logger.warn "[LINE Bot]    - SECRET: #{secret.present? ? 'OK' : 'MISSING'}"
-    end
-  rescue => e
-    Rails.logger.error "[LINE Bot] ❌ Error checking LINE configuration: #{e.message}"
+  # ⭕️ エラーで落とさず、画面に警告を出すだけに留める
+  if secret.blank? || token.blank?
+    puts "[LINE Bot] ⚠️ LINE credentials not fully configured"
+    puts "[LINE Bot]    - TOKEN: #{token.present? ? 'OK' : 'MISSING'}"
+    puts "[LINE Bot]    - SECRET: #{secret.present? ? 'OK' : 'MISSING'}"
+  else
+    puts "[LINE Bot] ✅ LINE credentials configured successfully"
   end
 end
