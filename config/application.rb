@@ -14,10 +14,20 @@ module TaskCharacter
     # Initialize configuration defaults for originally generated Rails version.
     config.load_defaults 8.0
 
-    # 🔧 アセットコンパイル時の安全対策
-    # アセットコンパイル時は credentials の読み込みを完全にスキップ
-    if ENV["RAILS_GROUPS"] == "assets" || (defined?(Rake.application) && Rake.application.top_level_tasks.include?("assets:precompile"))
+    # 🔧 アセットコンパイル時の包括的な安全対策（Herokuデプロイ対応）
+    # アセットコンパイル時は credentials や暗号化キーの読み込みを完全にスキップ
+    is_asset_precompile = ENV["RAILS_GROUPS"] == "assets" ||
+                          (defined?(Rake.application) && Rake.application.top_level_tasks.include?("assets:precompile"))
+
+    if is_asset_precompile
+      # 1. Master key を要求しない（credentials.yml.enc を読み込まない）
       config.require_master_key = false
+
+      # 2. ActiveRecord の暗号化機能をダミーキーで初期化（エラー回避）
+      # Rails 8 のデフォルト暗号化設定が原因でビルドが失敗するのを防ぐ
+      config.active_record.encryption.primary_key = "0" * 32  # 32バイトのダミーキー
+      config.active_record.encryption.deterministic_key = "0" * 32  # 32バイトのダミーキー
+      config.active_record.encryption.key_derivation_salt = "0" * 32  # 32バイトのダミーソルト
     end
 
     # Please, add to the `ignore` list any other `lib` subdirectories that do
