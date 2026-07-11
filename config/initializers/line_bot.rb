@@ -32,7 +32,7 @@ module LineBotClient
 end
 
 # アセットコンパイル時以外（通常のアプリ起動時）のみ、エラーチェックを行う
-unless ENV["RAILS_GROUPS"] == "assets" || defined?(Rake) && Rake.application.top_level_tasks.include?("assets:precompile")
+unless ENV["RAILS_GROUPS"] == "assets" || (defined?(Rake.application) && Rake.application.top_level_tasks.include?("assets:precompile"))
   token = ENV["LINE_CHANNEL_TOKEN"] || ENV["LINE_CHANNEL_ACCESS_TOKEN"]
   secret = ENV["LINE_CHANNEL_SECRET"]
 

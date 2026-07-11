@@ -1,7 +1,7 @@
 # config/initializers/openai.rb
 
 # 本番環境のビルド（アセットコンパイル）時は、OpenAIの初期化をスキップする
-return if ENV["RAILS_GROUPS"] == "assets" || (defined?(Rake) && Rake.application.top_level_tasks.include?("assets:precompile"))
+return if ENV["RAILS_GROUPS"] == "assets" || (defined?(Rake.application) && Rake.application.top_level_tasks.include?("assets:precompile"))
 
 OpenAI.configure do |config|
   config.access_token = ENV["OPENAI_API_KEY"] || Rails.application.credentials.dig(:openai, :api_key) || ENV["OPENAI_ACCESS_TOKEN"]
