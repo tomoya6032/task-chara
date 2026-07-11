@@ -14,6 +14,12 @@ module TaskCharacter
     # Initialize configuration defaults for originally generated Rails version.
     config.load_defaults 8.0
 
+    # 🔧 アセットコンパイル時の安全対策
+    # アセットコンパイル時は credentials の読み込みを完全にスキップ
+    if ENV["RAILS_GROUPS"] == "assets" || (defined?(Rake) && Rake.application.top_level_tasks.include?("assets:precompile"))
+      config.require_master_key = false
+    end
+
     # Please, add to the `ignore` list any other `lib` subdirectories that do
     # not contain `.rb` files, or that should not be reloaded or eager loaded.
     # Common ones are `templates`, `generators`, or `middleware`, for example.

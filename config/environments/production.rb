@@ -6,8 +6,26 @@ Rails.application.configure do
   # Code is not reloaded between requests.
   config.enable_reloading = false
 
-  # Eager load code on boot for better performance and memory savings (ignored by Rake tasks).
-  config.eager_load = true
+  # 🔧 アセットコンパイル時の特別な設定（Herokuデプロイ対策）
+  # アセットコンパイル時は credentials や DB 接続を必要としない
+  is_asset_precompile = ENV["RAILS_GROUPS"] == "assets" ||
+                        (defined?(Rake) && Rake.application.top_level_tasks.include?("assets:precompile"))
+
+  if is_asset_precompile
+    # アセットコンパイル時は master key を要求しない（credentialsを読まない）
+    config.require_master_key = false
+    # アセットコンパイル時は eager load を無効化（モデルやルーティングを読み込まない）
+    config.eager_load = false
+    # アセットコンパイル時は ActiveStorage を無効化（AWS S3接続しない）
+    config.active_storage.service = :local
+  else
+    # 通常起動時のみ master key を要求
+    config.require_master_key = true
+    # 通常起動時は eager load を有効化
+    config.eager_load = true
+    # 通常起動時は AWS S3 を使用
+    config.active_storage.service = :amazon
+  end
 
   # Full error reports are disabled.
   config.consider_all_requests_local = false
@@ -20,9 +38,6 @@ Rails.application.configure do
 
   # Enable serving of images, stylesheets, and JavaScripts from an asset server.
   # config.asset_host = "http://assets.example.com"
-
-  # Store uploaded files on AWS S3 in production (see config/storage.yml for options).
-  config.active_storage.service = :amazon
 
   # Assume all access to the app is happening through a SSL-terminating reverse proxy.
   config.assume_ssl = true
