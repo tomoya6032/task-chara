@@ -9,7 +9,7 @@ Rails.application.configure do
   # 🔧 アセットコンパイル時の特別な設定（Herokuデプロイ対策）
   # アセットコンパイル時は credentials や DB 接続を必要としない
   is_asset_precompile = ENV["RAILS_GROUPS"] == "assets" ||
-                        (defined?(Rake) && Rake.application.top_level_tasks.include?("assets:precompile"))
+                        (defined?(Rake.application) && Rake.application.top_level_tasks.include?("assets:precompile"))
 
   if is_asset_precompile
     # アセットコンパイル時は master key を要求しない（credentialsを読まない）

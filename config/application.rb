@@ -16,7 +16,7 @@ module TaskCharacter
 
     # 🔧 アセットコンパイル時の安全対策
     # アセットコンパイル時は credentials の読み込みを完全にスキップ
-    if ENV["RAILS_GROUPS"] == "assets" || (defined?(Rake) && Rake.application.top_level_tasks.include?("assets:precompile"))
+    if ENV["RAILS_GROUPS"] == "assets" || (defined?(Rake.application) && Rake.application.top_level_tasks.include?("assets:precompile"))
       config.require_master_key = false
     end
 
