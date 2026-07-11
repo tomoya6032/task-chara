@@ -6,6 +6,13 @@ Rails.application.configure do
   # Code is not reloaded between requests.
   config.enable_reloading = false
 
+  # 本番環境のアセットコンパイル時のみ、マスターキーの必須チェックをスキップする
+  if ENV["RAILS_GROUPS"] == "assets" || (defined?(Rake) && Rake.application.top_level_tasks.include?("assets:precompile"))
+    config.require_master_key = false
+  else
+    config.require_master_key = true
+  end
+
   # Eager load code on boot for better performance and memory savings (ignored by Rake tasks).
   config.eager_load = true
 
