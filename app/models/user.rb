@@ -2,8 +2,9 @@
 class User < ApplicationRecord
   # Include default devise modules. Others available are:
   # :timeoutable, :trackable and :omniauthable
+  # NOTE: :confirmable を無効化（メール送信が無効のため）
   devise :database_authenticatable, :registerable,
-         :recoverable, :rememberable, :validatable, :confirmable, :lockable
+         :recoverable, :rememberable, :validatable, :lockable
 
   # ユーザーロールの定義
   enum :role, { individual: 0, enterprise_admin: 1, system_admin: 2 }, default: :individual

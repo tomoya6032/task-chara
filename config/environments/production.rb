@@ -71,13 +71,13 @@ Rails.application.configure do
   # 🔧 メール配信設定（SendGrid環境変数の有無で自動切り替え）
   # SendGridが設定されていない場合はメール配信を無効化（500エラー回避）
   sendgrid_configured = ENV["SENDGRID_USERNAME"].present? && ENV["SENDGRID_PASSWORD"].present?
-  
+
   if sendgrid_configured
     # SendGrid設定あり：メール配信を有効化
     config.action_mailer.raise_delivery_errors = true
     config.action_mailer.delivery_method = :smtp
     config.action_mailer.perform_deliveries = true
-    
+
     config.action_mailer.smtp_settings = {
       address: "smtp.sendgrid.net",
       port: 587,
