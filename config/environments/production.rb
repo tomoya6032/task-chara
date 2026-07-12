@@ -68,26 +68,36 @@ Rails.application.configure do
   config.active_job.queue_adapter = :solid_queue
   config.solid_queue.connects_to = { database: { writing: :queue } }
 
-  # Enable email delivery errors for production.
-  config.action_mailer.raise_delivery_errors = true
-  config.action_mailer.delivery_method = :smtp
-  config.action_mailer.perform_deliveries = true
+  # 🔧 メール配信設定（SendGrid環境変数の有無で自動切り替え）
+  # SendGridが設定されていない場合はメール配信を無効化（500エラー回避）
+  sendgrid_configured = ENV["SENDGRID_USERNAME"].present? && ENV["SENDGRID_PASSWORD"].present?
+  
+  if sendgrid_configured
+    # SendGrid設定あり：メール配信を有効化
+    config.action_mailer.raise_delivery_errors = true
+    config.action_mailer.delivery_method = :smtp
+    config.action_mailer.perform_deliveries = true
+    
+    config.action_mailer.smtp_settings = {
+      address: "smtp.sendgrid.net",
+      port: 587,
+      domain: ENV["APP_HOST"] || "herokuapp.com",
+      user_name: ENV["SENDGRID_USERNAME"],
+      password: ENV["SENDGRID_PASSWORD"],
+      authentication: :plain,
+      enable_starttls_auto: true
+    }
+  else
+    # SendGrid未設定：メール配信を無効化
+    config.action_mailer.raise_delivery_errors = false
+    config.action_mailer.perform_deliveries = false
+    puts "[Mailer] ⚠️ SendGrid not configured, email delivery disabled"
+  end
 
   # Set host to be used by links generated in mailer templates.
   config.action_mailer.default_url_options = {
     host: ENV["APP_HOST"] || "localhost:3000",
     protocol: "https"
-  }
-
-  # SendGrid SMTP settings (Heroku addon)
-  config.action_mailer.smtp_settings = {
-    address: "smtp.sendgrid.net",
-    port: 587,
-    domain: ENV["APP_HOST"] || "herokuapp.com",
-    user_name: ENV["SENDGRID_USERNAME"],
-    password: ENV["SENDGRID_PASSWORD"],
-    authentication: :plain,
-    enable_starttls_auto: true
   }
 
   # Enable locale fallbacks for I18n (makes lookups for any locale fall back to
