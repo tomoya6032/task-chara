@@ -4,45 +4,62 @@
 .px-4.sm:px-6.lg:px-8.py-8
   / カレンダーヘッダー
   .header.bg-white.border-b.border-gray-200.px-2.md:px-6.py-4.rounded-lg.shadow-sm.mb-6
-    .flex.items-center.justify-between.flex-wrap.gap-4
+    / 1行目: タイトルとアクションボタン
+    .flex.items-center.justify-between.flex-wrap.gap-2.mb-4
       %h1.text-xl.md:text-2xl.font-semibold.text-gray-900.dark:text-white
         📅 カレンダー
       
-      .flex.items-center.space-x-2.md:space-x-4.flex-wrap.gap-2
-        / 期間ナビゲーション
-        .flex.items-center.space-x-2
-          - if @view_type == 'week'
-            = link_to calendar_index_path(view: 'week', date: (@start_date - 7).to_s),
-                class: "nav-btn", title: "前の週" do
-              ←
-            = link_to calendar_index_path(view: 'week', date: (@start_date + 7).to_s),
-                class: "nav-btn", title: "次の週" do
-              →
-            %span.text-sm.md:text-lg.font-medium.text-gray-900.dark:text-white
-              = "#{@start_date.strftime('%Y年%m月%d日')} 〜 #{@end_date.strftime('%m月%d日')}"
-          - else
-            %button#prev-month.nav-btn{ type: "button" } ←
-            %button#next-month.nav-btn{ type: "button" } →
-            %span#current-month.text-sm.md:text-lg.font-medium.text-gray-900.dark:text-white
-              = @date.strftime("%Y年%m月")
-        
-        / 表示選択
-        .flex.bg-gray-100.dark:bg-slate-700.rounded-md.p-1
-          = link_to calendar_index_path(view: 'month', date: @date.to_s),
-              class: "view-btn #{@view_type == 'month' ? 'active' : ''}" do
-            月
-          = link_to calendar_index_path(view: 'week', date: @date.to_s),
-              class: "view-btn #{@view_type == 'week' ? 'active' : ''}" do
-            週
-        
+      .flex.items-center.gap-2
         / イベント作成ボタン
-        %button.bg-blue-600.text-white.px-2.md:px-4.py-2.rounded-md.hover:bg-blue-700.transition-colors.text-sm.md:text-base{ onclick: "openNewEventModal()" }
+        %button.bg-blue-600.text-white.px-2.md:px-4.py-2.rounded-md.hover:bg-blue-700.transition-colors.text-sm.md:text-base{ onclick: "openNewEventModal()", style: "cursor: pointer;" }
           + 新しいイベント
         
         / 設定ボタン
         = link_to settings_calendar_index_path, 
-            class: "bg-gray-600.text-white.px-2.md:px-4.py-2.rounded-md.hover:bg-gray-700.transition-colors.text-sm.md:text-base.flex.items-center" do
+            class: "bg-gray-600.text-white.px-2.md:px-4.py-2.rounded-md.hover:bg-gray-700.transition-colors.text-sm.md:text-base.flex.items-center", style: "cursor: pointer;" do
           ⚙️ 設定
+    
+    / 2行目: 期間ナビゲーション（中央寄せ）
+    .flex.items-center.justify-center.gap-2.md:gap-4.mb-3
+      - if @view_type == 'week'
+        = link_to calendar_index_path(view: 'week', date: (@start_date - 7).to_s),
+            class: "nav-btn", title: "前の週" do
+          %span.nav-arrow ◀
+          %span.nav-text 前週
+        %span.text-sm.md:text-lg.font-semibold.text-gray-900.dark:text-white.px-2.md:px-4.text-center
+          = "#{@start_date.strftime('%Y年%m月%d日')} 〜 #{@end_date.strftime('%m月%d日')}"
+        = link_to calendar_index_path(view: 'week', date: (@start_date + 7).to_s),
+            class: "nav-btn", title: "次の週" do
+          %span.nav-text 翌週
+          %span.nav-arrow ▶
+      - else
+        %button#prev-month.nav-btn{ type: "button" }
+          %span.nav-arrow ◀
+          %span.nav-text 前月
+        %span#current-month.text-sm.md:text-lg.font-semibold.text-gray-900.dark:text-white.px-2.md:px-4.text-center.whitespace-nowrap
+          = @date.strftime("%Y年%m月")
+        %button#next-month.nav-btn{ type: "button" }
+          %span.nav-text 翌月
+          %span.nav-arrow ▶
+    
+    / 3行目: 表示選択と日付検索（中央寄せ）
+    .flex.justify-center.items-center.gap-3.flex-wrap
+      / 表示選択
+      .flex.bg-gray-100.dark:bg-slate-700.rounded-md.p-1
+        = link_to calendar_index_path(view: 'month', date: @date.to_s),
+            class: "view-btn #{@view_type == 'month' ? 'active' : ''}" do
+          月
+        = link_to calendar_index_path(view: 'week', date: @date.to_s),
+            class: "view-btn #{@view_type == 'week' ? 'active' : ''}" do
+          週
+      
+      / 日付検索フォーム
+      .flex.items-center.gap-2.bg-white.border.border-gray-300.rounded-md.px-3.py-1.5
+        %label.text-xs.md:text-sm.text-gray-600.whitespace-nowrap{ for: "date-search-input" }
+          📆 日付検索:
+        %input#date-search-input.border.border-gray-300.rounded.px-2.py-1.text-sm{ type: "date", value: @date.strftime("%Y-%m-%d"), onchange: "jumpToDate(this.value)" }
+        %button#date-search-btn.bg-green-600.text-white.px-2.md:px-3.py-1.rounded.hover:bg-green-700.transition-colors.text-xs.md:text-sm{ type: "button", onclick: "jumpToDateFromInput()", style: "cursor: pointer;" }
+          検索
 
     / カラーインデックス（凡例）
     .color-legend.mt-4.p-4.bg-gray-50.rounded-lg.border.border-gray-200
@@ -75,7 +92,8 @@
                 ('calendar-other-month' unless day_data[:current_month]),
                 ('calendar-today' if day_data[:today]),
                 ('calendar-holiday' if day_data[:holiday]),
-                ('calendar-weekend' if day_data[:is_weekend] && @calendar_settings[:show_weekends])
+                ('calendar-weekend' if day_data[:is_weekend] && @calendar_settings[:show_weekends]),
+                ('calendar-highlight-date' if @highlight_date && day_data[:date] == @highlight_date)
               ].compact.join(' ')
             }
               .calendar-date-header
@@ -111,9 +129,10 @@
             .week-time-gutter
             - @week_days.each do |day|
               - is_today = day == Date.current
+              - is_highlight = @highlight_date && day == @highlight_date
               - holiday = @holidays.find { |h| h.date == day }
               = link_to calendar_index_path(view: 'week', date: day.to_s),
-                  class: "week-header-cell #{is_today ? 'week-header-today' : ''}" do
+                  class: "week-header-cell #{is_today ? 'week-header-today' : ''} #{is_highlight ? 'week-header-highlight' : ''}" do
                 .week-header-dow{ class: is_today ? 'text-blue-600 font-bold' : '' }
                   = %w[日 月 火 水 木 金 土][day.wday]
                 .week-header-date{ class: is_today ? 'week-date-today-circle' : '' }
@@ -127,15 +146,18 @@
               %span.week-allday-label 終日
             - @week_days.each do |day|
               - is_today = day == Date.current
-              .week-allday-cell{ class: is_today ? 'week-allday-cell-today' : '' }
-                / 終日イベント
+              - is_highlight = @highlight_date && day == @highlight_date
+              .week-allday-cell{ class: [is_today ? 'week-allday-cell-today' : '', is_highlight ? 'week-allday-cell-highlight' : ''].join(' ') }
+                / 終日イベント（開始時刻順にソート）
                 - allday_ev = @events.select { |e| (e.all_day || e.all_day?) && e.start_time.to_date <= day && e.end_time.to_date >= day }
+                - allday_ev = allday_ev.sort_by { |e| e.start_time }
                 - allday_ev.each do |event|
                   - parent_id = event.recurring_event_id || event.id
                   .week-allday-event{ data: { event_id: parent_id, event_type: event.event_type, occurrence_time: event.start_time.iso8601 }, onclick: "event.stopPropagation(); openEventDetailsModal(#{parent_id}, '#{event.start_time.iso8601}')" }
                     = event.title.truncate(16)
-                / 時刻指定の日跨ぎイベントの中間日（開始日・終了日を除く）
+                / 時刻指定の日跨ぎイベントの中間日（開始日・終了日を除く、開始時刻順にソート）
                 - multiday_ev = @events.select { |e| !e.all_day && !e.all_day? && e.start_time.to_date != e.end_time.to_date && e.start_time.to_date < day && e.end_time.to_date > day }
+                - multiday_ev = multiday_ev.sort_by { |e| e.start_time }
                 - multiday_ev.each do |event|
                   - parent_id = event.recurring_event_id || event.id
                   .week-allday-event.week-allday-event-span{ data: { event_id: parent_id, event_type: event.event_type, occurrence_time: event.start_time.iso8601 }, onclick: "event.stopPropagation(); openEventDetailsModal(#{parent_id}, '#{event.start_time.iso8601}')" }
@@ -154,7 +176,8 @@
               / 各日のイベント列
               - @week_days.each do |day|
                 - is_today = day == Date.current
-                .week-day-column{ class: is_today ? 'week-day-today' : '' }
+                - is_highlight = @highlight_date && day == @highlight_date
+                .week-day-column{ class: [is_today ? 'week-day-today' : '', is_highlight ? 'week-day-highlight' : ''].join(' ') }
                   / 時間セル（1時間ごと）
                   - (0..23).each do |hour|
                     .week-hour-cell{ data: { date: day.to_s, hour: hour } }
@@ -231,8 +254,8 @@
         日表示は開発中です
 
   / イベント作成モーダル
-  #event-modal.fixed.inset-0.hidden.flex.items-center.justify-center{ style: "background: rgba(0,0,0,0.72); z-index: 9999;" }
-    .bg-white.rounded-lg.shadow-lg.p-6.w-96
+  #event-modal.fixed.inset-0.hidden.flex.items-center.justify-center.p-4{ style: "background: rgba(0,0,0,0.72); z-index: 9999;" }
+    .bg-white.rounded-lg.shadow-lg.p-6.w-96{ style: "max-height: 90vh; overflow-y: auto;" }
       %h3.text-lg.font-medium.text-gray-900.mb-4
         新しいイベント
 
@@ -378,15 +401,15 @@
                     %input#end-count-input.border.border-gray-300.rounded-md.px-2.py-1.text-sm.w-20{ type: "number", name: "event[recurrence][count]", min: "1", max: "999", value: "10", disabled: true }
                     %span.text-sm.text-gray-700 回
 
-        .flex.justify-end.space-x-3
+        .flex.justify-end.space-x-3.pb-safe.pb-4
           %button.bg-gray-200.text-gray-800.px-4.py-2.rounded-md.hover:bg-gray-300.transition-colors{ type: "button", onclick: "closeEventModal()" }
             キャンセル
           %button#submit-btn.bg-blue-600.text-white.px-4.py-2.rounded-md.hover:bg-blue-700.transition-colors{ type: "submit" }
             作成
 
   / イベント詳細モーダル
-  #event-details-modal.fixed.inset-0.bg-black.hidden.flex.items-center.justify-center{ style: "background: rgba(0,0,0,0.72); z-index: 9999;" }
-    .bg-white.rounded-lg.shadow-lg.p-6.w-96
+  #event-details-modal.fixed.inset-0.bg-black.hidden.flex.items-center.justify-center.p-4{ style: "background: rgba(0,0,0,0.72); z-index: 9999;" }
+    .bg-white.rounded-lg.shadow-lg.p-6.w-96{ style: "max-height: 90vh; overflow-y: auto;" }
       %h3.text-lg.font-medium.text-gray-900.mb-4
         📅 イベント詳細
 
@@ -414,7 +437,7 @@
             .font-medium.text-gray-700 🔁 繰り返し設定:
             .text-gray-900#event-detail-recurring
 
-      .flex.justify-end.space-x-3.mt-6
+      .flex.justify-end.space-x-3.mt-6.pb-safe.pb-4
         %button.bg-gray-200.text-gray-800.px-4.py-2.rounded-md.hover:bg-gray-300.transition-colors{ type: "button", onclick: "closeEventDetailsModal()" }
           閉じる
         %button#notify-event-btn.bg-emerald-600.text-white.px-4.py-2.rounded-md.hover:bg-emerald-700.transition-colors{ type: "button", onclick: "notifyEventToLine()" }
@@ -425,8 +448,8 @@
           削除
 
   / イベント編集モーダル
-  #event-edit-modal.fixed.inset-0.hidden.flex.items-center.justify-center{ style: "background: rgba(0,0,0,0.72); z-index: 9999;" }
-    .bg-white.rounded-lg.shadow-lg.p-6.w-96
+  #event-edit-modal.fixed.inset-0.hidden.flex.items-center.justify-center.p-4{ style: "background: rgba(0,0,0,0.72); z-index: 9999;" }
+    .bg-white.rounded-lg.shadow-lg.p-6.w-96{ style: "max-height: 90vh; overflow-y: auto;" }
       %h3.text-lg.font-medium.text-gray-900.mb-4
         ✏️ イベント編集
 
@@ -551,15 +574,15 @@
                     %input#edit-end-count-input.border.border-gray-300.rounded-md.px-2.py-1.text-sm.w-20{ type: "number", name: "event[recurrence][count]", min: "1", max: "999", value: "10", disabled: true }
                     %span.text-sm.text-gray-700 回
 
-        .flex.justify-end.space-x-3
+        .flex.justify-end.space-x-3.pb-safe.pb-4
           %button.bg-gray-200.text-gray-800.px-4.py-2.rounded-md.hover:bg-gray-300.transition-colors{ type: "button", onclick: "closeEditEventModal()" }
             キャンセル
           %button#edit-submit-btn.bg-blue-600.text-white.px-4.py-2.rounded-md.hover:bg-blue-700.transition-colors{ type: "submit" }
             更新
 
   / 削除確認モーダル
-  #delete-confirm-modal.fixed.inset-0.hidden.flex.items-center.justify-center{ style: "background: rgba(0,0,0,0.72); z-index: 9999;" }
-    .bg-white.rounded-lg.shadow-lg.p-6.w-96
+  #delete-confirm-modal.fixed.inset-0.hidden.flex.items-center.justify-center.p-4{ style: "background: rgba(0,0,0,0.72); z-index: 9999;" }
+    .bg-white.rounded-lg.shadow-lg.p-6.w-96{ style: "max-height: 90vh; overflow-y: auto;" }
       %h3.text-lg.font-medium.text-red-600.mb-4
         🗑️ イベント削除確認
 
@@ -570,15 +593,15 @@
         %br
         %strong#delete-event-title
 
-      .flex.justify-end.space-x-3
+      .flex.justify-end.space-x-3.pb-safe.pb-4
         %button.bg-gray-200.text-gray-800.px-4.py-2.rounded-md.hover:bg-gray-300.transition-colors{ type: "button", onclick: "closeDeleteConfirmModal()" }
           キャンセル
         %button#confirm-delete-btn.bg-red-600.text-white.px-4.py-2.rounded-md.hover:bg-red-700.transition-colors{ type: "button", onclick: "confirmDeleteEvent()" }
           削除
 
   / 繰り返し予定の削除スコープ選択モーダル
-  #delete-scope-modal.fixed.inset-0.hidden.flex.items-center.justify-center{ style: "background: rgba(0,0,0,0.72); z-index: 9999;" }
-    .bg-white.rounded-lg.shadow-lg.p-6.w-96
+  #delete-scope-modal.fixed.inset-0.hidden.flex.items-center.justify-center.p-4{ style: "background: rgba(0,0,0,0.72); z-index: 9999;" }
+    .bg-white.rounded-lg.shadow-lg.p-6.w-96{ style: "max-height: 90vh; overflow-y: auto;" }
       %h3.text-lg.font-medium.text-gray-800.mb-4
         🔄 繰り返し予定の削除
 
@@ -606,15 +629,15 @@
             .font-medium すべての予定
             .text-sm.text-gray-600 シリーズ全体を削除
 
-      .flex.justify-end.space-x-3
+      .flex.justify-end.space-x-3.pb-safe.pb-4
         %button.bg-gray-200.text-gray-800.px-4.py-2.rounded-md.hover:bg-gray-300.transition-colors{ type: "button", onclick: "closeDeleteScopeModal()" }
           キャンセル
         %button#confirm-delete-scope-btn.bg-red-600.text-white.px-4.py-2.rounded-md.hover:bg-red-700.transition-colors{ type: "button", onclick: "confirmDeleteWithScope()" }
           削除
 
   / 繰り返し予定の編集スコープ選択モーダル
-  #edit-scope-modal.fixed.inset-0.hidden.flex.items-center.justify-center{ style: "background: rgba(0,0,0,0.72); z-index: 9999;" }
-    .bg-white.rounded-lg.shadow-lg.p-6.w-96
+  #edit-scope-modal.fixed.inset-0.hidden.flex.items-center.justify-center.p-4{ style: "background: rgba(0,0,0,0.72); z-index: 9999;" }
+    .bg-white.rounded-lg.shadow-lg.p-6.w-96{ style: "max-height: 90vh; overflow-y: auto;" }
       %h3.text-lg.font-medium.text-gray-800.mb-4
         🔄 繰り返し予定の編集
 
@@ -642,7 +665,7 @@
             .font-medium すべての予定
             .text-sm.text-gray-600 シリーズ全体を変更
 
-      .flex.justify-end.space-x-3
+      .flex.justify-end.space-x-3.pb-safe.pb-4
         %button.bg-gray-200.text-gray-800.px-4.py-2.rounded-md.hover:bg-gray-300.transition-colors{ type: "button", onclick: "closeEditScopeModal()" }
           キャンセル
         %button#confirm-edit-scope-btn.bg-blue-600.text-white.px-4.py-2.rounded-md.hover:bg-blue-700.transition-colors{ type: "button", onclick: "confirmEditWithScope()" }
@@ -711,6 +734,13 @@
   }
   .week-header-today {
     background: #eff6ff;
+  }
+  
+  /* 週表示の日付検索ハイライト */
+  .week-header-highlight {
+    background: #fef3c7 !important;
+    box-shadow: inset 0 -3px 0 0 #f59e0b;
+    animation: highlight-pulse 1.5s ease-in-out 3;
   }
 
   .week-header-dow {
@@ -810,6 +840,11 @@
   .week-allday-cell-today {
     background: #fafbff;
   }
+  
+  .week-allday-cell-highlight {
+    background: #fef3c7 !important;
+  }
+  
   .week-allday-event {
     border-radius: 3px;
     padding: 1px 4px;
@@ -875,6 +910,10 @@
   }
   .week-day-today {
     background: #fafbff;
+  }
+  
+  .week-day-highlight {
+    background: #fef3c7 !important;
   }
 
   /* 1時間セル */
@@ -953,9 +992,47 @@
     min-width: 36px;
   }
   
+  /* 強化されたナビゲーションボタン */
+  .nav-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    padding: 0.625rem 1rem;
+    background: linear-gradient(to bottom, #ffffff, #f9fafb);
+    border: 1.5px solid #d1d5db;
+    border-radius: 0.5rem;
+    color: #374151;
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer !important;
+    transition: all 0.2s ease-in-out;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    min-height: 2.5rem;
+    white-space: nowrap;
+  }
+  
   .nav-btn:hover {
+    background: linear-gradient(to bottom, #f9fafb, #f3f4f6);
+    border-color: #9ca3af;
+    box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
+    cursor: pointer !important;
+  }
+  
+  .nav-btn:active {
     background: #f3f4f6;
-    border-color: #d1d5db;
+    transform: translateY(0);
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  }
+  
+  .nav-arrow {
+    font-size: 1rem;
+    font-weight: bold;
+  }
+  
+  .nav-text {
+    display: inline;
   }
   
   .view-btn {
@@ -979,9 +1056,19 @@
   
   @media (max-width: 768px) {
     .nav-btn {
-      padding: 4px 8px;
-      font-size: 12px;
-      min-width: 32px;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.75rem;
+      min-height: 2.25rem;
+      gap: 0.25rem;
+    }
+    
+    .nav-text {
+      font-size: 0.75rem;
+      line-height: 1.2;
+    }
+    
+    .nav-arrow {
+      font-size: 1rem;
     }
     
     .view-btn {
@@ -1049,6 +1136,22 @@
   .calendar-today {
     background-color: #ecfdf5 !important;
     box-shadow: inset 0 0 0 2px #10b981;
+  }
+  
+  /* 日付検索でのハイライト表示 */
+  .calendar-highlight-date {
+    background-color: #fef3c7 !important;
+    box-shadow: inset 0 0 0 3px #f59e0b;
+    animation: highlight-pulse 1.5s ease-in-out 3;
+  }
+  
+  @keyframes highlight-pulse {
+    0%, 100% {
+      box-shadow: inset 0 0 0 3px #f59e0b;
+    }
+    50% {
+      box-shadow: inset 0 0 0 5px #f59e0b;
+    }
   }
   
   .calendar-date-header {
@@ -1307,6 +1410,31 @@
 
   // カスタムカテゴリの情報をJavaScript変数として定義
   window.customCategories = #{@custom_categories.to_json.html_safe};
+
+  // 日付検索機能：指定した日付にジャンプ
+  function jumpToDate(dateString) {
+    if (!dateString) {
+      console.warn('No date provided for search');
+      return;
+    }
+    
+    // 現在の表示モード（月/週）を取得
+    const currentViewType = '#{@view_type}';
+    
+    // 検索日付へリダイレクト（highlight_dateパラメータ付き）
+    const url = `/calendar?view=${currentViewType}&date=${dateString}&highlight_date=${dateString}`;
+    window.location.href = url;
+  }
+
+  // 入力フィールドから日付を取得して検索
+  function jumpToDateFromInput() {
+    const dateInput = document.getElementById('date-search-input');
+    if (dateInput && dateInput.value) {
+      jumpToDate(dateInput.value);
+    } else {
+      alert('日付を選択してください');
+    }
+  }
 
   // カレンダー初期化関数
   function initializeCalendar() {
@@ -2332,6 +2460,12 @@
     
     if (token) {
       formData.append('authenticity_token', token.getAttribute('content'));
+    }
+    
+    // デバッグ: FormDataの内容をログ出力
+    console.log('📝 Submitting event form with FormData:');
+    for (let [key, value] of formData.entries()) {
+      console.log(`  ${key}: ${value}`);
     }
     
     submitBtn.disabled = true;

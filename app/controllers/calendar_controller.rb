@@ -1,6 +1,6 @@
 class CalendarController < ApplicationController
   before_action :set_character
-  before_action :set_date_params
+  before_action :set_date_params, except: [ :settings, :update_settings ]
 
   def index
     @view_type = params[:view] || "month"
@@ -69,16 +69,21 @@ class CalendarController < ApplicationController
     Rails.logger.info "📝 Event creation started"
     Rails.logger.info "📝 Params: #{params.inspect}"
     Rails.logger.info "📝 Event params: #{event_params.inspect}"
+    Rails.logger.info "📝 Recurring checkbox value: #{params[:event][:recurring].inspect}"
+    Rails.logger.info "📝 Recurrence params present?: #{params[:event][:recurrence].present?}"
+    Rails.logger.info "📝 Recurrence params: #{params[:event][:recurrence].inspect}" if params[:event][:recurrence].present?
 
     @event = Event.new(normalized_event_attributes)
     @event.character = @character
 
     # 繰り返しイベントの処理
     if params[:event][:recurring] == "1" && params[:event][:recurrence].present?
+      Rails.logger.info "📝 ✅ Recurring event detected - building schedule"
       recurrence_params = params[:event][:recurrence]
       schedule = Event.build_schedule_from_params(@event.start_time, recurrence_params)
 
       if schedule
+        Rails.logger.info "📝 ✅ Schedule built successfully"
         @event.recurrence_rule = schedule.to_yaml
         @event.recurring = true
 
@@ -88,7 +93,11 @@ class CalendarController < ApplicationController
         elsif recurrence_params[:end_type] == "count" && recurrence_params[:count].present?
           @event.recurrence_count = recurrence_params[:count].to_i
         end
+      else
+        Rails.logger.error "📝 ❌ Failed to build schedule from recurrence params"
       end
+    else
+      Rails.logger.info "📝 ⚠️ Not a recurring event (recurring: #{params[:event][:recurring].inspect}, recurrence present: #{params[:event][:recurrence].present?})"
     end
 
     Rails.logger.info "📝 Event object: #{@event.inspect}"
@@ -474,9 +483,25 @@ class CalendarController < ApplicationController
     end
   end
 
+  # 以下のアクションはpublicとして定義
+  public
+
   # 設定画面
   def settings
-    @calendar_settings = load_calendar_settings
+    @calendar_settings = load_calendar_settings || {
+      show_holidays: true,
+      show_weekends: true,
+      show_task_deadlines: true,
+      default_view: "month",
+      start_week_on: "sunday",
+      timezone: "Asia/Tokyo",
+      custom_categories: [
+        { id: "personal", name: "個人", color: "#3B82F6" },
+        { id: "work", name: "仕事", color: "#10B981" },
+        { id: "meeting", name: "ミーティング", color: "#F59E0B" },
+        { id: "task_deadline", name: "タスク期限", color: "#EF4444" }
+      ]
+    }
     @color_options = color_options
   end
 
@@ -641,10 +666,14 @@ class CalendarController < ApplicationController
     @date = params[:date] ? Date.parse(params[:date]) : Time.zone.today
     @year = @date.year
     @month = @date.month
+
+    # 日付検索機能のためのハイライト対象日付
+    @highlight_date = params[:highlight_date] ? Date.parse(params[:highlight_date]) : nil
   rescue Date::Error
     @date = Time.zone.today
     @year = @date.year
     @month = @date.month
+    @highlight_date = nil
   end
 
   def parse_datetime_param
@@ -755,6 +784,21 @@ class CalendarController < ApplicationController
           event_date_range = (event.start_time.to_date..event.end_time.to_date)
           event_date_range.include?(current_date)
         }
+
+        # 予定を時間順にソート
+        # 1. 終日イベントを先に表示（作成順を維持）
+        # 2. その後、時間指定イベントを開始時刻の昇順で表示
+        day_events = day_events.sort_by do |event|
+          if event.all_day || event.all_day?
+            # 終日イベント: 開始時刻を0時として扱い、最初に表示
+            [ 0, event.start_time ]
+          else
+            # 時間指定イベント: 開始時刻の時・分・秒で並び替え
+            # 時刻を秒単位の数値に変換して比較
+            start_seconds = event.start_time.hour * 3600 + event.start_time.min * 60 + event.start_time.sec
+            [ 1, start_seconds, event.start_time ]
+          end
+        end
 
         # 祝日情報を取得
         day_holiday = @holidays&.find { |holiday| holiday.date == current_date }
@@ -933,6 +977,8 @@ class CalendarController < ApplicationController
   end
   # カレンダー設定関連
   def load_calendar_settings
+    Rails.logger.info "📅 Loading calendar settings for character: #{@character&.id}"
+
     settings = {
       show_holidays: true,
       show_weekends: true,
@@ -950,6 +996,7 @@ class CalendarController < ApplicationController
 
     # ユーザーの設定があれば読み込み
     if @character&.calendar_settings.present?
+      Rails.logger.info "📅 Found user calendar settings"
       user_settings = @character.calendar_settings_hash
       # 文字列キーのハッシュをシンボルキーに変換（ただしcustom_categoriesは文字列キーのまま保持）
       user_settings.each do |key, value|
@@ -966,11 +1013,16 @@ class CalendarController < ApplicationController
           end
         end
       end
+    else
+      Rails.logger.info "📅 Using default calendar settings"
     end
 
+    Rails.logger.info "📅 Calendar settings loaded successfully"
     settings
-  rescue StandardError
+  rescue StandardError => e
     # JSON解析エラーの場合はデフォルト設定を返す
+    Rails.logger.error "📅 Error loading calendar settings: #{e.message}"
+    Rails.logger.error e.backtrace.join("\n")
     {
       show_holidays: true,
       show_weekends: true,

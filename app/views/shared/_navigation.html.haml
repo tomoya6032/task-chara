@@ -4,11 +4,9 @@
     .flex.grow.flex-col.gap-y-5.overflow-y-auto.bg-white.dark:bg-slate-800.px-6.border-r.border-slate-200.dark:border-slate-700
       / サイドバーロゴセクション（デスクトップのみ表示）
       .pt-6.pb-4.border-b.border-slate-200.dark:border-slate-700
-        = link_to root_path, class: "flex items-center space-x-3 hover:opacity-80 transition-opacity group" do
-          %span.text-3xl 📋
+        = link_to root_path, class: "flex items-center hover:opacity-80 transition-opacity group" do
           %span.text-2xl.font-bold.text-slate-900.dark:text-white.group-hover:text-blue-600.dark:group-hover:text-blue-400.transition-colors
-            TaskChara
-          %span.ml-2.text-sm.text-slate-500.bg-slate-100.dark:bg-slate-700.px-2.py-1.rounded ✨
+            CRM-lab
       
       / ナビゲーションメニュー
       %nav.flex.flex-1.flex-col.pt-4
@@ -73,19 +71,16 @@
                   設定
   / モバイル用ボトムナビゲーション（lg未満で表示）
   .fixed.bottom-0.left-0.right-0.z-50.bg-white.dark:bg-slate-800.border-t.border-slate-200.dark:border-slate-700.lg:hidden
-    .grid.grid-cols-5.py-2
-      = link_to new_activity_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400", data: { "turbo-frame": "activity_form_modal" } do
-        %span.text-lg 📖
-        %span.text-xs.mt-1 日報
-      = link_to ai_secretary_chat_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400" do
-        %span.text-lg 🤖
-        %span.text-xs.mt-1 秘書
-      = link_to calendar_index_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400" do
-        %span.text-lg 📅
-        %span.text-xs.mt-1 カレンダー
-      = link_to tasks_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400" do
-        %span.text-lg ✅
-        %span.text-xs.mt-1 タスク
-      = link_to settings_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400" do
-        %span.text-lg ⚙️
-        %span.text-xs.mt-1 設定
+    .flex.flex-row.justify-around.items-center.py-2
+      = link_to new_activity_path, class: "flex flex-col items-center py-2 px-2 text-slate-600 dark:text-slate-400 min-w-0", data: { "turbo-frame": "activity_form_modal" } do
+        %span.text-xl 📝
+        %span.text-xs.mt-1.whitespace-nowrap 日報作成
+      = link_to ai_secretary_chat_path, class: "flex flex-col items-center py-2 px-2 text-slate-600 dark:text-slate-400 min-w-0" do
+        %span.text-xl 🤖
+        %span.text-xs.mt-1.whitespace-nowrap 秘書
+      = link_to calendar_index_path, class: "flex flex-col items-center py-2 px-2 text-slate-600 dark:text-slate-400 min-w-0" do
+        %span.text-xl 📅
+        %span.text-xs.mt-1.whitespace-nowrap カレンダー
+      = link_to new_task_path, class: "flex flex-col items-center py-2 px-2 text-slate-600 dark:text-slate-400 min-w-0", data: { "turbo-frame": "task-modal" } do
+        %span.text-xl ✅
+        %span.text-xs.mt-1.whitespace-nowrap タスク作成

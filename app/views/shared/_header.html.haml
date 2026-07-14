@@ -2,13 +2,17 @@
 %header.bg-white.shadow-sm.border-b.border-slate-200.dark:bg-slate-800.dark:border-slate-700.fixed.w-full.top-0.z-50
   .max-w-7xl.mx-auto.px-4.sm:px-6.lg:px-8
     .flex.justify-between.items-center.h-16
-      / 左側: モバイル用ロゴ（lg未満で表示）
+      / 左側: モバイル用ハンバーガーメニューとロゴ（lg未満で表示）
       .flex.items-center.lg:hidden
+        / ハンバーガーメニューボタン
+        %button#mobile-menu-button.p-2.text-slate-600.dark:text-slate-400.hover:bg-slate-100.dark:hover:bg-slate-700.rounded-md.mr-2{ type: "button", onclick: "toggleMobileMenu()" }
+          %svg.w-6.h-6{ fill: "none", stroke: "currentColor", viewBox: "0 0 24 24" }
+            %path{ d: "M4 6h16M4 12h16M4 18h16", "stroke-linecap": "round", "stroke-linejoin": "round", "stroke-width": "2" }
+        
+        / モバイルロゴ
         = link_to root_path, class: "flex items-center space-x-2 hover:opacity-80 transition-opacity" do
-          %span.text-2xl 📋
           %span.text-lg.font-bold.text-slate-900.dark:text-white
-            TaskChara
-          %span.ml-1.text-xs.text-slate-500.bg-slate-100.dark:bg-slate-700.px-2.py-1.rounded ✨
+            CRM-lab
 
       / 中央: ページタイトル表示エリア
       .hidden.md:flex.items-center.lg:ml-0
@@ -32,3 +36,58 @@
           / 未ログインユーザー向け
           = link_to "ログイン", new_user_session_path, class: "inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           = link_to "新規登録", new_user_registration_path, class: "inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+
+  / モバイル用サイドメニュー（ハンバーガーメニュー展開時に表示）
+  - if user_signed_in?
+    #mobile-menu.fixed.inset-0.z-40.lg:hidden.hidden
+      / 背景オーバーレイ
+      .fixed.inset-0.bg-slate-900.bg-opacity-50{ onclick: "toggleMobileMenu()" }
+      
+      / メニューコンテンツ
+      .fixed.inset-y-0.left-0.w-64.bg-white.dark:bg-slate-800.shadow-xl.overflow-y-auto
+        / メニューヘッダー
+        .flex.items-center.justify-between.px-4.py-4.border-b.border-slate-200.dark:border-slate-700
+          %span.text-xl.font-bold.text-slate-900.dark:text-white
+            CRM-lab
+          %button.p-2.text-slate-600.dark:text-slate-400.hover:bg-slate-100.dark:hover:bg-slate-700.rounded-md{ type: "button", onclick: "toggleMobileMenu()" }
+            %svg.w-6.h-6{ fill: "none", stroke: "currentColor", viewBox: "0 0 24 24" }
+              %path{ d: "M6 18L18 6M6 6l12 12", "stroke-linecap": "round", "stroke-linejoin": "round", "stroke-width": "2" }
+        
+        / メニューリスト
+        %nav.px-4.py-4
+          %ul.space-y-2
+            %li
+              = link_to activities_path, class: "flex items-center px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md", onclick: "toggleMobileMenu()" do
+                %span.mr-3 📖
+                %span 日報一覧
+            %li
+              = link_to tasks_path, class: "flex items-center px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md", onclick: "toggleMobileMenu()" do
+                %span.mr-3 📋
+                %span タスク一覧
+            %li
+              = link_to support_reports_path, class: "flex items-center px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md", onclick: "toggleMobileMenu()" do
+                %span.mr-3 📄
+                %span 支援報告書一覧
+
+:javascript
+  function toggleMobileMenu() {
+    const menu = document.getElementById('mobile-menu');
+    if (menu) {
+      menu.classList.toggle('hidden');
+      // スクロールを防止/許可
+      if (menu.classList.contains('hidden')) {
+        document.body.style.overflow = '';
+      } else {
+        document.body.style.overflow = 'hidden';
+      }
+    }
+  }
+  
+  // ページ遷移時にメニューを閉じる（Turbo対応）
+  document.addEventListener('turbo:load', function() {
+    const menu = document.getElementById('mobile-menu');
+    if (menu && !menu.classList.contains('hidden')) {
+      menu.classList.add('hidden');
+      document.body.style.overflow = '';
+    }
+  });

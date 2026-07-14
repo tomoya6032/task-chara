@@ -1,7 +1,7 @@
 / 日報一覧ページ
 = content_for :page_title, "日報一覧"
 
-.px-4.sm:px-6.lg:px-8.py-8
+.px-4.sm:px-6.lg:px-8.py-8.pb-24.lg:pb-8
   / ヘッダー
   .mb-8
     %h1.text-3xl.font-bold.text-slate-900.dark:text-white
@@ -115,11 +115,11 @@
         📚 投稿履歴
 
     - if @activities.any?
-      .divide-y.divide-slate-200.dark:divide-slate-700
+      .divide-y.divide-slate-200.dark:divide-slate-700.pb-20.lg:pb-0
         - @activities.each do |activity|
           .px-6.py-4.hover:bg-slate-50.dark:hover:bg-slate-700.transition-colors
             .flex.items-start.justify-between
-              .flex-1
+              .flex-1.min-w-0
                 / タイトル表示
                 - if activity.title.present?
                   %h3.text-base.font-medium.text-slate-900.dark:text-white.mb-2
@@ -189,20 +189,21 @@
                       - if activity.visit_end_time.present?
                         = activity.visit_end_time.strftime("%m月%d日 %H:%M")
 
-              .ml-4.flex.space-x-2
-                = link_to edit_activity_path(activity), class: "inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors" do
+              / ボタングループ（常に右側に縦並び）
+              .ml-3.flex.flex-col.space-y-2.flex-shrink-0
+                = link_to edit_activity_path(activity), class: "inline-flex items-center justify-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors whitespace-nowrap" do
                   編集
                 = button_to extract_tasks_activity_path(activity),
                   method: :post,
                   params: { redirect_to: "activities_index" },
-                  class: "inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors",
+                  class: "inline-flex items-center justify-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors whitespace-nowrap",
                   data: { confirm: "この日報から予定・タスク候補を抽出してドラフト作成しますか？", disable_with: "🤖 解析中..." },
                   title: "AIが日報内容を解析し、承認前のドラフトを作成します" do
                   🤖 抽出
-                = link_to activity_path(activity), class: "inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-blue-600 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors" do
+                = link_to activity_path(activity), class: "inline-flex items-center justify-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-blue-600 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors whitespace-nowrap" do
                   詳細
     - else
-      .px-6.py-12.text-center
+      .px-6.py-12.pb-20.lg:pb-12.text-center
         %div
           %span.text-6xl.mb-4.block 📝
           %h3.text-lg.font-medium.text-slate-900.dark:text-white.mb-2
