@@ -449,9 +449,7 @@ class Event < ApplicationRecord
   end
 
   def reset_reminder_sent_flag
-    return unless metadata.is_a?(Hash)
-    meta = metadata.dup
-    meta.delete("line_reminder_sent_at")
-    self.metadata = meta
+    # line_reminded_at をリセット（reminder_minutes が変更されたとき）
+    self.line_reminded_at = nil
   end
 end

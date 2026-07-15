@@ -8,12 +8,19 @@
     %meta{:content => "yes", :name => "mobile-web-app-capable"}/
     / 会員制サイトのため検索エンジンのインデックスを禁止
     %meta{:name => "robots", :content => "noindex, nofollow, noarchive"}/
+    %meta{:name => "googlebot", :content => "noindex, nofollow"}/
     = csrf_meta_tags
     = csp_meta_tag
     = yield :head
-    %link{:href => "/icon.png", :rel => "icon", :type => "image/png"}/
-    %link{:href => "/icon.svg", :rel => "icon", :type => "image/svg+xml"}/
-    %link{:href => "/icon.png", :rel => "apple-touch-icon"}/
+    / PWA Manifest
+    %link{:rel => "manifest", :href => "/manifest.json"}/
+    / アイコン設定（ブラウザタブ用favicon）
+    %link{:href => "/favicon.ico", :rel => "icon", :type => "image/x-icon"}/
+    %link{:href => "/icon-192.png", :rel => "icon", :type => "image/png", :sizes => "192x192"}/
+    %link{:href => "/icon-512.png", :rel => "icon", :type => "image/png", :sizes => "512x512"}/
+    / Apple Touch Icons
+    %link{:href => "/icon-192.png", :rel => "apple-touch-icon", :sizes => "192x192"}/
+    %link{:href => "/icon-512.png", :rel => "apple-touch-icon", :sizes => "512x512"}/
     = stylesheet_link_tag "tailwind", "data-turbo-track": "reload"
     = stylesheet_link_tag :app, "data-turbo-track": "reload"
     = javascript_importmap_tags

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_06_29_065741) do
+ActiveRecord::Schema[8.0].define(version: 2026_07_15_023408) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -134,11 +134,13 @@ ActiveRecord::Schema[8.0].define(version: 2026_06_29_065741) do
     t.bigint "recurring_event_id"
     t.date "recurrence_end_date"
     t.integer "recurrence_count"
+    t.datetime "line_reminded_at"
     t.index ["character_id"], name: "index_events_on_character_id"
     t.index ["character_id"], name: "index_events_on_character_id_new"
     t.index ["end_time"], name: "index_events_on_end_time"
     t.index ["event_type"], name: "index_events_on_event_type"
     t.index ["external_id"], name: "index_events_on_external_id", unique: true
+    t.index ["line_reminded_at"], name: "index_events_on_line_reminded_at"
     t.index ["recurring"], name: "index_events_on_recurring"
     t.index ["recurring_event_id"], name: "index_events_on_recurring_event_id"
     t.index ["start_time", "end_time"], name: "index_events_on_start_time_and_end_time"

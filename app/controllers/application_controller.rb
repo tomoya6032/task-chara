@@ -2,6 +2,9 @@ class ApplicationController < ActionController::Base
   # Only allow modern browsers supporting webp images, web push, badges, import maps, CSS nesting, and CSS :has.
   allow_browser versions: :modern
 
+  # 検索エンジンのインデックスを禁止（会員制サイトのため）
+  before_action :set_no_index_header
+
   # Devise認証
   before_action :authenticate_user!
   before_action :configure_permitted_parameters, if: :devise_controller?
@@ -13,6 +16,11 @@ class ApplicationController < ActionController::Base
   rescue_from Pundit::NotAuthorizedError, with: :user_not_authorized
 
   private
+
+  # 検索エンジンのインデックスを禁止するHTTPヘッダーを設定
+  def set_no_index_header
+    response.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive"
+  end
 
   # Deviseパラメータの許可
   def configure_permitted_parameters

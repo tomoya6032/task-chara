@@ -578,12 +578,17 @@ class CalendarController < ApplicationController
       return
     end
 
+    category_name = event.display_category_name || "未設定"
+
     message = <<~TEXT.strip
-      📅 予定の通知
-      件名: #{event.title}
-      開始: #{event.start_time.strftime("%m月%d日 %H:%M")}
-      終了: #{event.end_time.strftime("%m月%d日 %H:%M")}
-      内容: #{event.description.present? ? event.description : "(説明なし)"}
+      🔔 予定が登録されました！
+
+      【カテゴリ】 #{category_name}
+      【件名】 #{event.title}
+      【開始】 #{event.start_time.strftime("%m月%d日 %H:%M")}
+      【終了】 #{event.end_time.strftime("%m月%d日 %H:%M")}
+
+      #{event.description.present? ? "【詳細】\n#{event.description}" : ""}
     TEXT
 
     success = ::LineBotService.new.send_message(user.line_user_id, message)

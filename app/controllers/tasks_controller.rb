@@ -133,12 +133,16 @@ class TasksController < ApplicationController
     end
 
     due_text = @task.due_date.present? ? @task.due_date.strftime("%m月%d日 %H:%M") : "期限なし"
+    category_name = @task.category_display || "未設定"
+
     message = <<~TEXT.strip
-      📋 タスクの通知
-      件名: #{@task.title}
-      期限: #{due_text}
-      カテゴリ: #{@task.category_display}
-      内容: #{@task.description.present? ? @task.description : "(説明なし)"}
+      🔔 タスクが登録されました！
+
+      【カテゴリ】 #{category_name}
+      【タスク名】 #{@task.title}
+      【期限】 #{due_text}
+
+      #{@task.description.present? ? "【詳細】\n#{@task.description}" : ""}
     TEXT
 
     success = ::LineBotService.new.send_message(user.line_user_id, message)

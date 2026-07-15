@@ -77,6 +77,8 @@ class LineBotService
   # @return [Boolean] 送信成功かどうか
   def send_event_reminder(line_user_id, event)
     start_str = event.start_time.strftime("%m月%d日 %H:%M")
+    category_name = event.display_category_name || "未設定"
+
     timing_label = case event.reminder_minutes
     when 30   then "30分前"
     when 60   then "1時間前"
@@ -85,11 +87,35 @@ class LineBotService
     when 4320 then "3日前"
     else "#{event.reminder_minutes}分前"
     end
+
     text = <<~TEXT.strip
       ⏰ リマインド（#{timing_label}）
-      「#{event.title}」の時間が近づいています。
-      開始時刻：#{start_str}
+
+      【カテゴリ】 #{category_name}
+      【件名】 #{event.title}
+      【開始時刻】 #{start_str}
+
       準備はよろしいですか？
+    TEXT
+    send_message(line_user_id, text)
+  end
+
+  # タスクの期限72時間前リマインドメッセージを送信
+  # @param line_user_id [String] 送信先のLINEユーザーID
+  # @param task [Task] リマインド対象のタスク
+  # @return [Boolean] 送信成功かどうか
+  def send_task_due_reminder(line_user_id, task)
+    due_str = task.due_date.present? ? task.due_date.strftime("%m月%d日 %H:%M") : "期限なし"
+    category_name = task.category_display || "未設定"
+
+    text = <<~TEXT.strip
+      🔔 タスクの期限が近づいています（72時間前）
+
+      【カテゴリ】 #{category_name}
+      【タスク名】 #{task.title}
+      【期限】 #{due_str}
+
+      準備を進めておきましょう！
     TEXT
     send_message(line_user_id, text)
   end
