@@ -500,5 +500,235 @@ Task.where.not(line_due_72h_notified_at: nil).order(line_due_72h_notified_at: :d
 
 ---
 
+## 🐛 デバッグコマンド（2026-07-15追加）
+
+### リマインドが送信されない場合のデバッグ手順
+
+#### 1. リマインド対象の状態を確認（最も重要）
+
+```bash
+# ローカル環境
+bin/rails reminders:check_status
+
+# Heroku環境
+heroku run bin/rails reminders:check_status --app your-app-name
+```
+
+**このコマンドで分かること:**
+- 全イベント/タスク数
+- リマインド設定されている件数
+- 未送信/送信済みの件数
+- 各イベント/タスクの詳細（開始時刻、リマインド時刻、LINE ID有無）
+- 送信対象かどうかの判定結果
+
+**出力例:**
+```
+📊 リマインド対象の状態確認
+================================================================================
+
+🕐 現在時刻（JST）: 2026-07-15 12:52:30 JST
+🕐 現在時刻（UTC）: 2026-07-15 03:52:30 UTC
+
+━━━ イベント ━━━
+  全イベント数: 202件
+  リマインド設定あり: 3件
+  └─ 未送信: 3件
+  └─ 送信済み: 0件
+
+  【未送信イベントの詳細】
+    - ID:103 「会議」
+      開始: 07/15 14:00
+      リマインド: 60分前 → 07/15 13:00
+      状態: ✅送信対象
+      LINE ID: U1234567890abcdef
+```
+
+#### 2. テスト実行（実際には送信しない）
+
+```bash
+# イベントリマインドのテスト
+heroku run bin/rails reminders:send_event_reminders --app your-app-name
+
+# タスクリマインドのテスト
+heroku run bin/rails reminders:send_task_reminders --app your-app-name
+
+# 両方実行
+heroku run bin/rails reminders:send_all --app your-app-name
+# または
+heroku run bin/rails reminders:send_line --app your-app-name
+```
+
+**詳細なログが出力されます:**
+```
+--- LINEリマインド判定開始（イベント） ---
+🕐 現在時刻（JST）: 2026-07-15 12:53:11 JST
+✅ LINE認証情報: 設定済み
+
+📊 データベース内の全イベント数: 202件
+📊 リマインド設定されている全イベント数: 3件
+📊 まだリマインド未送信のイベント数: 3件
+
+🔍 検索条件:
+  1. reminder_minutes が nil でない
+  2. line_reminded_at が nil（未送信）
+  3. start_time >= 2026-07-14 12:53:11（過去24時間以内または未来）
+  4. status が cancelled でない
+  5. users.line_user_id が nil でない
+
+📊 リマインド対象候補数: 1件
+
+🔔 処理中: イベント「会議」(ID: 103)
+  開始時刻: 2026-07-15 14:00:00 JST
+  リマインド時刻: 2026-07-15 13:00:00 JST
+  現在時刻: 2026-07-15 12:53:11 JST
+  判定: ⏰ まだリマインド時刻に達していません
+  結果: ⏭️ スキップ（あと7分後に送信予定）
+```
+
+#### 3. 送信済みフラグをリセット（テスト用）
+
+```bash
+# ローカル環境
+bin/rails reminders:reset_flags
+
+# Heroku環境
+heroku run bin/rails reminders:reset_flags --app your-app-name
+```
+
+**注意:** これを実行すると、過去に送信済みのリマインドが再度送信される可能性があります。テスト目的でのみ使用してください。
+
+#### 4. Heroku Schedulerの実行履歴を確認
+
+```bash
+# Schedulerのダッシュボードを開く
+heroku addons:open scheduler --app your-app-name
+```
+
+- 「Last run」で最終実行時刻を確認
+- 「Next run」で次回実行予定時刻を確認
+- 実行履歴でエラーがないか確認
+
+#### 5. Herokuログをリアルタイムで監視
+
+```bash
+# すべてのログを表示
+heroku logs --tail --app your-app-name
+
+# リマインド関連のログのみ表示
+heroku logs --tail --app your-app-name | grep reminders
+
+# 送信成功/失敗のログのみ表示
+heroku logs --tail --app your-app-name | grep "送信成功\|送信失敗"
+```
+
+### よくある問題と解決方法
+
+#### 問題1: 「リマインド対象候補数: 0件」と表示される
+
+**原因:**
+1. 未来のイベント/タスクが存在しない
+2. リマインド設定がされていない
+3. LINE連携がされていない
+4. 既に送信済み
+
+**解決方法:**
+```bash
+# 状態確認
+heroku run bin/rails reminders:check_status --app your-app-name
+```
+
+上記コマンドで以下を確認：
+- 「リマインド設定あり」の件数が0なら → カレンダーでリマインド設定を追加
+- 「LINE ID: なし」と表示されるなら → ユーザーがLINE連携していない
+- 「送信済み」の件数が多いなら → 正常に動作している（新しいイベントを作成してテスト）
+
+#### 問題2: リマインド時刻が過ぎているのに送信されない
+
+**原因:**
+- イベントが既に開始している（開始後は送信されない仕様）
+- 過去24時間より前のイベント（古すぎるイベントは対象外）
+
+**解決方法:**
+- 未来のイベントを作成してテスト
+- リマインド設定を確認（30分前、1時間前など）
+
+#### 問題3: タイムゾーンのズレ
+
+**確認方法:**
+```bash
+# Herokuの環境変数を確認
+heroku config --app your-app-name | grep TZ
+
+# 設定されていない場合は設定（任意）
+heroku config:set TZ=Asia/Tokyo --app your-app-name
+```
+
+**注意:** Rails アプリケーションは `config.time_zone = "Asia/Tokyo"` で設定されているため、通常は問題ありません。
+
+#### 問題4: LINE認証情報のエラー
+
+```bash
+# LINE認証情報を確認
+heroku config --app your-app-name | grep LINE
+
+# 出力例:
+# LINE_CHANNEL_SECRET: your_secret_here
+# LINE_CHANNEL_TOKEN:  your_token_here
+
+# 設定されていない場合
+heroku config:set LINE_CHANNEL_SECRET=your_secret --app your-app-name
+heroku config:set LINE_CHANNEL_TOKEN=your_token --app your-app-name
+```
+
+### デバッグログの見方
+
+#### 正常に動作している場合
+```
+📊 リマインド対象候補数: 3件
+
+🔔 処理中: イベント「会議」(ID: 123)
+  判定: ✅ リマインド時刻を過ぎています → 送信対象
+  LINE送信先: U1234567890abcdef
+  送信開始...
+  結果: ✅ 送信成功！
+
+📊 実行結果サマリー
+✅ 送信成功: 3件
+❌ 送信失敗: 0件
+⏭️ スキップ: 0件
+```
+
+#### 送信対象がない場合
+```
+📊 リマインド対象候補数: 0件
+
+📊 実行結果サマリー
+✅ 送信成功: 0件
+❌ 送信失敗: 0件
+⏭️ スキップ: 0件
+```
+
+→ これは正常です。未来のリマインド対象イベントがないだけです。
+
+#### リマインド時刻前の場合
+```
+🔔 処理中: イベント「会議」(ID: 123)
+  判定: ⏰ まだリマインド時刻に達していません
+  結果: ⏭️ スキップ（あと45分後に送信予定）
+```
+
+→ これも正常です。指定時刻になれば自動で送信されます。
+
+#### LINE連携されていない場合
+```
+🔔 処理中: イベント「会議」(ID: 123)
+  結果: ⏭️ スキップ（LINE未連携）
+```
+
+→ ユーザーにLINE連携を依頼してください。
+
+---
+
 **作成日:** 2026-07-15  
-**バージョン:** 1.0
+**更新日:** 2026-07-15（デバッグセクション追加）  
+**バージョン:** 1.1
