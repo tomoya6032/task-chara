@@ -6,6 +6,9 @@
     %meta{:content => "width=device-width,initial-scale=1", :name => "viewport"}/
     %meta{:content => "yes", :name => "apple-mobile-web-app-capable"}/
     %meta{:content => "yes", :name => "mobile-web-app-capable"}/
+    %meta{:content => "default", :name => "apple-mobile-web-app-status-bar-style"}/
+    %meta{:content => "#3b82f6", :name => "theme-color"}/
+    %meta{:content => "Task Character", :name => "apple-mobile-web-app-title"}/
     / 会員制サイトのため検索エンジンのインデックスを禁止
     %meta{:name => "robots", :content => "noindex, nofollow, noarchive"}/
     %meta{:name => "googlebot", :content => "noindex, nofollow"}/
@@ -24,7 +27,7 @@
     = stylesheet_link_tag "tailwind", "data-turbo-track": "reload"
     = stylesheet_link_tag :app, "data-turbo-track": "reload"
     = javascript_importmap_tags
-  %body.bg-slate-50.dark:bg-slate-900{ data: { controller: "loading" } }
+  %body.bg-slate-50.dark:bg-slate-900{ data: { controller: "loading pwa-install" } }
     / ローディングオーバーレイ（画面全体を覆う）
     #loading-overlay.fixed.inset-0.bg-black.bg-opacity-40.hidden.items-center.justify-center.opacity-0.transition-opacity.duration-200{ data: { loading_target: "overlay" }, style: "z-index: 9999;" }
       .text-center

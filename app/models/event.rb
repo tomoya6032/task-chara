@@ -141,8 +141,8 @@ class Event < ApplicationRecord
   def self.create_from_task(activity)
     # DISABLED: Activity.deadline does not exist
     # この機能はTaskモデルに移行する必要があります
-    return
-    
+    nil
+
     # return unless activity.deadline.present?
     #
     # create!(

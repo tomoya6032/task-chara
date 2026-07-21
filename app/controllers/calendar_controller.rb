@@ -387,23 +387,23 @@ class CalendarController < ApplicationController
   def handle_single_event_update
     # 日付変更の検証用に属性を取得
     new_attributes = normalized_event_attributes
-    
+
     # 繰り返しイベントの子の場合、例外フラグを立てる
     if @event.recurring_event_id.present?
       # 日付が変更される場合、元の日付に論理削除されたレコードを作成
       original_date = @event.original_start_time || @event.start_time
-      
+
       # 一時的に属性を適用して新しい日時を取得（まだ保存しない）
       temp_event = @event.dup
       temp_event.assign_attributes(new_attributes)
       new_date = temp_event.start_time
-      
+
       # 日付が変更された場合のみ処理
       if original_date.to_date != new_date.to_date
         # 元の日付に論理削除されたダミーレコードを作成
         parent = @event.recurring_event
         duration = @event.end_time - @event.start_time
-        
+
         parent.recurring_instances.create!(
           title: @event.title,
           description: @event.description,
@@ -422,18 +422,18 @@ class CalendarController < ApplicationController
           is_exception: true,
           cancelled_at: Time.current  # 論理削除済みとしてマーク
         )
-        
+
         Rails.logger.info "📝 Created cancelled dummy record for original date: #{original_date.to_date}"
       end
-      
+
       # original_start_time が未設定の場合のみ設定（一度設定したら変更しない）
       if @event.original_start_time.blank?
         new_attributes[:original_start_time] = original_date
       end
-      
+
       # 例外フラグを立てる（new_attributes に含める）
       new_attributes[:is_exception] = true
-      
+
       # 親から独立させて単発イベントとして更新する場合はコメントを外す
       # @event.recurring_event_id = nil
       # @event.recurring = false

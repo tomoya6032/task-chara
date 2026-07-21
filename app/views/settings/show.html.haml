@@ -172,6 +172,112 @@
               %span.text-2xl.mr-2 💬
               LINEと連携する
 
+  / PWAインストールセクション
+  .rounded-lg.shadow-md.p-6.mt-6{ class: "bg-white dark:bg-slate-800", data: { controller: "pwa-install", pwa_install_target: "installSection" } }
+    %h2{ class: "text-xl font-semibold text-slate-900 dark:text-white mb-4" }
+      📱 アプリをホーム画面に追加（インストール）
+
+    .border.rounded-lg.p-6.mb-4{ class: "bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900 dark:to-indigo-900 border-blue-200 dark:border-blue-700" }
+      .flex.items-center.mb-4
+        %span.text-4xl.mr-3 🚀
+        .flex-1
+          %h3.font-bold.text-lg.mb-1{ class: "text-slate-900 dark:text-white" }
+            ネイティブアプリのような体験を
+          %p.text-sm{ class: "text-slate-700 dark:text-slate-300" }
+            ホーム画面から直接起動でき、プッシュ通知を受け取れます
+
+      .space-y-3.mb-6
+        .flex.items-start
+          %span.text-xl.mr-3 ⚡
+          .flex-1
+            %p.text-sm.font-semibold.mb-1{ class: "text-slate-800 dark:text-slate-200" }
+              高速起動
+            %p.text-xs{ class: "text-slate-600 dark:text-slate-400" }
+              ブラウザを開く手間なく、アプリのようにサクサク起動
+
+        .flex.items-start
+          %span.text-xl.mr-3 🔔
+          .flex-1
+            %p.text-sm.font-semibold.mb-1{ class: "text-slate-800 dark:text-slate-200" }
+              プッシュ通知対応
+            %p.text-xs{ class: "text-slate-600 dark:text-slate-400" }
+              タスクやスケジュールのリマインド通知を見逃しません
+
+        .flex.items-start
+          %span.text-xl.mr-3 🎨
+          .flex-1
+            %p.text-sm.font-semibold.mb-1{ class: "text-slate-800 dark:text-slate-200" }
+              フルスクリーン表示
+            %p.text-xs{ class: "text-slate-600 dark:text-slate-400" }
+              ブラウザのUIが非表示になり、画面を広く使えます
+
+        .flex.items-start
+          %span.text-xl.mr-3 📴
+          .flex-1
+            %p.text-sm.font-semibold.mb-1{ class: "text-slate-800 dark:text-slate-200" }
+              オフライン対応
+            %p.text-xs{ class: "text-slate-600 dark:text-slate-400" }
+              一度開いたページはオフラインでも表示可能
+
+      .flex.justify-center
+        %button{ type: "button", 
+                 data: { action: "click->pwa-install#install", pwa_install_target: "installButton" },
+                 disabled: true,
+                 class: "inline-flex items-center px-8 py-3 bg-blue-600 text-white text-lg font-bold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg transition-all" }
+          %span.text-2xl.mr-2 ⬇️
+          ホーム画面に追加
+
+    / iOS用インストール手順モーダル
+    .fixed.inset-0.hidden.flex.items-center.justify-center.p-4{ data: { pwa_install_target: "iosInstructions" }, style: "background: rgba(0,0,0,0.75); z-index: 9999;" }
+      .max-w-md.w-full.rounded-lg.shadow-2xl.p-6{ class: "bg-white dark:bg-slate-800" }
+        .flex.justify-between.items-center.mb-4
+          %h3.text-xl.font-bold{ class: "text-slate-900 dark:text-white" }
+            📱 iOSでのインストール手順
+          %button{ type: "button", 
+                   data: { action: "click->pwa-install#closeIOSInstructions" },
+                   class: "text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-2xl font-bold" }
+            ×
+
+        .space-y-4
+          .flex.items-start
+            .flex-shrink-0.w-8.h-8.bg-blue-600.text-white.rounded-full.flex.items-center.justify-center.font-bold.mr-3
+              1
+            .flex-1
+              %p.text-sm.font-semibold.mb-2{ class: "text-slate-900 dark:text-white" }
+                Safariの共有ボタンをタップ
+              .rounded.p-3.text-center{ class: "bg-slate-100 dark:bg-slate-700" }
+                %span.text-4xl 📤
+              %p.text-xs.mt-2{ class: "text-slate-600 dark:text-slate-400" }
+                画面下部中央（または上部右端）の「□に↑」ボタン
+
+          .flex.items-start
+            .flex-shrink-0.w-8.h-8.bg-blue-600.text-white.rounded-full.flex.items-center.justify-center.font-bold.mr-3
+              2
+            .flex-1
+              %p.text-sm.font-semibold.mb-2{ class: "text-slate-900 dark:text-white" }
+                「ホーム画面に追加」を選択
+              .rounded.p-3.text-center{ class: "bg-slate-100 dark:bg-slate-700" }
+                %span.text-4xl ➕
+              %p.text-xs.mt-2{ class: "text-slate-600 dark:text-slate-400" }
+                メニューの中から「ホーム画面に追加」をタップ
+
+          .flex.items-start
+            .flex-shrink-0.w-8.h-8.bg-blue-600.text-white.rounded-full.flex.items-center.justify-center.font-bold.mr-3
+              3
+            .flex-1
+              %p.text-sm.font-semibold.mb-2{ class: "text-slate-900 dark:text-white" }
+                「追加」をタップして完了
+              .rounded.p-3.text-center{ class: "bg-slate-100 dark:bg-slate-700" }
+                %span.text-4xl ✅
+              %p.text-xs.mt-2{ class: "text-slate-600 dark:text-slate-400" }
+                ホーム画面にアイコンが追加されます
+
+        .mt-6
+          %button{ type: "button",
+                   data: { action: "click->pwa-install#closeIOSInstructions" },
+                   class: "w-full px-4 py-2 bg-slate-200 text-slate-800 rounded-lg hover:bg-slate-300 dark:bg-slate-700 dark:text-white dark:hover:bg-slate-600 font-semibold" }
+            閉じる
+
   / アカウント情報
   .rounded-lg.shadow-md.p-6.mt-6{ class: "bg-white dark:bg-slate-800" }
     %h2{ class: "text-xl font-semibold text-slate-900 dark:text-white mb-4" }
