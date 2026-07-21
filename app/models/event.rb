@@ -385,45 +385,69 @@ class Event < ApplicationRecord
     )
   end
 
+  # 指定された開始時刻の子インスタンスを検索（作成しない）
+  # occurrence_timeは文字列またはTimeオブジェクト
+  # 削除時などで使用（createしたくない場合）
+  def find_occurrence(occurrence_time)
+    return nil unless recurring_parent?
+
+    # 文字列の場合はパース（タイムゾーンを明示的に処理）
+    target_time = if occurrence_time.is_a?(String)
+      # ISO8601形式の場合、タイムゾーン情報を保持してパース
+      Time.zone.parse(occurrence_time)
+    else
+      occurrence_time.in_time_zone(Time.zone)
+    end
+
+    Rails.logger.info "📝 find_occurrence - target_time: #{target_time.iso8601}, zone: #{Time.zone.name}"
+
+    # 時刻の前後5秒の範囲で検索（タイムゾーンのずれやミリ秒の誤差を吸収）
+    time_range = (target_time - 5.seconds)..(target_time + 5.seconds)
+
+    # 既存のインスタンスを探す（active + soft_deletedの両方を検索）
+    instance = recurring_instances.unscoped.find_by(start_time: time_range)
+
+    if instance
+      Rails.logger.info "📝 Found existing occurrence: ID=#{instance.id}, start_time=#{instance.start_time.iso8601}, cancelled_at: #{instance.cancelled_at}"
+    else
+      Rails.logger.info "📝 No existing occurrence found in range #{time_range.begin.iso8601} - #{time_range.end.iso8601}"
+    end
+
+    instance
+  end
+
   # 指定された開始時刻の子インスタンスを検索または作成（確実に保存）
   # occurrence_timeは文字列またはTimeオブジェクト
   # Googleカレンダーと同様に、親IDとoccurrence_timeから対象レコードを100%特定
   def find_or_create_occurrence!(occurrence_time)
     return nil unless recurring_parent?
 
-    # 文字列の場合はパース
-    target_time = occurrence_time.is_a?(String) ? Time.zone.parse(occurrence_time) : occurrence_time
-    duration = end_time - start_time
-
-    # 時刻の前後1秒の範囲で検索（タイムゾーンのずれを吸収）
-    time_range = (target_time - 1.second)..(target_time + 1.second)
-
-    # まず範囲検索で既存のインスタンスを探す
-    instance = recurring_instances.find_by(start_time: time_range)
+    # まず検索を試みる
+    instance = find_occurrence(occurrence_time)
+    return instance if instance
 
     # 見つからなければ新規作成
-    unless instance
-      instance = recurring_instances.create!(
-        title: title,
-        description: description,
-        start_time: target_time,
-        end_time: target_time + duration,
-        original_start_time: target_time,  # 元の発生時刻を保存
-        location: location,
-        all_day: all_day,
-        status: status,
-        event_type: event_type,
-        color: color,
-        character: character,
-        user: user,
-        reminder_minutes: reminder_minutes,
-        recurring: false,
-        is_exception: false  # 初期状態では例外ではない
-      )
-      Rails.logger.info "📝 Created new occurrence: ID=#{instance.id}, start_time=#{instance.start_time.iso8601}"
-    else
-      Rails.logger.info "📝 Found existing occurrence: ID=#{instance.id}, start_time=#{instance.start_time.iso8601}"
-    end
+    target_time = occurrence_time.is_a?(String) ? Time.zone.parse(occurrence_time) : occurrence_time.in_time_zone(Time.zone)
+    duration = end_time - start_time
+
+    instance = recurring_instances.create!(
+      title: title,
+      description: description,
+      start_time: target_time,
+      end_time: target_time + duration,
+      original_start_time: target_time,  # 元の発生時刻を保存
+      location: location,
+      all_day: all_day,
+      status: status,
+      event_type: event_type,
+      color: color,
+      character: character,
+      user: user,
+      reminder_minutes: reminder_minutes,
+      recurring: false,
+      is_exception: false  # 初期状態では例外ではない
+    )
+    Rails.logger.info "📝 Created new occurrence: ID=#{instance.id}, start_time=#{instance.start_time.iso8601}"
 
     instance
   end

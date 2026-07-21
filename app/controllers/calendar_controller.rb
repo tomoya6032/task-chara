@@ -289,19 +289,33 @@ class CalendarController < ApplicationController
     Rails.logger.info "📝 Event deletion - ID: #{base_event.id}, recurring: #{base_event.recurring?}, recurring_parent: #{base_event.recurring_parent?}, occurrence_time: #{params[:occurrence_time]}, scope: #{scope}"
     Rails.logger.info "📝 Base event details - start_time: #{base_event.start_time}, recurring_event_id: #{base_event.recurring_event_id}"
 
-    # 2. 親イベント + occurrence_time の場合、該当する子レコードを特定・作成
+    # 2. 親イベント + occurrence_time の場合、該当する子レコードを特定
     target_event = base_event
     occurrence_time = nil
+    is_virtual_occurrence = false
 
     if params[:occurrence_time].present?
+      # タイムゾーンを明示的に処理
       occurrence_time = Time.zone.parse(params[:occurrence_time])
-      Rails.logger.info "📝 Parsed occurrence_time: #{occurrence_time.iso8601}"
+      Rails.logger.info "📝 Parsed occurrence_time: #{occurrence_time.iso8601} (zone: #{Time.zone.name})"
 
-      # 親イベントの場合、該当する子インスタンスを取得または作成（確実に保存）
+      # 親イベントの場合、既存の子インスタンスを検索（作成はしない）
       if base_event.recurring_parent?
-        Rails.logger.info "📝 Base event is recurring parent, creating/finding occurrence"
-        target_event = base_event.find_or_create_occurrence!(occurrence_time)
-        Rails.logger.info "📝 Target event created/found: ID=#{target_event.id}, start_time=#{target_event.start_time.iso8601}"
+        Rails.logger.info "📝 Base event is recurring parent, searching for existing occurrence"
+
+        # まず既存のインスタンスを探す
+        existing_instance = base_event.find_occurrence(occurrence_time)
+
+        if existing_instance
+          # 既存のインスタンスが見つかった場合
+          target_event = existing_instance
+          Rails.logger.info "📝 Found existing occurrence: ID=#{target_event.id}, start_time=#{target_event.start_time.iso8601}"
+        else
+          # 仮想オカレンス（親イベントからの展開）の削除
+          # この場合、キャンセルダミーレコードを作成して削除する
+          Rails.logger.info "📝 No existing occurrence found - this is a virtual occurrence deletion"
+          is_virtual_occurrence = true
+        end
       elsif base_event.recurring_instance?
         # 既に子インスタンスの場合はそのまま使用
         target_event = base_event
@@ -322,9 +336,38 @@ class CalendarController < ApplicationController
       case scope
       when "one"
         # この予定のみを論理削除（カレンダーから非表示にするが、データは残す）
-        Rails.logger.info "📝 About to soft delete event ID: #{target_event.id}"
-        target_event.soft_delete!
-        Rails.logger.info "📝 Soft deleted event: ID=#{target_event.id}, cancelled_at: #{target_event.cancelled_at}"
+
+        if is_virtual_occurrence && base_event.recurring_parent?
+          # 仮想オカレンスの削除: キャンセルダミーレコードを直接作成
+          Rails.logger.info "📝 Creating cancelled dummy for virtual occurrence at #{occurrence_time.iso8601}"
+
+          duration = base_event.end_time - base_event.start_time
+          dummy = base_event.recurring_instances.create!(
+            title: base_event.title,
+            description: base_event.description,
+            start_time: occurrence_time,
+            end_time: occurrence_time + duration,
+            original_start_time: occurrence_time,
+            location: base_event.location,
+            all_day: base_event.all_day,
+            status: base_event.status,
+            event_type: base_event.event_type,
+            color: base_event.color,
+            character: base_event.character,
+            user: base_event.user,
+            reminder_minutes: base_event.reminder_minutes,
+            recurring: false,
+            is_exception: true,
+            cancelled_at: Time.current  # 作成時点で論理削除済み
+          )
+          Rails.logger.info "📝 Created cancelled dummy: ID=#{dummy.id}, cancelled_at: #{dummy.cancelled_at}"
+        else
+          # 既存インスタンスの削除
+          Rails.logger.info "📝 About to soft delete event ID: #{target_event.id}"
+          target_event.soft_delete!
+          Rails.logger.info "📝 Soft deleted event: ID=#{target_event.id}, cancelled_at: #{target_event.cancelled_at}"
+        end
+
         message = "イベントが削除されました。"
 
       when "future"
