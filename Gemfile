@@ -33,6 +33,9 @@ gem "kaminari"
 # Recurring events for calendar
 gem "ice_cube"
 
+# Japanese holidays data
+gem "holidays"
+
 # OpenAI API integration
 gem "ruby-openai"
 

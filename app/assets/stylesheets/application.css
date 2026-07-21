@@ -114,3 +114,85 @@
 .back-to-index-button:focus {
   cursor: pointer !important;
 }
+
+/* ローディングオーバーレイのスタイル */
+#loading-overlay {
+  backdrop-filter: blur(2px);
+}
+
+/* ローディングスピナーのアニメーション */
+#loading-overlay .spinner {
+  border-width: 4px;
+  border-style: solid;
+  border-color: rgba(255, 255, 255, 0.3);
+  border-top-color: #ffffff;
+  animation: spin 0.8s linear infinite;
+}
+
+/* スピナーのサイズバリエーション */
+#loading-overlay .spinner.spinner-sm {
+  width: 2rem;
+  height: 2rem;
+  border-width: 3px;
+}
+
+#loading-overlay .spinner.spinner-lg {
+  width: 5rem;
+  height: 5rem;
+  border-width: 5px;
+}
+
+/* ダークモード対応 */
+@media (prefers-color-scheme: dark) {
+  #loading-overlay {
+    background-color: rgba(15, 23, 42, 0.8);
+  }
+}
+
+/* フェードイン・アウトのトランジション */
+#loading-overlay.opacity-0 {
+  pointer-events: none;
+}
+
+#loading-overlay.opacity-100 {
+  pointer-events: auto;
+}
+
+/* 祝日イベントのスタイル */
+.holiday-event {
+  background-color: #fee2e2 !important; /* 薄い赤色 */
+  border-color: #dc2626 !important;
+  color: #991b1b !important;
+  font-weight: 600;
+}
+
+.holiday-event:hover {
+  background-color: #fecaca !important;
+  cursor: default !important; /* 編集不可を示す */
+}
+
+/* 週表示の祝日イベント */
+.week-allday-event.holiday-event {
+  background-color: #fee2e2 !important;
+  border-left: 3px solid #dc2626 !important;
+  color: #991b1b !important;
+}
+
+/* ダークモード対応 */
+@media (prefers-color-scheme: dark) {
+  .holiday-event {
+    background-color: #7f1d1d !important;
+    border-color: #dc2626 !important;
+    color: #fecaca !important;
+  }
+
+  .holiday-event:hover {
+    background-color: #991b1b !important;
+  }
+
+  .week-allday-event.holiday-event {
+    background-color: #7f1d1d !important;
+    border-left: 3px solid #dc2626 !important;
+    color: #fecaca !important;
+  }
+}

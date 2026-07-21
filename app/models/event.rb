@@ -43,6 +43,11 @@ class Event < ApplicationRecord
   scope :recurring_parents, -> { where(recurring: true, recurring_event_id: nil) }
   scope :non_recurring, -> { where(recurring: false) }
 
+  # 論理削除関連スコープ
+  scope :active, -> { where(cancelled_at: nil) }
+  scope :soft_deleted, -> { where.not(cancelled_at: nil) }
+  scope :exceptions, -> { where(is_exception: true) }
+
   # Enum definitions (status only - event_type is now a flexible string)
   enum :status, {
     confirmed: 0,
@@ -134,24 +139,61 @@ class Event < ApplicationRecord
 
   # タスクの期限をイベントとして作成
   def self.create_from_task(activity)
-    return unless activity.deadline.present?
-
-    create!(
-      title: "📋 #{activity.title} (期限)",
-      description: activity.description.present? ? activity.description.truncate(100) : nil,
-      start_time: activity.deadline.beginning_of_day,
-      end_time: activity.deadline.end_of_day,
-      all_day: true,
-      event_type: "task_deadline",
-      external_id: "activity_#{activity.id}",
-      character: activity.character
-    )
+    # DISABLED: Activity.deadline does not exist
+    # この機能はTaskモデルに移行する必要があります
+    return
+    
+    # return unless activity.deadline.present?
+    #
+    # create!(
+    #   title: "📋 #{activity.title} (期限)",
+    #   description: activity.description.present? ? activity.description.truncate(100) : nil,
+    #   start_time: activity.deadline.beginning_of_day,
+    #   end_time: activity.deadline.end_of_day,
+    #   all_day: true,
+    #   event_type: "task_deadline",
+    #   external_id: "activity_#{activity.id}",
+    #   character: activity.character
+    # )
   end
 
   # 外部カレンダーとの同期用
   def sync_to_google_calendar
     # Google Calendar APIとの同期処理
     # 後で実装
+  end
+
+  # === 論理削除・例外処理メソッド ===
+
+  # 論理削除（カレンダーから非表示にするが、データは残す）
+  def soft_delete!
+    update!(cancelled_at: Time.current)
+  end
+
+  # 論理削除を取り消して復元
+  def restore!
+    update!(cancelled_at: nil)
+  end
+
+  # 削除済みかどうか
+  def cancelled?
+    cancelled_at.present?
+  end
+
+  # 有効なイベントかどうか
+  def active?
+    cancelled_at.nil?
+  end
+
+  # 例外（個別変更）フラグを立てる
+  def mark_as_exception!
+    return if is_exception  # 既に例外フラグが立っている場合はスキップ
+    update!(is_exception: true)
+  end
+
+  # 例外（個別変更）かどうか
+  def exception?
+    is_exception
   end
 
   def sync_to_apple_calendar
@@ -252,6 +294,7 @@ class Event < ApplicationRecord
         description: description,
         start_time: occurrence_time,
         end_time: occurrence_time + duration,
+        original_start_time: occurrence_time,  # 元の発生時刻を保存
         location: location,
         all_day: all_day,
         status: status,
@@ -260,7 +303,8 @@ class Event < ApplicationRecord
         character: character,
         user: user,
         reminder_minutes: reminder_minutes,
-        recurring: false  # インスタンスは繰り返しではない
+        recurring: false,  # インスタンスは繰り返しではない
+        is_exception: false  # 初期状態では例外ではない
       )
     end
   end
@@ -295,6 +339,7 @@ class Event < ApplicationRecord
         description: description,
         start_time: target_time,
         end_time: target_time + duration,
+        original_start_time: target_time,  # 元の発生時刻を保存
         location: location,
         all_day: all_day,
         status: status,
@@ -303,7 +348,8 @@ class Event < ApplicationRecord
         character: character,
         user: user,
         reminder_minutes: reminder_minutes,
-        recurring: false
+        recurring: false,
+        is_exception: false  # 初期状態では例外ではない
       )
     end
 
@@ -362,6 +408,7 @@ class Event < ApplicationRecord
         description: description,
         start_time: target_time,
         end_time: target_time + duration,
+        original_start_time: target_time,  # 元の発生時刻を保存
         location: location,
         all_day: all_day,
         status: status,
@@ -370,7 +417,8 @@ class Event < ApplicationRecord
         character: character,
         user: user,
         reminder_minutes: reminder_minutes,
-        recurring: false
+        recurring: false,
+        is_exception: false  # 初期状態では例外ではない
       )
       Rails.logger.info "📝 Created new occurrence: ID=#{instance.id}, start_time=#{instance.start_time.iso8601}"
     else

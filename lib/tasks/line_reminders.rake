@@ -61,6 +61,7 @@ namespace :reminders do
     puts "  3. start_time >= #{(now - 24.hours).strftime('%Y-%m-%d %H:%M:%S')}（過去24時間以内または未来）"
     puts "  4. status が cancelled でない"
     puts "  5. users.line_user_id が nil でない"
+    puts "  6. cancelled_at が nil（論理削除されていない）"
     puts ""
 
     events = Event
@@ -70,6 +71,7 @@ namespace :reminders do
       .where("events.start_time >= ?", now - 24.hours)  # 過去24時間以内または未来
       .where.not(status: :cancelled)
       .where.not(users: { line_user_id: nil })
+      .where(cancelled_at: nil)  # 論理削除されたイベントを除外
 
     puts "📊 リマインド対象候補数: #{events.count}件"
     puts ""

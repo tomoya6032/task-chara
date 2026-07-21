@@ -112,9 +112,14 @@
               .calendar-events-area
                 - if day_data[:events].present?
                   - day_data[:events].each do |event|
+                    - is_holiday = event.respond_to?(:is_holiday) && event.is_holiday
                     - parent_id = event.recurring_event_id || event.id
-                    .calendar-event{ data: { event_id: parent_id, event_type: event.event_type, occurrence_time: event.start_time.iso8601 }, onclick: "openEventDetailsModal(#{parent_id}, '#{event.start_time.iso8601}')" }
-                      = event.title.truncate(15)
+                    - if is_holiday
+                      .calendar-event.holiday-event{ title: "#{event.title}（祝日）" }
+                        = event.title.truncate(15)
+                    - else
+                      .calendar-event{ data: { event_id: parent_id, event_type: event.event_type, occurrence_time: event.start_time.iso8601 }, onclick: "openEventDetailsModal(#{parent_id}, '#{event.start_time.iso8601}')" }
+                        = event.title.truncate(15)
         - else
           .calendar-no-data
             %p データが読み込まれていません
@@ -152,9 +157,14 @@
                 - allday_ev = @events.select { |e| (e.all_day || e.all_day?) && e.start_time.to_date <= day && e.end_time.to_date >= day }
                 - allday_ev = allday_ev.sort_by { |e| e.start_time }
                 - allday_ev.each do |event|
+                  - is_holiday = event.respond_to?(:is_holiday) && event.is_holiday
                   - parent_id = event.recurring_event_id || event.id
-                  .week-allday-event{ data: { event_id: parent_id, event_type: event.event_type, occurrence_time: event.start_time.iso8601 }, onclick: "event.stopPropagation(); openEventDetailsModal(#{parent_id}, '#{event.start_time.iso8601}')" }
-                    = event.title.truncate(16)
+                  - if is_holiday
+                    .week-allday-event.holiday-event{ title: "#{event.title}（祝日）" }
+                      = event.title.truncate(16)
+                  - else
+                    .week-allday-event{ data: { event_id: parent_id, event_type: event.event_type, occurrence_time: event.start_time.iso8601 }, onclick: "event.stopPropagation(); openEventDetailsModal(#{parent_id}, '#{event.start_time.iso8601}')" }
+                      = event.title.truncate(16)
                 / 時刻指定の日跨ぎイベントの中間日（開始日・終了日を除く、開始時刻順にソート）
                 - multiday_ev = @events.select { |e| !e.all_day && !e.all_day? && e.start_time.to_date != e.end_time.to_date && e.start_time.to_date < day && e.end_time.to_date > day }
                 - multiday_ev = multiday_ev.sort_by { |e| e.start_time }
@@ -459,6 +469,7 @@
       %form#event-edit-form{ method: "patch" }
         %input{ type: "hidden", name: "authenticity_token", value: "" }
         %input#edit-event-id{ type: "hidden", name: "id" }
+        %input#edit-occurrence-time{ type: "hidden", name: "occurrence_time", value: "" }
 
         .mb-4
           %label.block.text-sm.font-medium.text-gray-700.mb-2
@@ -1942,6 +1953,7 @@
     
     // 編集フォームに現在の値を設定
     const idInput = document.getElementById('edit-event-id');
+    const occurrenceTimeInput = document.getElementById('edit-occurrence-time');
     const titleInput = document.getElementById('edit-event-title');
     const startInput = document.getElementById('edit-event-start');
     const endInput = document.getElementById('edit-event-end');
@@ -1949,6 +1961,15 @@
     const descInput = document.getElementById('edit-event-description');
     
     if (idInput) idInput.value = window.currentEvent.id;
+    
+    // occurrence_timeを設定（繰り返しイベントの特定のオカレンス編集用）
+    if (occurrenceTimeInput && window.currentEvent.occurrence_time) {
+      occurrenceTimeInput.value = window.currentEvent.occurrence_time;
+      console.log('Set occurrence_time in form:', window.currentEvent.occurrence_time);
+    } else if (occurrenceTimeInput) {
+      occurrenceTimeInput.value = '';
+    }
+    
     if (titleInput) titleInput.value = window.currentEvent.title || '';
     setDatetimeParts(window.currentEvent.start_time, 'edit-start-date-part', 'edit-start-hour-part', 'edit-start-min-part', 'edit-event-start');
     setDatetimeParts(window.currentEvent.end_time, 'edit-end-date-part', 'edit-end-hour-part', 'edit-end-min-part', 'edit-event-end');
@@ -2197,7 +2218,7 @@
     }
     
     // 開始時刻パラメータを追加
-    let url = `/calendar/${window.currentEvent.id}?edit_scope=${scope}`;
+    let url = `/calendar/${window.currentEvent.id}?delete_scope=${scope}`;
     if (window.currentEvent.occurrence_time) {
       url += `&occurrence_time=${encodeURIComponent(window.currentEvent.occurrence_time)}`;
       console.log('Delete URL with occurrence_time:', url);

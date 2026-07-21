@@ -1,4 +1,63 @@
 class CalendarController < ApplicationController
+  # 祝日イベントを表すクラス（Eventモデルと同じインターフェースを提供）
+  class HolidayEvent
+    attr_accessor :id, :title, :start_time, :end_time, :all_day, :description,
+                  :location, :event_type, :status, :color, :character, :is_holiday,
+                  :category, :reminder_minutes
+
+    def initialize(attributes = {})
+      attributes.each do |key, value|
+        send("#{key}=", value) if respond_to?("#{key}=")
+      end
+    end
+
+    def all_day?
+      @all_day
+    end
+
+    def recurring?
+      false
+    end
+
+    def recurring_parent?
+      false
+    end
+
+    def recurring_instance?
+      false
+    end
+
+    def recurring_event_id
+      nil
+    end
+
+    def character_id
+      @character&.id
+    end
+
+    def display_category_name
+      @title
+    end
+
+    def display_color
+      @color || "#DC2626"
+    end
+
+    def as_json(options = {})
+      {
+        id: @id,
+        title: @title,
+        start_time: @start_time,
+        end_time: @end_time,
+        all_day: @all_day,
+        is_holiday: @is_holiday,
+        event_type: @event_type,
+        category: @category,
+        color: @color
+      }
+    end
+  end
+
   before_action :set_character
   before_action :set_date_params, except: [ :settings, :update_settings ]
 
@@ -44,6 +103,13 @@ class CalendarController < ApplicationController
       response_data["start_time"] = occurrence_time.iso8601
       response_data["end_time"] = (occurrence_time + duration).iso8601
       response_data["occurrence_time"] = occurrence_time.iso8601  # 明示的に追加
+      response_data["is_occurrence"] = true
+    elsif @event.recurring_event_id.present?
+      # 既に作成された子インスタンスの場合
+      Rails.logger.info "📝 Show event - child instance, id: #{@event.id}, parent_id: #{@event.recurring_event_id}"
+      # original_start_time があればそれを、なければ start_time を occurrence_time として使用
+      occurrence_time = @event.original_start_time || @event.start_time
+      response_data["occurrence_time"] = occurrence_time.iso8601
       response_data["is_occurrence"] = true
     end
 
@@ -113,7 +179,7 @@ class CalendarController < ApplicationController
       end
 
       # タスクの期限などもカレンダーに同期
-      sync_tasks_to_calendar if @event.task_deadline?
+      # sync_tasks_to_calendar if @event.task_deadline?  # DISABLED: Activity.deadline does not exist
 
       respond_to do |format|
         format.html { redirect_to calendar_index_path(date: @event.start_time.to_date), notice: "イベントが作成されました。" }
@@ -151,6 +217,16 @@ class CalendarController < ApplicationController
 
     # 2. 親イベント + occurrence_time の場合、該当する子レコードを特定・作成
     @event = base_event
+
+    # 繰り返しイベントの親で、occurrence_timeが指定されていない、かつscope="one"の場合はエラー
+    if base_event.recurring_parent? && params[:occurrence_time].blank? && scope == "one"
+      Rails.logger.error "📝 ERROR: Attempting to edit recurring parent without occurrence_time"
+      respond_to do |format|
+        format.html { redirect_to calendar_index_path, alert: "エラー: 繰り返しイベントの特定の日を編集する場合は、カレンダーからその日をクリックして編集してください。" }
+        format.json { render json: { success: false, error: "occurrence_timeが必要です" }, status: :unprocessable_entity }
+      end
+      return
+    end
 
     if params[:occurrence_time].present?
       occurrence_time = Time.zone.parse(params[:occurrence_time])
@@ -208,7 +284,7 @@ class CalendarController < ApplicationController
   def destroy
     # 1. まず送られてきたIDでイベントを取得
     base_event = @character.events.find(params[:id])
-    scope = params[:edit_scope] || "one"
+    scope = params[:delete_scope] || "one"
 
     Rails.logger.info "📝 Event deletion - ID: #{base_event.id}, recurring: #{base_event.recurring?}, recurring_parent: #{base_event.recurring_parent?}, occurrence_time: #{params[:occurrence_time]}, scope: #{scope}"
     Rails.logger.info "📝 Base event details - start_time: #{base_event.start_time}, recurring_event_id: #{base_event.recurring_event_id}"
@@ -239,12 +315,16 @@ class CalendarController < ApplicationController
 
     # 3. 特定した target_event を基準に、スコープ別の削除を実行
     Rails.logger.info "📝 Proceeding with deletion - target_event ID: #{target_event.id}, scope: #{scope}"
+    Rails.logger.info "📝 Target event is recurring_parent?: #{target_event.recurring_parent?}, recurring_instance?: #{target_event.recurring_instance?}"
+    Rails.logger.info "📝 Target event recurring_event_id: #{target_event.recurring_event_id}"
 
     begin
       case scope
       when "one"
-        # この予定のみを削除
-        target_event.destroy!
+        # この予定のみを論理削除（カレンダーから非表示にするが、データは残す）
+        Rails.logger.info "📝 About to soft delete event ID: #{target_event.id}"
+        target_event.soft_delete!
+        Rails.logger.info "📝 Soft deleted event: ID=#{target_event.id}, cancelled_at: #{target_event.cancelled_at}"
         message = "イベントが削除されました。"
 
       when "future"
@@ -305,17 +385,65 @@ class CalendarController < ApplicationController
   private
 
   def handle_single_event_update
-    # 繰り返しイベントの子の場合、独立させて単発イベントとして更新
+    # 日付変更の検証用に属性を取得
+    new_attributes = normalized_event_attributes
+    
+    # 繰り返しイベントの子の場合、例外フラグを立てる
     if @event.recurring_event_id.present?
-      @event.recurring_event_id = nil
-      @event.recurring = false
-      @event.recurrence_rule = nil
-      @event.recurrence_end_date = nil
-      @event.recurrence_count = nil
+      # 日付が変更される場合、元の日付に論理削除されたレコードを作成
+      original_date = @event.original_start_time || @event.start_time
+      
+      # 一時的に属性を適用して新しい日時を取得（まだ保存しない）
+      temp_event = @event.dup
+      temp_event.assign_attributes(new_attributes)
+      new_date = temp_event.start_time
+      
+      # 日付が変更された場合のみ処理
+      if original_date.to_date != new_date.to_date
+        # 元の日付に論理削除されたダミーレコードを作成
+        parent = @event.recurring_event
+        duration = @event.end_time - @event.start_time
+        
+        parent.recurring_instances.create!(
+          title: @event.title,
+          description: @event.description,
+          start_time: original_date,
+          end_time: original_date + duration,
+          original_start_time: original_date,
+          location: @event.location,
+          all_day: @event.all_day,
+          status: @event.status,
+          event_type: @event.event_type,
+          color: @event.color,
+          character: @event.character,
+          user: @event.user,
+          reminder_minutes: @event.reminder_minutes,
+          recurring: false,
+          is_exception: true,
+          cancelled_at: Time.current  # 論理削除済みとしてマーク
+        )
+        
+        Rails.logger.info "📝 Created cancelled dummy record for original date: #{original_date.to_date}"
+      end
+      
+      # original_start_time が未設定の場合のみ設定（一度設定したら変更しない）
+      if @event.original_start_time.blank?
+        new_attributes[:original_start_time] = original_date
+      end
+      
+      # 例外フラグを立てる（new_attributes に含める）
+      new_attributes[:is_exception] = true
+      
+      # 親から独立させて単発イベントとして更新する場合はコメントを外す
+      # @event.recurring_event_id = nil
+      # @event.recurring = false
+      # @event.recurrence_rule = nil
+      # @event.recurrence_end_date = nil
+      # @event.recurrence_count = nil
     end
 
     # 通常の更新処理
-    if @event.update(normalized_event_attributes)
+    if @event.update(new_attributes)
       # タスク期限イベントの場合、対応するタスクのdescriptionも更新
       if @event.task_deadline? && @event.external_id&.start_with?("task_")
         task_id = @event.external_id.sub("task_", "").to_i
@@ -517,34 +645,76 @@ class CalendarController < ApplicationController
     end_date = Date.parse(params[:end]) rescue @date.end_of_month
 
     # セキュリティ: 現在のユーザーのキャラクターに紐づくイベントのみ取得
-    events = @character.events.for_date_range(start_date, end_date)
+    # 論理削除されたイベントは除外
+    @events = @character.events.active.for_date_range(start_date, end_date).to_a
+
+    # 祝日を追加（設定により表示/非表示切り替え）
+    settings = load_calendar_settings
+    if settings[:show_holidays]
+      add_holiday_events(start_date, end_date)
+    end
 
     # カスタムカテゴリの設定を取得
-    settings = load_calendar_settings
     custom_categories = settings[:custom_categories] || default_categories
 
-    calendar_events = events.map do |event|
-      # イベントタイプに対応するカテゴリの色を取得
-      category = custom_categories.find { |cat| (cat[:id] || cat["id"]) == event.event_type }
-      event_color = category ? (category[:color] || category["color"]) : event.display_color
+    calendar_events = @events.map do |event|
+      # 祝日イベントの場合
+      if event.is_a?(HolidayEvent)
+        {
+          id: event.id,
+          title: event.title,
+          start: event.start_time.iso8601,
+          end: event.end_time.iso8601,
+          allDay: event.all_day?,
+          backgroundColor: event.color,
+          borderColor: event.color,
+          description: event.description,
+          location: event.location,
+          eventType: event.event_type,
+          event_type: event.event_type,
+          start_time: event.start_time.iso8601,
+          end_time: event.end_time.iso8601,
+          reminder_minutes: event.reminder_minutes,
+          status: event.status,
+          is_holiday: true,
+          classNames: [ "holiday-event" ]
+        }
+      else
+        # 通常のイベント
+        # イベントタイプに対応するカテゴリの色を取得
+        category = custom_categories.find { |cat| (cat[:id] || cat["id"]) == event.event_type }
+        event_color = category ? (category[:color] || category["color"]) : event.display_color
 
-      {
-        id: event.id,
-        title: event.title,
-        start: event.start_time.iso8601,
-        end: event.end_time.iso8601,
-        allDay: event.all_day?,
-        backgroundColor: event_color,
-        borderColor: event_color,
-        description: event.description,
-        location: event.location,
-        eventType: event.event_type,
-        event_type: event.event_type,
-        start_time: event.start_time.iso8601,
-        end_time: event.end_time.iso8601,
-        reminder_minutes: event.reminder_minutes,
-        status: event.status
-      }
+        event_data = {
+          id: event.id,
+          title: event.title,
+          start: event.start_time.iso8601,
+          end: event.end_time.iso8601,
+          allDay: event.all_day?,
+          backgroundColor: event_color,
+          borderColor: event_color,
+          description: event.description,
+          location: event.location,
+          eventType: event.event_type,
+          event_type: event.event_type,
+          start_time: event.start_time.iso8601,
+          end_time: event.end_time.iso8601,
+          reminder_minutes: event.reminder_minutes,
+          status: event.status,
+          recurring: event.recurring,
+          recurring_event_id: event.recurring_event_id
+        }
+
+        # 繰り返しイベントの子インスタンスの場合、occurrence_time を追加
+        if event.recurring_event_id.present? && event.original_start_time.present?
+          event_data[:occurrence_time] = event.original_start_time.iso8601
+        elsif event.recurring_event_id.present?
+          # original_start_time がない場合は start_time を使用（後方互換性）
+          event_data[:occurrence_time] = event.start_time.iso8601
+        end
+
+        event_data
+      end
     end
 
     render json: calendar_events
@@ -697,17 +867,24 @@ class CalendarController < ApplicationController
 
     # セキュリティ: 現在のユーザーのキャラクターに紐づくイベントのみ取得
     # 通常のイベントと繰り返しイベントのインスタンスの両方を取得
-    @events = @character.events.for_date_range(@start_date, @end_date).to_a
+    # 論理削除されたイベントは除外
+    @events = @character.events.active.for_date_range(@start_date, @end_date).to_a
 
     # 繰り返しイベントの親（マスター）も取得して、表示期間内のインスタンスを追加
-    recurring_parents = @character.events.recurring_parents.where("start_time <= ?", @end_date)
+    recurring_parents = @character.events.active.recurring_parents.where("start_time <= ?", @end_date)
     recurring_parents.each do |parent|
       occurrences = parent.occurrences_between(@start_date, @end_date)
-      # すでに生成されたインスタンスは含まれているため、重複チェック（日時ベース）
+
+      # すでに生成されたインスタンス（有効なもの）は含まれているため、重複チェック（日時ベース）
       existing_times = @events.map { |e| [ e.start_time, e.end_time ] }
+
+      # 論理削除された子インスタンスの日時も取得（これらは表示しない）
+      cancelled_times = parent.recurring_instances.soft_deleted.map { |e| [ e.start_time, e.end_time ] }
+
       occurrences.each do |occurrence|
         time_pair = [ occurrence.start_time, occurrence.end_time ]
-        unless existing_times.include?(time_pair)
+        # 有効なインスタンスにも論理削除されたインスタンスにも存在しない場合のみ追加
+        unless existing_times.include?(time_pair) || cancelled_times.include?(time_pair)
           @events << occurrence
         end
       end
@@ -719,6 +896,13 @@ class CalendarController < ApplicationController
     @holidays = @calendar_settings[:show_holidays] ?
                 Holiday.where(date: @start_date..@end_date, country: "JP") :
                 Holiday.none
+
+    # holidays gemから祝日を取得してイベントリストに追加
+    if @calendar_settings[:show_holidays]
+      add_holiday_events(@start_date, @end_date)
+    end
+
+    Rails.logger.info "📅 Total events with holidays: #{@events.count}"
 
     @calendar_weeks = build_calendar_weeks(@start_date, @end_date)
     Rails.logger.info "📅 Built #{@calendar_weeks.length} calendar weeks"
@@ -738,17 +922,24 @@ class CalendarController < ApplicationController
     @end_date = @date.end_of_week(:sunday)
     # セキュリティ: 現在のユーザーのキャラクターに紐づくイベントのみ取得
     # 通常のイベントと繰り返しイベントのインスタンスの両方を取得
-    @events = @character.events.for_date_range(@start_date, @end_date).to_a
+    # 論理削除されたイベントは除外
+    @events = @character.events.active.for_date_range(@start_date, @end_date).to_a
 
     # 繰り返しイベントの親（マスター）も取得して、表示期間内のインスタンスを追加
-    recurring_parents = @character.events.recurring_parents.where("start_time <= ?", @end_date)
+    recurring_parents = @character.events.active.recurring_parents.where("start_time <= ?", @end_date)
     recurring_parents.each do |parent|
       occurrences = parent.occurrences_between(@start_date, @end_date)
-      # すでに生成されたインスタンスは含まれているため、重複チェック（日時ベース）
+
+      # すでに生成されたインスタンス（有効なもの）は含まれているため、重複チェック（日時ベース）
       existing_times = @events.map { |e| [ e.start_time, e.end_time ] }
+
+      # 論理削除された子インスタンスの日時も取得（これらは表示しない）
+      cancelled_times = parent.recurring_instances.soft_deleted.map { |e| [ e.start_time, e.end_time ] }
+
       occurrences.each do |occurrence|
         time_pair = [ occurrence.start_time, occurrence.end_time ]
-        unless existing_times.include?(time_pair)
+        # 有効なインスタンスにも論理削除されたインスタンスにも存在しない場合のみ追加
+        unless existing_times.include?(time_pair) || cancelled_times.include?(time_pair)
           @events << occurrence
         end
       end
@@ -759,6 +950,11 @@ class CalendarController < ApplicationController
                 Holiday.where(date: @start_date..@end_date, country: "JP") :
                 Holiday.none
 
+    # holidays gemから祝日を取得してイベントリストに追加
+    if @calendar_settings[:show_holidays]
+      add_holiday_events(@start_date, @end_date)
+    end
+
     @week_days = (@start_date..@end_date).map { |date| date }
   end
 
@@ -766,13 +962,19 @@ class CalendarController < ApplicationController
     @start_date = @date.beginning_of_day
     @end_date = @date.end_of_day
     # セキュリティ: 現在のユーザーのキャラクターに紐づくイベントのみ取得
-    @events = @character.events.for_date_range(@start_date, @end_date)
+    # 論理削除されたイベントは除外
+    @events = @character.events.active.for_date_range(@start_date, @end_date)
                    .order(:start_time)
 
     # 日表示用の祝日データ取得
     @holidays = @calendar_settings[:show_holidays] ?
                 Holiday.where(date: @date, country: "JP") :
                 Holiday.none
+
+    # holidays gemから祝日を取得してイベントリストに追加
+    if @calendar_settings[:show_holidays]
+      add_holiday_events(@start_date, @end_date)
+    end
 
     @hourly_events = build_hourly_events(@events)
   end
@@ -844,25 +1046,9 @@ class CalendarController < ApplicationController
   end
 
   def sync_tasks_to_calendar
-    # アクティビティ（タスク）の期限をカレンダーイベントとして同期
-    activities_with_deadlines = Activity.where.not(deadline: nil)
-
-    activities_with_deadlines.each do |activity|
-      existing_event = Event.find_by(external_id: "activity_#{activity.id}")
-
-      if existing_event
-        # 既存イベントを更新
-        existing_event.update!(
-          title: "📋 #{activity.title} (期限)",
-          start_time: activity.deadline.beginning_of_day,
-          end_time: activity.deadline.end_of_day,
-          description: activity.description&.truncate(100)
-        )
-      else
-        # 新規イベントを作成
-        Event.create_from_task(activity)
-      end
-    end
+    # DISABLED: Activity.deadline does not exist
+    # この機能はTaskモデルに移行する必要があります
+    # アクティビティ（タスク）の期限をカレンダーイベントとして同期する機能
   end
 
   def sync_with_google_calendar
@@ -1071,6 +1257,44 @@ class CalendarController < ApplicationController
 
       @character.update!(calendar_settings: settings_hash.to_json)
     end
+  end
+
+  # holidays gemを使って日本の祝日を取得し、@eventsに追加
+  def add_holiday_events(start_date, end_date)
+    require "holidays"
+
+    # 日本の祝日を取得（:jp リージョン）
+    holidays = Holidays.between(start_date, end_date, :jp, :observed)
+
+    Rails.logger.info "🎌 Found #{holidays.count} Japanese holidays between #{start_date} and #{end_date}"
+
+    holidays.each do |holiday|
+      # 祝日イベントを作成
+      holiday_event = HolidayEvent.new(
+        id: "holiday_#{holiday[:date].strftime('%Y%m%d')}_#{holiday[:name].parameterize}",
+        title: holiday[:name],
+        start_time: Time.zone.local(holiday[:date].year, holiday[:date].month, holiday[:date].day, 0, 0),
+        end_time: Time.zone.local(holiday[:date].year, holiday[:date].month, holiday[:date].day, 23, 59),
+        all_day: true,
+        description: "日本の祝日",
+        location: "",
+        event_type: "holiday",
+        status: "confirmed",
+        color: "#DC2626",  # 赤色
+        character: @character,
+        is_holiday: true,
+        category: "holiday",
+        reminder_minutes: nil
+      )
+
+      @events << holiday_event
+      Rails.logger.info "🎌 Added holiday event: #{holiday[:name]} on #{holiday[:date]}"
+    end
+  rescue LoadError => e
+    Rails.logger.error "🎌 Failed to load holidays gem: #{e.message}"
+  rescue StandardError => e
+    Rails.logger.error "🎌 Error adding holiday events: #{e.message}"
+    Rails.logger.error e.backtrace.first(5).join("\n")
   end
 
   def settings_params

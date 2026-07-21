@@ -187,6 +187,7 @@ GEM
       activesupport (>= 5.1)
       haml (>= 4.0.6)
       railties (>= 5.1)
+    holidays (11.1.0)
     i18n (1.14.8)
       concurrent-ruby (~> 1.0)
     ice_cube (0.17.0)
@@ -549,6 +550,7 @@ DEPENDENCIES
   faker
   faraday
   haml-rails
+  holidays
   ice_cube
   importmap-rails
   jbuilder
