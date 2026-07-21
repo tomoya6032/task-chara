@@ -1,4 +1,4 @@
-const CACHE_NAME = 'task-character-v2';  // バージョンアップしてキャッシュをクリア
+const CACHE_NAME = 'task-character-v3';  // 無限ループ修正後のバージョン
 const urlsToCache = [
   '/icon-192.png',
   '/icon-512.png',
