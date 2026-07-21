@@ -46,8 +46,36 @@ export default class extends Controller {
   async registerServiceWorker() {
     if ("serviceWorker" in navigator) {
       try {
-        const registration = await navigator.serviceWorker.register("/service-worker.js")
+        // 既存のService Workerを確認
+        const registrations = await navigator.serviceWorker.getRegistrations()
+        
+        // 古いService Workerがある場合は解除してから再登録
+        if (registrations.length > 0) {
+          console.log("Found existing service workers, updating...")
+          for (let registration of registrations) {
+            await registration.update()
+          }
+        }
+        
+        const registration = await navigator.serviceWorker.register("/service-worker.js", {
+          scope: "/"
+        })
+        
         console.log("Service Worker registered:", registration.scope)
+        
+        // 更新があるか確認
+        registration.addEventListener("updatefound", () => {
+          console.log("Service Worker update found")
+          const newWorker = registration.installing
+          
+          newWorker.addEventListener("statechange", () => {
+            if (newWorker.state === "activated") {
+              console.log("New Service Worker activated, reloading page...")
+              // 新しいService Workerがアクティブになったらページをリロード
+              window.location.reload()
+            }
+          })
+        })
       } catch (error) {
         console.error("Service Worker registration failed:", error)
       }
