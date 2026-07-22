@@ -118,7 +118,9 @@
                       .calendar-event.holiday-event{ title: "#{event.title}（祝日）" }
                         = event.title.truncate(15)
                     - else
-                      .calendar-event{ data: { event_id: parent_id, event_type: event.event_type, occurrence_time: event.start_time.iso8601 }, onclick: "openEventDetailsModal(#{parent_id}, '#{event.start_time.iso8601}')" }
+                      - is_completed = event.is_task_completed? if event.respond_to?(:is_task_completed?)
+                      - completed_class = is_completed ? 'is-completed' : ''
+                      .calendar-event{ class: completed_class, data: { event_id: parent_id, event_type: event.event_type, occurrence_time: event.start_time.iso8601 }, onclick: "openEventDetailsModal(#{parent_id}, '#{event.start_time.iso8601}')" }
                         = event.title.truncate(15)
         - else
           .calendar-no-data
@@ -163,7 +165,9 @@
                     .week-allday-event.holiday-event{ title: "#{event.title}（祝日）" }
                       = event.title.truncate(16)
                   - else
-                    .week-allday-event{ data: { event_id: parent_id, event_type: event.event_type, occurrence_time: event.start_time.iso8601 }, onclick: "event.stopPropagation(); openEventDetailsModal(#{parent_id}, '#{event.start_time.iso8601}')" }
+                    - is_completed = event.is_task_completed? if event.respond_to?(:is_task_completed?)
+                    - completed_class = is_completed ? 'is-completed' : ''
+                    .week-allday-event{ class: completed_class, data: { event_id: parent_id, event_type: event.event_type, occurrence_time: event.start_time.iso8601 }, onclick: "event.stopPropagation(); openEventDetailsModal(#{parent_id}, '#{event.start_time.iso8601}')" }
                       = event.title.truncate(16)
                 / 時刻指定の日跨ぎイベントの中間日（開始日・終了日を除く、開始時刻順にソート）
                 - multiday_ev = @events.select { |e| !e.all_day && !e.all_day? && e.start_time.to_date != e.end_time.to_date && e.start_time.to_date < day && e.end_time.to_date > day }
@@ -246,7 +250,9 @@
                     - continues_before = is_multiday && event.start_time.to_date != day
                     - continues_after  = is_multiday && event.end_time.to_date != day
                     - compact_class = col_count >= 3 ? 'week-event-compact' : ''
-                    - extra_class = "#{continues_before ? 'week-event-continues-before' : ''} #{continues_after ? 'week-event-continues-after' : ''} #{compact_class}".strip
+                    - is_completed = event.is_task_completed? if event.respond_to?(:is_task_completed?)
+                    - completed_class = is_completed ? 'is-completed' : ''
+                    - extra_class = "#{continues_before ? 'week-event-continues-before' : ''} #{continues_after ? 'week-event-continues-after' : ''} #{compact_class} #{completed_class}".strip
                     - event_z_index = 1 + col_index
                     - parent_id = event.recurring_event_id || event.id
                     .week-event-block{ style: "top:#{top_pct}%; height:#{[height_pct, 2].max}%; left:#{left_pct}%; width:#{width_pct}%; z-index:#{event_z_index};", class: extra_class, data: { event_id: parent_id, event_type: event.event_type, col_index: col_index, col_count: col_count, occurrence_time: event.start_time.iso8601 }, onclick: "event.stopPropagation(); openEventDetailsModal(#{parent_id}, '#{event.start_time.iso8601}')" }
@@ -437,6 +443,9 @@
           .event-detail-row
             .font-medium.text-gray-700 種類:
             .text-gray-900#event-detail-type
+          .event-detail-row#event-detail-completed-row{ style: "display: none;" }
+            .font-medium.text-gray-700 ステータス:
+            .text-gray-900#event-detail-completed
           .event-detail-row
             .font-medium.text-gray-700 説明:
             .text-gray-900#event-detail-description{ style: "white-space: pre-wrap;" }
@@ -1260,6 +1269,20 @@
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   }
   
+  /* 完了したタスクのスタイル */
+  .calendar-event.is-completed,
+  .week-allday-event.is-completed,
+  .week-event-block.is-completed {
+    text-decoration: line-through;
+    opacity: 0.65;
+  }
+  
+  .calendar-event.is-completed:hover,
+  .week-allday-event.is-completed:hover,
+  .week-event-block.is-completed:hover {
+    opacity: 0.8;
+  }
+  
   /* 動的に設定される色クラス */
   .calendar-event.color-dynamic {
     /* JavaScriptでstyle属性を設定 */
@@ -1878,6 +1901,22 @@
       if (reminderEl) {
         const reminderLabels = { 30: '30分前', 60: '1時間前', 180: '3時間前', 1440: '1日前', 4320: '3日前' };
         reminderEl.textContent = event.reminder_minutes != null ? (reminderLabels[event.reminder_minutes] || event.reminder_minutes + '分前') : '通知なし';
+      }
+      
+      // タスク完了状態を表示
+      const completedRow = document.getElementById('event-detail-completed-row');
+      const completedEl = document.getElementById('event-detail-completed');
+      if (event.is_task_completed) {
+        if (completedRow) completedRow.style.display = '';
+        if (completedEl) {
+          let completedText = '✅ 完了済み';
+          if (event.task_completed_at) {
+            completedText += ` (${formatDateTime(event.task_completed_at)})`;
+          }
+          completedEl.textContent = completedText;
+        }
+      } else {
+        if (completedRow) completedRow.style.display = 'none';
       }
       
       // 繰り返し設定を表示

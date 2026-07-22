@@ -524,17 +524,55 @@ class AiSecretaryController < ApplicationController
     # 過去の会話をコンテキストとして追加
     messages.concat(conversation_history)
 
+    # Tool Calling: タスクのLINE送信機能を定義
+    tools = define_tools
+
     response = client.chat(
       parameters: {
         model: "gpt-4o-mini",
         messages: messages,
+        tools: tools,
+        tool_choice: "auto",
         max_tokens: 550,
         temperature: 0.7
       }
     )
 
-    content = response.dig("choices", 0, "message", "content")
-    tokens_used = response.dig("usage", "total_tokens") || 0
+    # Tool Callingの処理
+    message = response.dig("choices", 0, "message")
+    tool_calls = message["tool_calls"]
+
+    if tool_calls.present?
+      # ツールを実行
+      tool_results = execute_tools(tool_calls)
+
+      # ツール実行結果をメッセージ履歴に追加
+      messages << message
+      tool_results.each do |result|
+        messages << {
+          role: "tool",
+          tool_call_id: result[:tool_call_id],
+          content: result[:content]
+        }
+      end
+
+      # ツール実行結果を含めて再度AIに応答を生成させる
+      second_response = client.chat(
+        parameters: {
+          model: "gpt-4o-mini",
+          messages: messages,
+          max_tokens: 550,
+          temperature: 0.7
+        }
+      )
+
+      content = second_response.dig("choices", 0, "message", "content")
+      tokens_used = (response.dig("usage", "total_tokens") || 0) + (second_response.dig("usage", "total_tokens") || 0)
+    else
+      # Tool Callingなしの通常応答
+      content = message["content"]
+      tokens_used = response.dig("usage", "total_tokens") || 0
+    end
 
     { content: content, tokens_used: tokens_used }
   end
@@ -606,6 +644,14 @@ class AiSecretaryController < ApplicationController
       - 会話からタスクを検知した場合は、回答末尾に「→ タスクとして登録しましょうか？」と提案する
       - 直近24〜48時間以内に予定がある場合は「明日は○○の予定ですね。準備は大丈夫ですか？」と気遣いを添える
       - 日報データから特定の訪問先や業務が集中していると見られる場合は「○○の件が増えていますが、ご負担はないですか？」と確認する
+
+      【LINEへのタスク送信機能】
+      ユーザーが「今日のタスクをLINEに送って」「期限が近いタスク3つLINEに送って」などと依頼した場合、send_tasks_to_line関数を使用してタスクをLINEに送信できます。
+      - time_frame: "today"（今日）、"tomorrow"（明日）、"this_week"（今週）、"next_week"（来週）、"overdue"（期限切れ）、"all"（すべて）
+      - limit: 取得件数（1〜50）
+      - filter_type: "nearing_deadline"（期限が近い）、"uncompleted"（未完了）、"all"（すべて）
+
+      関数実行後、結果に基づいて「○件のタスクをLINEに送信しました！」と報告してください。送信失敗時はその旨を伝え、代替案を提示してください。
 
       【応答トーン＆マナー】
       - バイステックの7原則（個別化・意図的な感情表出・統制された情緒・受容・非審判的態度・自己決定・秘密保持）に基づいた共感的姿勢
@@ -844,5 +890,122 @@ class AiSecretaryController < ApplicationController
       Rails.logger.error "Error fetching upcoming events: #{e.message}"
       []
     end
+  end
+
+  # ──────────────────────────────────────────────────────────
+  # Tool Calling（Function Calling）関連メソッド
+  # ──────────────────────────────────────────────────────────
+
+  # AI秘書が使用できるツール（関数）を定義
+  def define_tools
+    [
+      {
+        type: "function",
+        function: {
+          name: "send_tasks_to_line",
+          description: "ユーザーが指定した条件に基づいてタスクを抽出し、LINEに送信します。「今日のタスクを送って」「期限が近いタスク3つLINEに送って」などの指示に応答します。",
+          parameters: {
+            type: "object",
+            properties: {
+              time_frame: {
+                type: "string",
+                enum: [ "today", "tomorrow", "this_week", "next_week", "overdue", "all" ],
+                description: "タスクの時間枠。today=今日、tomorrow=明日、this_week=今週、next_week=来週、overdue=期限切れ、all=すべて"
+              },
+              limit: {
+                type: "integer",
+                description: "取得するタスクの件数（1〜50）。指定がない場合は10件",
+                minimum: 1,
+                maximum: 50
+              },
+              filter_type: {
+                type: "string",
+                enum: [ "nearing_deadline", "uncompleted", "all" ],
+                description: "フィルター種別。nearing_deadline=期限が近い（48時間以内）、uncompleted=未完了すべて、all=すべて"
+              }
+            },
+            required: []
+          }
+        }
+      }
+    ]
+  end
+
+  # ツール（関数）を実行
+  # @param tool_calls [Array] OpenAI APIから返されたtool_calls配列
+  # @return [Array<Hash>] 実行結果の配列
+  def execute_tools(tool_calls)
+    results = []
+
+    tool_calls.each do |tool_call|
+      function_name = tool_call.dig("function", "name")
+      function_args_json = tool_call.dig("function", "arguments")
+      tool_call_id = tool_call["id"]
+
+      begin
+        # JSON引数をパース
+        function_args = JSON.parse(function_args_json)
+
+        # 関数を実行
+        result = case function_name
+        when "send_tasks_to_line"
+          execute_send_tasks_to_line(function_args)
+        else
+          { error: "Unknown function: #{function_name}" }
+        end
+
+        # 結果をJSON文字列に変換
+        results << {
+          tool_call_id: tool_call_id,
+          content: result.to_json
+        }
+
+        Rails.logger.info("[Tool Calling] Executed: #{function_name}, Result: #{result}")
+
+      rescue JSON::ParserError => e
+        error_result = { error: "Invalid JSON arguments: #{e.message}" }
+        results << {
+          tool_call_id: tool_call_id,
+          content: error_result.to_json
+        }
+        Rails.logger.error("[Tool Calling] JSON Parse Error: #{e.message}")
+
+      rescue => e
+        error_result = { error: "Tool execution error: #{e.message}" }
+        results << {
+          tool_call_id: tool_call_id,
+          content: error_result.to_json
+        }
+        Rails.logger.error("[Tool Calling] Execution Error: #{e.class} - #{e.message}")
+        Rails.logger.error(e.backtrace.first(5).join("\n"))
+      end
+    end
+
+    results
+  end
+
+  # タスクをLINEに送信するツールを実行
+  # @param args [Hash] 関数の引数
+  # @return [Hash] 実行結果
+  def execute_send_tasks_to_line(args)
+    filters = {
+      time_frame: args["time_frame"] || "all",
+      limit: args["limit"] || 10,
+      filter_type: args["filter_type"] || "uncompleted"
+    }
+
+    service = TaskLineNotifierService.new(
+      character: @character,
+      filters: filters
+    )
+
+    result = service.send_tasks_to_line
+
+    # AIが理解しやすい形式で結果を返す
+    {
+      success: result[:success],
+      message: result[:message],
+      tasks_count: result[:tasks_count]
+    }
   end
 end

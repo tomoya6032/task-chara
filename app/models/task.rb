@@ -92,34 +92,39 @@ class Task < ApplicationRecord
   end
 
   def category_display
+    settings = character&.calendar_settings_hash || {}
+
+    # カスタムカテゴリの名前を取得（category が custom_ で始まる場合）
+    if category.to_s.start_with?("custom_") && settings["custom_categories"].present?
+      custom_categories = settings["custom_categories"]
+
+      # インデックス付きハッシュを配列に変換（ActionController::Parameters対応）
+      if custom_categories.is_a?(Hash) && custom_categories.keys.all? { |k| k.to_s =~ /^\d+$/ }
+        custom_categories = custom_categories.values
+      end
+
+      if custom_categories.is_a?(Array)
+        cat = custom_categories.find { |c| c["id"] == category.to_s }
+        return cat["name"] if cat&.dig("name")
+      end
+    end
+
+    # 固定カテゴリの名前
     case category
-    when "welfare"
-      "訪問福祉 🏠"
-    when "web"
-      "Web制作 💻"
-    when "admin"
-      "事務作業 📋"
     when "personal"
       "個人"
     when "work"
       "仕事"
     when "meeting"
       "ミーティング"
+    when "welfare"
+      "訪問福祉"
+    when "web"
+      "ウェブ制作"
     when "task_deadline"
       "タスク期限"
     else
-      # カスタムカテゴリの名前を取得
-      if character&.calendar_settings.present?
-        settings = character.calendar_settings_hash
-        cats = settings["custom_categories"]
-        # インデックス付きハッシュを配列に変換
-        cats = cats.values if cats.is_a?(Hash) && cats.keys.all? { |k| k.to_s =~ /^\d+$/ }
-        if cats.is_a?(Array)
-          custom_cat = cats.find { |c| c["id"] == category }
-          return custom_cat["name"] if custom_cat
-        end
-      end
-      category
+      category || "未設定"
     end
   end
 
@@ -139,10 +144,16 @@ class Task < ApplicationRecord
   # カレンダーイベントとの同期
   def sync_calendar_event
     # ドラフト状態のタスクはカレンダーで同期しない
-    if due_date.present? && !completed? && published?
+    if due_date.present? && published?
       event = Event.find_or_initialize_by(external_id: task_external_id)
       # 時間が未指定（00:00）の場合は17:00-18:00をデフォルトにする
       effective_end = due_date.hour == 0 && due_date.min == 0 ? due_date.change(hour: 18) : due_date
+
+      # metadataに完了状態を保存（カレンダー表示用）
+      event_metadata = event.metadata || {}
+      event_metadata["is_task_completed"] = completed?
+      event_metadata["completed_at"] = completed_at&.iso8601
+
       event.assign_attributes(
         title: "📋 #{title} (期限)",
         description: description.presence,
@@ -150,11 +161,12 @@ class Task < ApplicationRecord
         end_time: effective_end,
         all_day: false,
         event_type: "task_deadline",
-        character: character
+        character: character,
+        metadata: event_metadata
       )
       event.save!
-    elsif due_date.blank? || completed?
-      # 期限がなくなった、またはタスクが完了した場合、イベントを削除
+    elsif due_date.blank?
+      # 期限がなくなった場合、イベントを削除
       existing_event = Event.find_by(external_id: task_external_id)
       existing_event&.destroy
     end

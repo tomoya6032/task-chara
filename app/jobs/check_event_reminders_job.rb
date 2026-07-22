@@ -9,31 +9,64 @@ class CheckEventRemindersJob < ApplicationJob
   def perform
     now = Time.current
 
-    # reminder_minutes が設定されているイベントを対象に検索
-    # reminder_minutes 分後が now の前後 WINDOW_SECONDS 秒以内のものを抽出
-    Event.includes(character: :user)
-         .where.not(reminder_minutes: nil)
-         .find_each do |event|
-      remind_at = event.start_time - event.reminder_minutes.minutes
-      next unless remind_at.between?(now - WINDOW_SECONDS.seconds, now + WINDOW_SECONDS.seconds)
-      next unless event.character&.user&.line_user_id.present?
-      next if already_reminded?(event)
+    Rails.logger.info("[CheckEventRemindersJob] 実行開始 - 現在時刻: #{now.strftime('%Y-%m-%d %H:%M:%S %Z')}")
 
-      mark_as_reminded!(event)
-      SendLineReminderJob.perform_later(event.id)
-      Rails.logger.info("[CheckReminders] Queued reminder for Event #{event.id} (#{event.title}) - #{event.reminder_minutes}分前")
+    # LINE認証情報が設定されているか確認
+    unless LineBotService.credentials_configured?
+      Rails.logger.warn("[CheckEventRemindersJob] LINE認証情報が未設定のため処理をスキップ")
+      return
     end
-  end
 
-  private
+    begin
+      # リマインド対象のイベントを効率的に抽出
+      # 条件:
+      #   1. reminder_minutes が設定されている
+      #   2. line_reminded_at が nil（未送信）
+      #   3. start_time が未来（まだ開始していない）
+      #   4. cancelled_at が nil（キャンセルされていない）
+      #   5. LINE連携済みユーザー
+      #   6. リマインド時刻が現在時刻の前後90秒以内
 
-  def already_reminded?(event)
-    event.metadata.is_a?(Hash) && event.metadata["line_reminder_sent_at"].present?
-  end
+      # 各reminder_minutesに対してクエリを実行（効率化のため）
+      [ 30, 60, 180, 1440, 4320 ].each do |minutes|
+        target_time_start = now + minutes.minutes - WINDOW_SECONDS.seconds
+        target_time_end = now + minutes.minutes + WINDOW_SECONDS.seconds
 
-  def mark_as_reminded!(event)
-    meta = event.metadata.is_a?(Hash) ? event.metadata.dup : {}
-    meta["line_reminder_sent_at"] = Time.current.iso8601
-    event.update_columns(metadata: meta)
+        events = Event
+          .joins(character: :user)
+          .where(reminder_minutes: minutes)
+          .where(line_reminded_at: nil)
+          .where("events.start_time BETWEEN ? AND ?", target_time_start, target_time_end)
+          .where("events.start_time > ?", now)
+          .where(cancelled_at: nil)
+          .where.not(users: { line_user_id: nil })
+
+        events.find_each do |event|
+          begin
+            # line_reminded_at を今すぐ更新して重複送信を防止
+            event.update_column(:line_reminded_at, now)
+
+            # 非同期ジョブをキュー
+            SendLineReminderJob.perform_later(event.id)
+
+            Rails.logger.info("[CheckEventRemindersJob] ✅ キュー登録: Event ID #{event.id} (#{event.title}) - #{event.reminder_minutes}分前")
+          rescue => e
+            Rails.logger.error("[CheckEventRemindersJob] ❌ Event ID #{event.id} のキュー登録エラー: #{e.class} - #{e.message}")
+            Rails.logger.error(e.backtrace.first(3).join("\n"))
+          end
+        end
+
+        if events.count > 0
+          Rails.logger.info("[CheckEventRemindersJob] #{minutes}分前リマインド: #{events.count}件をキュー登録")
+        end
+      end
+
+      Rails.logger.info("[CheckEventRemindersJob] 実行完了")
+
+    rescue => e
+      Rails.logger.error("[CheckEventRemindersJob] ❌ 予期しないエラー: #{e.class} - #{e.message}")
+      Rails.logger.error(e.backtrace.first(5).join("\n"))
+      raise # ジョブをリトライさせる
+    end
   end
 end

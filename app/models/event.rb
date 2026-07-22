@@ -137,6 +137,21 @@ class Event < ApplicationRecord
     event_type == "task_deadline"
   end
 
+  # タスク期限イベントが完了済みかどうかを判定
+  def is_task_completed?
+    return false unless task_deadline?
+    metadata&.dig("is_task_completed") == true
+  end
+
+  # タスクの完了日時を取得
+  def task_completed_at
+    return nil unless task_deadline?
+    completed_at_str = metadata&.dig("completed_at")
+    Time.zone.parse(completed_at_str) if completed_at_str.present?
+  rescue
+    nil
+  end
+
   # タスクの期限をイベントとして作成
   def self.create_from_task(activity)
     # DISABLED: Activity.deadline does not exist
@@ -225,16 +240,26 @@ class Event < ApplicationRecord
     duration = end_time - start_time
 
     schedule.occurrences_between(start_date, end_date).map do |occurrence_time|
-      # 元のイベントを複製して、個別の開始・終了時刻をセット
-      cloned = self.dup
-      cloned.id = self.id # 元のイベントIDを保持（親イベントとして識別）
-      cloned.start_time = occurrence_time
-      cloned.end_time = occurrence_time + duration
-      cloned.is_virtual_occurrence = true # 仮想的な出現であることを示す
-      cloned.occurrence_start_time = occurrence_time # 出現時刻を保存
-      cloned.readonly! # 複製したオブジェクトは保存不可にする
-      cloned
-    end
+      # この日時の既存の子インスタンスを検索（個別の変更があるかチェック）
+      existing_instance = find_occurrence(occurrence_time)
+
+      if existing_instance
+        # 既存の子インスタンスがある場合、それを返す（個別の説明・変更が反映される）
+        # ただし論理削除されている場合はnilを返す（表示しない）
+        next if existing_instance.cancelled_at.present?
+        existing_instance
+      else
+        # 仮想オカレンス: 元のイベントを複製して、個別の開始・終了時刻をセット
+        cloned = self.dup
+        cloned.id = self.id # 元のイベントIDを保持（親イベントとして識別）
+        cloned.start_time = occurrence_time
+        cloned.end_time = occurrence_time + duration
+        cloned.is_virtual_occurrence = true # 仮想的な出現であることを示す
+        cloned.occurrence_start_time = occurrence_time # 出現時刻を保存
+        cloned.readonly! # 複製したオブジェクトは保存不可にする
+        cloned
+      end
+    end.compact # nilを除外
   end
 
   # 繰り返しルールからIceCubeスケジュールを構築

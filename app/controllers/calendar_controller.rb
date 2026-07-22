@@ -89,7 +89,9 @@ class CalendarController < ApplicationController
     response_data = @event.as_json.merge(
       recurring: @event.recurring?,
       recurring_event_id: @event.recurring_event_id,
-      recurrence_settings: @event.recurrence_settings
+      recurrence_settings: @event.recurrence_settings,
+      is_task_completed: @event.is_task_completed?,
+      task_completed_at: @event.task_completed_at&.iso8601
     )
 
     # 繰り返しインスタンスの場合、occurrence_timeの情報を追加
@@ -99,9 +101,29 @@ class CalendarController < ApplicationController
 
       Rails.logger.info "📝 Show event - parent_id: #{@event.id}, occurrence_time: #{occurrence_time.iso8601}"
 
-      # 親イベントのIDはそのままで、start_timeとend_timeをオカレンスの時刻に変更
-      response_data["start_time"] = occurrence_time.iso8601
-      response_data["end_time"] = (occurrence_time + duration).iso8601
+      # この日時の既存の子インスタンスを検索（個別の変更があるかチェック）
+      existing_instance = @event.find_occurrence(occurrence_time)
+
+      if existing_instance
+        # 既存の子インスタンスがある場合、そのデータを優先（個別の説明が反映される）
+        Rails.logger.info "📝 Found existing instance with custom data: ID=#{existing_instance.id}"
+        response_data["title"] = existing_instance.title
+        response_data["description"] = existing_instance.description
+        response_data["start_time"] = existing_instance.start_time.iso8601
+        response_data["end_time"] = existing_instance.end_time.iso8601
+        response_data["location"] = existing_instance.location
+        response_data["event_type"] = existing_instance.event_type
+        response_data["reminder_minutes"] = existing_instance.reminder_minutes
+        response_data["is_exception"] = existing_instance.is_exception
+        response_data["has_custom_description"] = true
+      else
+        # 仮想オカレンス: 親イベントのデータを使用
+        Rails.logger.info "📝 Using parent event data for virtual occurrence"
+        response_data["start_time"] = occurrence_time.iso8601
+        response_data["end_time"] = (occurrence_time + duration).iso8601
+        response_data["has_custom_description"] = false
+      end
+
       response_data["occurrence_time"] = occurrence_time.iso8601  # 明示的に追加
       response_data["is_occurrence"] = true
     elsif @event.recurring_event_id.present?
@@ -111,6 +133,7 @@ class CalendarController < ApplicationController
       occurrence_time = @event.original_start_time || @event.start_time
       response_data["occurrence_time"] = occurrence_time.iso8601
       response_data["is_occurrence"] = true
+      response_data["has_custom_description"] = @event.is_exception? || @event.description != @event.recurring_event&.description
     end
 
     respond_to do |format|
@@ -431,6 +454,9 @@ class CalendarController < ApplicationController
     # 日付変更の検証用に属性を取得
     new_attributes = normalized_event_attributes
 
+    Rails.logger.info "📝 handle_single_event_update - Event ID: #{@event.id}, is child instance: #{@event.recurring_event_id.present?}"
+    Rails.logger.info "📝 New attributes: title=#{new_attributes[:title]}, description=#{new_attributes[:description]&.truncate(50)}"
+
     # 繰り返しイベントの子の場合、例外フラグを立てる
     if @event.recurring_event_id.present?
       # 日付が変更される場合、元の日付に論理削除されたレコードを作成
@@ -477,6 +503,8 @@ class CalendarController < ApplicationController
       # 例外フラグを立てる（new_attributes に含める）
       new_attributes[:is_exception] = true
 
+      Rails.logger.info "📝 Setting is_exception flag for recurring instance - custom description will be saved"
+
       # 親から独立させて単発イベントとして更新する場合はコメントを外す
       # @event.recurring_event_id = nil
       # @event.recurring = false
@@ -487,6 +515,8 @@ class CalendarController < ApplicationController
 
     # 通常の更新処理
     if @event.update(new_attributes)
+      Rails.logger.info "📝 Event updated successfully - ID: #{@event.id}, is_exception: #{@event.is_exception}, description: #{@event.description&.truncate(50)}"
+
       # タスク期限イベントの場合、対応するタスクのdescriptionも更新
       if @event.task_deadline? && @event.external_id&.start_with?("task_")
         task_id = @event.external_id.sub("task_", "").to_i
@@ -918,18 +948,19 @@ class CalendarController < ApplicationController
     recurring_parents.each do |parent|
       occurrences = parent.occurrences_between(@start_date, @end_date)
 
-      # すでに生成されたインスタンス（有効なもの）は含まれているため、重複チェック（日時ベース）
-      existing_times = @events.map { |e| [ e.start_time, e.end_time ] }
-
-      # 論理削除された子インスタンスの日時も取得（これらは表示しない）
-      cancelled_times = parent.recurring_instances.soft_deleted.map { |e| [ e.start_time, e.end_time ] }
+      # occurrences_betweenは既存インスタンスまたは仮想オカレンスを返す
+      # 既存インスタンスは既に@eventsに含まれている可能性があるため、重複チェック
+      existing_ids = @events.map(&:id).compact
 
       occurrences.each do |occurrence|
-        time_pair = [ occurrence.start_time, occurrence.end_time ]
-        # 有効なインスタンスにも論理削除されたインスタンスにも存在しない場合のみ追加
-        unless existing_times.include?(time_pair) || cancelled_times.include?(time_pair)
-          @events << occurrence
+        # 既存インスタンス（DBに保存済み）で、既に@eventsに含まれている場合はスキップ
+        if occurrence.persisted? && existing_ids.include?(occurrence.id)
+          Rails.logger.debug "📅 Skipping duplicate existing instance: ID=#{occurrence.id}"
+          next
         end
+
+        # 仮想オカレンス（is_virtual_occurrence = true）は常に追加
+        @events << occurrence
       end
     end
 
@@ -973,18 +1004,18 @@ class CalendarController < ApplicationController
     recurring_parents.each do |parent|
       occurrences = parent.occurrences_between(@start_date, @end_date)
 
-      # すでに生成されたインスタンス（有効なもの）は含まれているため、重複チェック（日時ベース）
-      existing_times = @events.map { |e| [ e.start_time, e.end_time ] }
-
-      # 論理削除された子インスタンスの日時も取得（これらは表示しない）
-      cancelled_times = parent.recurring_instances.soft_deleted.map { |e| [ e.start_time, e.end_time ] }
+      # occurrences_betweenは既存インスタンスまたは仮想オカレンスを返す
+      # 既存インスタンスは既に@eventsに含まれている可能性があるため、重複チェック
+      existing_ids = @events.map(&:id).compact
 
       occurrences.each do |occurrence|
-        time_pair = [ occurrence.start_time, occurrence.end_time ]
-        # 有効なインスタンスにも論理削除されたインスタンスにも存在しない場合のみ追加
-        unless existing_times.include?(time_pair) || cancelled_times.include?(time_pair)
-          @events << occurrence
+        # 既存インスタンス（DBに保存済み）で、既に@eventsに含まれている場合はスキップ
+        if occurrence.persisted? && existing_ids.include?(occurrence.id)
+          next
         end
+
+        # 仮想オカレンス（is_virtual_occurrence = true）は常に追加
+        @events << occurrence
       end
     end
 
@@ -1007,7 +1038,27 @@ class CalendarController < ApplicationController
     # セキュリティ: 現在のユーザーのキャラクターに紐づくイベントのみ取得
     # 論理削除されたイベントは除外
     @events = @character.events.active.for_date_range(@start_date, @end_date)
-                   .order(:start_time)
+                   .order(:start_time).to_a
+
+    # 繰り返しイベントの親（マスター）も取得して、表示期間内のインスタンスを追加
+    recurring_parents = @character.events.active.recurring_parents.where("start_time <= ?", @end_date)
+    recurring_parents.each do |parent|
+      occurrences = parent.occurrences_between(@start_date, @end_date)
+
+      # occurrences_betweenは既存インスタンスまたは仮想オカレンスを返す
+      # 既存インスタンスは既に@eventsに含まれている可能性があるため、重複チェック
+      existing_ids = @events.map(&:id).compact
+
+      occurrences.each do |occurrence|
+        # 既存インスタンス（DBに保存済み）で、既に@eventsに含まれている場合はスキップ
+        if occurrence.persisted? && existing_ids.include?(occurrence.id)
+          next
+        end
+
+        # 仮想オカレンス（is_virtual_occurrence = true）は常に追加
+        @events << occurrence
+      end
+    end
 
     # 日表示用の祝日データ取得
     @holidays = @calendar_settings[:show_holidays] ?
