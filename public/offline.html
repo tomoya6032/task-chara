@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>オフライン - Task Character</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    
+    .container {
+      text-align: center;
+      max-width: 500px;
+      animation: fadeIn 0.5s ease-in;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .icon {
+      font-size: 80px;
+      margin-bottom: 20px;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 0.7; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.05); }
+    }
+    
+    h1 {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      color: #f1f5f9;
+    }
+    
+    p {
+      font-size: 16px;
+      line-height: 1.6;
+      color: #cbd5e1;
+      margin-bottom: 12px;
+    }
+    
+    .status {
+      background: rgba(59, 130, 246, 0.1);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      border-radius: 12px;
+      padding: 16px;
+      margin: 24px 0;
+    }
+    
+    .status-text {
+      font-size: 14px;
+      color: #93c5fd;
+    }
+    
+    .button {
+      display: inline-block;
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      color: white;
+      padding: 14px 28px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 600;
+      margin-top: 20px;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(59, 130, 246, 0.4);
+    }
+    
+    .button:active {
+      transform: translateY(0);
+    }
+    
+    .loader {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .footer {
+      margin-top: 40px;
+      font-size: 14px;
+      color: #64748b;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">📡</div>
+    <h1>オフラインです</h1>
+    <p>ネットワーク接続を確認できません。</p>
+    
+    <div class="status">
+      <p class="status-text" id="status">接続を確認しています...</p>
+    </div>
+    
+    <p>以下の点を確認してください：</p>
+    <ul style="text-align: left; display: inline-block; margin-top: 12px; color: #cbd5e1;">
+      <li style="margin-bottom: 8px;">📶 Wi-Fiまたはモバイルデータ通信がオンになっているか</li>
+      <li style="margin-bottom: 8px;">🌐 インターネット接続が正常か</li>
+      <li style="margin-bottom: 8px;">✈️ 機内モードがオフになっているか</li>
+    </ul>
+    
+    <a href="/" class="button" id="retryButton">
+      再接続を試みる
+      <span class="loader" id="loader" style="display: none;"></span>
+    </a>
+    
+    <div class="footer">
+      Task Character - タスク管理アプリ
+    </div>
+  </div>
+  
+  <script>
+    // 定期的に接続を確認
+    let isChecking = false;
+    
+    function checkConnection() {
+      if (isChecking) return;
+      isChecking = true;
+      
+      const statusEl = document.getElementById('status');
+      const loaderEl = document.getElementById('loader');
+      
+      statusEl.textContent = '接続を確認中...';
+      loaderEl.style.display = 'inline-block';
+      
+      fetch('/', { method: 'HEAD', cache: 'no-cache' })
+        .then(response => {
+          if (response.ok) {
+            statusEl.textContent = '✅ 接続が復旧しました！リダイレクト中...';
+            loaderEl.style.display = 'none';
+            setTimeout(() => {
+              window.location.href = '/';
+            }, 1000);
+          } else {
+            throw new Error('Connection failed');
+          }
+        })
+        .catch(() => {
+          statusEl.textContent = '❌ まだオフラインです。しばらくしてから再度お試しください。';
+          loaderEl.style.display = 'none';
+          isChecking = false;
+        });
+    }
+    
+    // 再接続ボタン
+    document.getElementById('retryButton').addEventListener('click', (e) => {
+      e.preventDefault();
+      checkConnection();
+    });
+    
+    // 10秒ごとに自動確認
+    setInterval(() => {
+      if (!isChecking) {
+        checkConnection();
+      }
+    }, 10000);
+    
+    // 初回確認
+    setTimeout(checkConnection, 2000);
+  </script>
+</body>
+</html>

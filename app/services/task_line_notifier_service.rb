@@ -18,8 +18,15 @@ class TaskLineNotifierService
   # タスクを抽出してLINEに送信
   # @return [Hash] { success: Boolean, message: String, tasks_count: Integer }
   def send_tasks_to_line
+    Rails.logger.info("[TaskLineNotifier] 📤 Starting task LINE notification")
+    Rails.logger.info("[TaskLineNotifier] 🔧 Filters: #{filters.inspect}")
+    Rails.logger.info("[TaskLineNotifier] 👤 Character: #{character&.name} (ID: #{character&.id})")
+    Rails.logger.info("[TaskLineNotifier] 👤 User ID: #{user&.id}")
+    Rails.logger.info("[TaskLineNotifier] 📱 LINE User ID: #{user&.line_user_id.present? ? 'Configured' : 'NOT CONFIGURED'}")
+
     # LINE連携チェック
     unless user&.line_user_id.present?
+      Rails.logger.warn("[TaskLineNotifier] ❌ LINE not connected for user #{user&.id}")
       return {
         success: false,
         message: "LINE連携が完了していません。設定画面からLINE連携を行ってください。",
@@ -29,8 +36,10 @@ class TaskLineNotifierService
 
     # タスクを抽出
     tasks = extract_tasks
+    Rails.logger.info("[TaskLineNotifier] 📊 Tasks extracted: #{tasks.count} task(s)")
 
     if tasks.empty?
+      Rails.logger.info("[TaskLineNotifier] ℹ️  No tasks found matching the criteria")
       return {
         success: false,
         message: "指定された条件に一致するタスクが見つかりませんでした。",
@@ -40,21 +49,25 @@ class TaskLineNotifierService
 
     # LINEメッセージを構築
     message = build_line_message(tasks)
+    Rails.logger.info("[TaskLineNotifier] 📝 Message built: #{message.lines.first(3).join.truncate(150)}...")
 
     # LINE送信
+    Rails.logger.info("[TaskLineNotifier] 📤 Sending to LINE: #{user.line_user_id}")
     service = LineBotService.new
     success = service.send_message(user.line_user_id, message)
 
     if success
+      Rails.logger.info("[TaskLineNotifier] ✅ LINE message sent successfully (#{tasks.count} tasks)")
       {
         success: true,
         message: "#{tasks.count}件のタスクをLINEに送信しました！",
         tasks_count: tasks.count
       }
     else
+      Rails.logger.error("[TaskLineNotifier] ❌ LINE message send failed")
       {
         success: false,
-        message: "LINEへの送信に失敗しました。しばらく経ってから再度お試しください。",
+        message: "LINEへの送信に失敗しました。LINE APIのエラーログを確認してください。",
         tasks_count: 0
       }
     end
@@ -93,10 +106,13 @@ class TaskLineNotifierService
 
   # 時間枠フィルタを適用
   def apply_time_frame_filter(scope)
+    Rails.logger.info("[TaskLineNotifier] 🔍 Applying time_frame filter: #{filters[:time_frame] || 'none'}")
+
     case filters[:time_frame]
     when "today"
       today_start = Time.current.beginning_of_day
       today_end = Time.current.end_of_day
+      Rails.logger.info("[TaskLineNotifier]   📅 Today range: #{today_start} to #{today_end}")
       scope.where(due_date: today_start..today_end)
     when "tomorrow"
       tomorrow_start = 1.day.from_now.beginning_of_day

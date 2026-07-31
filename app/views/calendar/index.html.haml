@@ -253,7 +253,8 @@
                     - is_completed = event.is_task_completed? if event.respond_to?(:is_task_completed?)
                     - completed_class = is_completed ? 'is-completed' : ''
                     - extra_class = "#{continues_before ? 'week-event-continues-before' : ''} #{continues_after ? 'week-event-continues-after' : ''} #{compact_class} #{completed_class}".strip
-                    - event_z_index = 1 + col_index
+                    - duration_hours = end_hour - start_hour
+                    - event_z_index = (100 - [duration_hours * 5, 80].min).to_i + col_index
                     - parent_id = event.recurring_event_id || event.id
                     .week-event-block{ style: "top:#{top_pct}%; height:#{[height_pct, 2].max}%; left:#{left_pct}%; width:#{width_pct}%; z-index:#{event_z_index};", class: extra_class, data: { event_id: parent_id, event_type: event.event_type, col_index: col_index, col_count: col_count, occurrence_time: event.start_time.iso8601 }, onclick: "event.stopPropagation(); openEventDetailsModal(#{parent_id}, '#{event.start_time.iso8601}')" }
                       .week-event-title{ style: "overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: #{((end_hour - start_hour) * 2).to_i}; -webkit-box-orient: vertical; line-height: 1.3; word-break: break-word; word-wrap: break-word; white-space: normal; overflow-wrap: break-word;" }
@@ -878,9 +879,17 @@
     color: #1e3a8a;
     cursor: pointer;
     line-height: 1.5;
+    transition: filter 0.15s, box-shadow 0.15s, z-index 0s;
+    position: relative;
+    z-index: 10;
+    touch-action: manipulation;
   }
-  .week-allday-event:hover {
+  .week-allday-event:hover,
+  .week-allday-event:focus,
+  .week-allday-event:active {
     filter: brightness(0.95);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    z-index: 9999 !important;
   }
   /* 日跨ぎイベントの中間日バッジ */
   .week-allday-event-span {
@@ -956,17 +965,19 @@
     font-size: 11px;
     cursor: pointer;
     overflow: hidden;
-    z-index: 1;
     background: #2563eb;
     border-left: 3px solid #1d4ed8;
     color: #ffffff;
-    transition: filter 0.15s, box-shadow 0.15s;
+    transition: filter 0.15s, box-shadow 0.15s, z-index 0s;
     min-height: 14px;
+    touch-action: manipulation;
   }
-  .week-event-block:hover {
+  .week-event-block:hover,
+  .week-event-block:focus,
+  .week-event-block:active {
     filter: brightness(0.95);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-    z-index: 4;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    z-index: 9999 !important;
   }
   .week-event-compact {
     padding: 2px 3px;
@@ -998,11 +1009,24 @@
     .week-time-column { /* narrow */ }
     .week-time-label { font-size: 9px; padding-right: 3px; }
     .week-event-block {
-      padding: 2px 2px;
+      padding: 4px 3px;
       font-size: 10px;
+      min-height: 32px;
+      min-width: 24px;
     }
     .week-event-compact .week-event-title {
       font-size: 9px;
+    }
+    .week-allday-event {
+      padding: 4px 6px;
+      min-height: 28px;
+      display: flex;
+      align-items: center;
+    }
+    .calendar-event {
+      padding: 4px 6px;
+      min-height: 28px;
+      font-size: 10px;
     }
   }
     color: #374151;
@@ -1254,11 +1278,17 @@
     margin-bottom: 1px;
     border-radius: 2px;
     font-size: 9px;
-    line-height: 1.2;
-    color: #ffffff;
-    text-overflow: ellipsis;
-    overflow: hidden;
-    white-space: nowrap;
+    position: relative;
+    z-index: 1;
+    touch-action: manipulation;
+  }
+  
+  .calendar-event:hover,
+  .calendar-event:focus,
+  .calendar-event:active {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    z-index: 9999 !important
     cursor: pointer;
     transition: all 0.15s ease;
     word-break: break-all;
@@ -1854,6 +1884,35 @@
   window.openEventDetailsModal = function(eventId, occurrenceTime) {
     console.log('Opening details for event:', eventId, 'occurrence:', occurrenceTime);
     
+    // モーダルを先に表示（ローディング状態）
+    const modal = document.getElementById('event-details-modal');
+    if (modal) {
+      modal.classList.remove('hidden');
+    }
+    
+    // DOM要素を取得
+    const titleEl = document.getElementById('event-detail-title');
+    const startEl = document.getElementById('event-detail-start');
+    const endEl = document.getElementById('event-detail-end');
+    const typeEl = document.getElementById('event-detail-type');
+    const descEl = document.getElementById('event-detail-description');
+    const reminderEl = document.getElementById('event-detail-reminder');
+    const completedRow = document.getElementById('event-detail-completed-row');
+    const recurringEl = document.getElementById('event-detail-recurring');
+    
+    // 古いデータをクリア（ローディング表示）
+    if (titleEl) titleEl.textContent = '読み込み中...';
+    if (startEl) startEl.textContent = '---';
+    if (endEl) endEl.textContent = '---';
+    if (typeEl) typeEl.textContent = '---';
+    if (descEl) descEl.textContent = '---';
+    if (reminderEl) reminderEl.textContent = '---';
+    if (completedRow) completedRow.style.display = 'none';
+    if (recurringEl) recurringEl.textContent = '---';
+    
+    // 古いcurrentEventをクリア
+    window.currentEvent = null;
+    
     // URLパラメータに開始時刻を追加（繰り返しインスタンスの識別用）
     let url = `/calendar/${eventId}`;
     if (occurrenceTime) {
@@ -1861,9 +1920,12 @@
     }
     
     fetch(url, {
+      cache: 'no-store',  // ブラウザキャッシュを無効化
       headers: {
         'Accept': 'application/json',
-        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+        'Cache-Control': 'no-cache, no-store, must-revalidate',  // キャッシュ無効化
+        'Pragma': 'no-cache'  // HTTP/1.0互換
       }
     })
     .then(response => {
@@ -1963,16 +2025,17 @@
           recurringEl.textContent = 'なし';
         }
       }
-      
-      // モーダルを表示
-      const modal = document.getElementById('event-details-modal');
-      if (modal) {
-        modal.classList.remove('hidden');
-      }
     })
     .catch(error => {
       console.error('Error fetching event details:', error);
-      alert('エラーが発生しました: ' + error.message);
+      
+      // エラー時はモーダルを閉じてアラート表示
+      const modal = document.getElementById('event-details-modal');
+      if (modal) {
+        modal.classList.add('hidden');
+      }
+      
+      alert('エラーが発生しました: ' + error.message + '\n\nこの予定は削除された可能性があります。ページを再読み込みしてください。');
     });
   };
 

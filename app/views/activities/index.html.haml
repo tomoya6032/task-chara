@@ -19,7 +19,7 @@
           .ml-3
             %p.text-sm.font-medium.text-slate-500.dark:text-slate-400 総投稿数
             %p.text-2xl.font-semibold.text-slate-900.dark:text-white
-              = @activities.count
+              = @total_activities_count
               %span.text-sm.text-slate-500 件
 
     .bg-white.dark:bg-slate-800.overflow-hidden.shadow-xl.rounded-2xl.border.border-slate-200.dark:border-slate-700
@@ -30,7 +30,7 @@
           .ml-3
             %p.text-sm.font-medium.text-slate-500.dark:text-slate-400 今月の投稿
             %p.text-2xl.font-semibold.text-slate-900.dark:text-white
-              = @activities.where(created_at: Time.current.beginning_of_month..Time.current.end_of_month).count
+              = @monthly_activities_count
               %span.text-sm.text-slate-500 件
 
     .bg-white.dark:bg-slate-800.overflow-hidden.shadow-xl.rounded-2xl.border.border-slate-200.dark:border-slate-700
@@ -44,6 +44,61 @@
               - consecutive_days = @character.calculate_consecutive_activity_days
               = consecutive_days
               %span.text-sm.text-slate-500 日
+
+  / 検索フォーム
+  .bg-white.dark:bg-slate-800.shadow-xl.rounded-2xl.border.border-slate-200.dark:border-slate-700.mb-8
+    .px-6.py-4.border-b.border-slate-200.dark:border-slate-700
+      %h2.text-lg.font-semibold.text-slate-900.dark:text-white
+        🔍 日報を検索
+    
+    .px-6.py-4
+      = form_with url: activities_path, method: :get, local: true, class: "space-y-4" do |f|
+        / キーワード検索
+        .grid.grid-cols-1.lg:grid-cols-3.gap-4
+          .lg:col-span-3
+            = f.label :query, "キーワード検索", class: "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
+            = f.text_field :query, 
+              value: @search_query,
+              placeholder: "タイトルまたは本文で検索...",
+              class: "w-full rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          
+          / 開始日
+          .lg:col-span-1
+            = f.label :start_date, "開始日", class: "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
+            = f.date_field :start_date,
+              value: @start_date&.strftime("%Y-%m-%d"),
+              class: "w-full rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500",
+              style: "color-scheme: light;"
+          
+          / 終了日
+          .lg:col-span-1
+            = f.label :end_date, "終了日", class: "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
+            = f.date_field :end_date,
+              value: @end_date&.strftime("%Y-%m-%d"),
+              class: "w-full rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500",
+              style: "color-scheme: light;"
+          
+          / ボタン
+          .lg:col-span-1.flex.items-end.gap-2
+            = f.submit "検索", 
+              class: "flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors shadow-sm"
+            = link_to "リセット", activities_path,
+              class: "flex-1 bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300 font-medium py-2 px-4 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-500 transition-colors text-center"
+        
+        / 検索結果の表示
+        - if @search_query.present? || @start_date.present? || @end_date.present?
+          .mt-4.pt-4.border-t.border-slate-200.dark:border-slate-700
+            %p.text-sm.text-slate-600.dark:text-slate-400
+              = "検索結果: #{@activities.count}件"
+              - if @search_query.present?
+                %span.ml-2.inline-flex.items-center.px-2.py-1.rounded.text-xs.bg-blue-100.dark:bg-blue-900.text-blue-700.dark:text-blue-300
+                  キーワード: #{@search_query}
+              - if @start_date.present?
+                %span.ml-2.inline-flex.items-center.px-2.py-1.rounded.text-xs.bg-green-100.dark:bg-green-900.text-green-700.dark:text-green-300
+                  開始: #{@start_date.strftime('%Y/%m/%d')}
+              - if @end_date.present?
+                %span.ml-2.inline-flex.items-center.px-2.py-1.rounded.text-xs.bg-green-100.dark:bg-green-900.text-green-700.dark:text-green-300
+                  終了: #{@end_date.strftime('%Y/%m/%d')}
 
   / 抽出ドラフト一覧
   .bg-white.dark:bg-slate-800.shadow-xl.rounded-2xl.border.border-slate-200.dark:border-slate-700.mb-8
@@ -206,14 +261,22 @@
       .px-6.py-12.pb-20.lg:pb-12.text-center
         %div
           %span.text-6xl.mb-4.block 📝
-          %h3.text-lg.font-medium.text-slate-900.dark:text-white.mb-2
-            まだ日報が投稿されていません
-          %p.text-slate-500.dark:text-slate-400.mb-6
-            最初の日報を投稿してみましょう！
-          = link_to new_activity_path, 
-              class: "inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500",
-              data: { "turbo-frame": "activity_form_modal" } do
-            📝 日報を投稿する
+          - if @search_query.present? || @start_date.present? || @end_date.present?
+            %h3.text-lg.font-medium.text-slate-900.dark:text-white.mb-2
+              該当する日報は見つかりませんでした
+            %p.text-slate-500.dark:text-slate-400.mb-6
+              検索条件を変更して再度お試しください
+            = link_to "検索条件をリセット", activities_path,
+              class: "inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          - else
+            %h3.text-lg.font-medium.text-slate-900.dark:text-white.mb-2
+              まだ日報が投稿されていません
+            %p.text-slate-500.dark:text-slate-400.mb-6
+              最初の日報を投稿してみましょう！
+            = link_to new_activity_path, 
+                class: "inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500",
+                data: { "turbo-frame": "activity_form_modal" } do
+              📝 日報を投稿する
 
   / モーダルエリア
   %turbo-frame#task-modal

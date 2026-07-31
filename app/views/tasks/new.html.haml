@@ -46,11 +46,11 @@
               ※ 年月日と時間を設定してください（未設定も可能）
             = form.hidden_field :due_date, id: "task-due-date-hidden-a"
             .flex.items-center.gap-1.flex-wrap
-              %input.rounded-lg.border-slate-300.dark:border-slate-600.dark:bg-slate-700.dark:text-white.shadow-sm.text-sm{ type: "date", id: "task-due-date-part-a", onchange: "syncTaskDueDate('a')" }
-              %select.rounded-lg.border-slate-300.dark:border-slate-600.dark:bg-slate-700.dark:text-white.shadow-sm.text-sm{ id: "task-due-hour-part-a", onchange: "syncTaskDueDate('a')" }
+              %input.rounded-lg.border-slate-300.dark:border-slate-600.bg-white.dark:bg-slate-700.text-slate-900.dark:text-white.shadow-sm.text-sm{ type: "date", id: "task-due-date-part-a", onchange: "syncTaskDueDate('a')", style: "color-scheme: light;" }
+              %select.rounded-lg.border-slate-300.dark:border-slate-600.bg-white.dark:bg-slate-700.text-slate-900.dark:text-white.shadow-sm.text-sm{ id: "task-due-hour-part-a", onchange: "syncTaskDueDate('a')" }
                 - (0..23).each do |h|
                   %option{ value: h.to_s.rjust(2,'0') }= "#{h.to_s.rjust(2,'0')}時"
-              %select.rounded-lg.border-slate-300.dark:border-slate-600.dark:bg-slate-700.dark:text-white.shadow-sm.text-sm{ id: "task-due-min-part-a", onchange: "syncTaskDueDate('a')" }
+              %select.rounded-lg.border-slate-300.dark:border-slate-600.bg-white.dark:bg-slate-700.text-slate-900.dark:text-white.shadow-sm.text-sm{ id: "task-due-min-part-a", onchange: "syncTaskDueDate('a')" }
                 - [0, 15, 30, 45].each do |m|
                   %option{ value: m.to_s.rjust(2,'0') }= "#{m.to_s.rjust(2,'0')}分"
               %button.text-xs.text-slate-400.dark:text-slate-500.underline{ type: "button", onclick: "clearTaskDueDate('a')" } クリア
@@ -83,7 +83,8 @@
               キャンセル
             
             = form.submit "タスクを追加", 
-              class: "flex-1 bg-gradient-to-r from-green-500 to-blue-600 text-white font-medium py-3 px-4 rounded-lg hover:from-green-600 hover:to-blue-700 transition-all transform hover:scale-105 shadow-lg"
+              class: "flex-1 bg-gradient-to-r from-green-500 to-blue-600 text-white font-medium py-3 px-4 rounded-lg hover:from-green-600 hover:to-blue-700 transition-all transform hover:scale-105 shadow-lg",
+              data: { disable_with: "作成中..." }
 
 - else
   / 通常のモーダル表示（Turbo Frame使用）
@@ -128,11 +129,11 @@
               ※ 年月日と時間を設定してください（未設定も可能）
             = form.hidden_field :due_date, id: "task-due-date-hidden-b"
             .flex.items-center.gap-1.flex-wrap
-              %input.rounded-lg.border-slate-300.dark:border-slate-600.dark:bg-slate-700.dark:text-white.shadow-sm.text-sm{ type: "date", id: "task-due-date-part-b", onchange: "syncTaskDueDate('b')" }
-              %select.rounded-lg.border-slate-300.dark:border-slate-600.dark:bg-slate-700.dark:text-white.shadow-sm.text-sm{ id: "task-due-hour-part-b", onchange: "syncTaskDueDate('b')" }
+              %input.rounded-lg.border-slate-300.dark:border-slate-600.bg-white.dark:bg-slate-700.text-slate-900.dark:text-white.shadow-sm.text-sm{ type: "date", id: "task-due-date-part-b", onchange: "syncTaskDueDate('b')", style: "color-scheme: light;" }
+              %select.rounded-lg.border-slate-300.dark:border-slate-600.bg-white.dark:bg-slate-700.text-slate-900.dark:text-white.shadow-sm.text-sm{ id: "task-due-hour-part-b", onchange: "syncTaskDueDate('b')" }
                 - (0..23).each do |h|
                   %option{ value: h.to_s.rjust(2,'0') }= "#{h.to_s.rjust(2,'0')}時"
-              %select.rounded-lg.border-slate-300.dark:border-slate-600.dark:bg-slate-700.dark:text-white.shadow-sm.text-sm{ id: "task-due-min-part-b", onchange: "syncTaskDueDate('b')" }
+              %select.rounded-lg.border-slate-300.dark:border-slate-600.bg-white.dark:bg-slate-700.text-slate-900.dark:text-white.shadow-sm.text-sm{ id: "task-due-min-part-b", onchange: "syncTaskDueDate('b')" }
                 - [0, 15, 30, 45].each do |m|
                   %option{ value: m.to_s.rjust(2,'0') }= "#{m.to_s.rjust(2,'0')}分"
               %button.text-xs.text-slate-400.dark:text-slate-500.underline{ type: "button", onclick: "clearTaskDueDate('b')" } クリア
@@ -162,4 +163,5 @@
               キャンセル
             
             = form.submit "タスクを追加", 
-              class: "w-full sm:flex-1 bg-gradient-to-r from-green-500 to-blue-600 text-white font-medium py-6 px-4 rounded-lg hover:from-green-600 hover:to-blue-700 transition-all transform hover:scale-105 shadow-lg"
+              class: "w-full sm:flex-1 bg-gradient-to-r from-green-500 to-blue-600 text-white font-medium py-6 px-4 rounded-lg hover:from-green-600 hover:to-blue-700 transition-all transform hover:scale-105 shadow-lg",
+              data: { disable_with: "作成中..." }

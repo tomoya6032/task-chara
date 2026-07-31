@@ -13,6 +13,19 @@ class Activity < ApplicationRecord
   scope :analyzed, -> { where.not(ai_analysis_log: {}) }
   scope :today, -> { where(created_at: Time.current.beginning_of_day..Time.current.end_of_day) }
 
+  # 検索用スコープ
+  scope :search_by_keyword, ->(keyword) {
+    return all if keyword.blank?
+    where("title ILIKE :keyword OR content ILIKE :keyword", keyword: "%#{keyword}%")
+  }
+
+  scope :between_dates, ->(start_date, end_date) {
+    result = all
+    result = result.where("created_at >= ?", start_date.beginning_of_day) if start_date.present?
+    result = result.where("created_at <= ?", end_date.end_of_day) if end_date.present?
+    result
+  }
+
   # 画像ファイルの仮想属性
   attr_accessor :image
 

@@ -7,6 +7,7 @@ class Task < ApplicationRecord
   after_initialize :set_defaults
   after_save :manage_calendar_event
   before_save :reset_line_due_reminder_flag_if_needed
+  before_validation :check_duplicate_task, on: :create
 
   validates :title, presence: true
   validates :category, presence: true
@@ -209,6 +210,21 @@ class Task < ApplicationRecord
   end
 
   private
+
+  def check_duplicate_task
+    # 二重送信防止：5秒以内に同じキャラクターで同じタイトルのタスクが作成されていないかチェック
+    return unless character_id.present? && title.present?
+
+    recent_duplicate = Task.where(character_id: character_id, title: title)
+                           .where("created_at > ?", 5.seconds.ago)
+                           .where.not(id: id)
+                           .exists?
+
+    if recent_duplicate
+      errors.add(:base, "同じタスクが既に作成されています。しばらく待ってから再度お試しください。")
+      Rails.logger.warn "⚠️ Duplicate task creation blocked: character_id=#{character_id}, title=#{title}"
+    end
+  end
 
   def set_defaults
     self.hidden = false if hidden.nil?

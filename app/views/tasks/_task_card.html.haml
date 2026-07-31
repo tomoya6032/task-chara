@@ -18,6 +18,10 @@
         %h3.font-medium.text-slate-900.dark:text-white.mb-1
           = task.title
         
+        - if task.description.present?
+          .text-sm.text-slate-600.dark:text-slate-400.mt-2.mb-2{style: "white-space: pre-line;"}
+            = truncate(task.description, length: 100)
+        
         - if task.extraction_source_text.present?
           %p.text-xs.text-slate-600.dark:text-slate-400.italic.mb-2
             抽出元: "#{truncate(task.extraction_source_text, length: 50)}"
@@ -51,6 +55,9 @@
         .flex-grow.min-w-0
           %h4.font-medium.text-slate-900.dark:text-white.truncate.mb-1
             = task.title
+          - if task.description.present?
+            .text-sm.text-slate-600.dark:text-slate-400.mt-1.mb-2{style: "white-space: pre-line;"}
+              = truncate(task.description, length: 80)
           .text-sm.text-green-600.dark:text-green-400.leading-relaxed
             完了: #{task.completed_at.strftime("%m/%d %H:%M")} | 
             獲得強靭さ: +#{(task.dislike_level || 1) * 1.5}pt
@@ -80,13 +87,13 @@
             = button_to notify_line_task_path(task), method: :post, class: "bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded text-xs transition-colors", data: { turbo: false }, form_class: "inline" do
               📲
 
+        - if task.description.present?
+          .text-sm.text-slate-600.dark:text-slate-400.mt-2.mb-2{style: "white-space: pre-line;"}
+            = truncate(task.description, length: 100)
         .text-xs.text-slate-600.dark:text-slate-400.mt-2.leading-relaxed
           カテゴリ: #{task.category_display} | 
           嫌い度: #{task.dislike_level}/10 | 
           作成: #{task.created_at.strftime("%m/%d %H:%M")}
-        - if task.description.present?
-          .text-xs.text-slate-500.dark:text-slate-400.mt-2.truncate
-            📝 #{task.description}
         - if task.due_date.present?
           .text-xs.mt-2{
             class: case task.due_status

@@ -527,6 +527,10 @@ class AiSecretaryController < ApplicationController
     # Tool Calling: タスクのLINE送信機能を定義
     tools = define_tools
 
+    Rails.logger.info("[AI Secretary] 🤖 Generating AI response with Tool Calling support")
+    Rails.logger.info("[AI Secretary] 📝 User message: #{conversation_history.last&.dig(:content)&.truncate(100)}")
+    Rails.logger.info("[AI Secretary] 🔧 Available tools: #{tools.map { |t| t.dig(:function, :name) }.join(', ')}")
+
     response = client.chat(
       parameters: {
         model: "gpt-4o-mini",
@@ -543,6 +547,10 @@ class AiSecretaryController < ApplicationController
     tool_calls = message["tool_calls"]
 
     if tool_calls.present?
+      Rails.logger.info("[AI Secretary] ✅ Tool calls detected: #{tool_calls.count} tool(s)")
+      tool_calls.each_with_index do |tc, idx|
+        Rails.logger.info("[AI Secretary]   #{idx + 1}. #{tc.dig('function', 'name')} with args: #{tc.dig('function', 'arguments')}")
+      end
       # ツールを実行
       tool_results = execute_tools(tool_calls)
 
@@ -568,8 +576,10 @@ class AiSecretaryController < ApplicationController
 
       content = second_response.dig("choices", 0, "message", "content")
       tokens_used = (response.dig("usage", "total_tokens") || 0) + (second_response.dig("usage", "total_tokens") || 0)
+      Rails.logger.info("[AI Secretary] ✅ Tool execution completed, final response generated")
     else
       # Tool Callingなしの通常応答
+      Rails.logger.info("[AI Secretary] ℹ️  No tool calls detected, returning standard response")
       content = message["content"]
       tokens_used = response.dig("usage", "total_tokens") || 0
     end
@@ -651,13 +661,13 @@ class AiSecretaryController < ApplicationController
       - limit: 取得件数（1〜50）
       - filter_type: "nearing_deadline"（期限が近い）、"uncompleted"（未完了）、"all"（すべて）
 
-      関数実行後、結果に基づいて「○件のタスクをLINEに送信しました！」と報告してください。送信失敗時はその旨を伝え、代替案を提示してください。
+      【重要】ユーザーがタスクのLINE送信を依頼した場合、必ずsend_tasks_to_line関数を呼び出してください。自分で推測したり、一般的な説明をするのではなく、関数を実行して実際の結果を取得してください。
 
-      【応答トーン＆マナー】
-      - バイステックの7原則（個別化・意図的な感情表出・統制された情緒・受容・非審判的態度・自己決定・秘密保持）に基づいた共感的姿勢
-      - 丁寧かつ温かみのあるパートナーとしての口調（硬すぎない敬語）
-      - 専門用語は適切に使いつつ、具体的な「次の一手」を必ず提示する
-      - 回答は600文字程度。最後に関連する提案・確認を1つ含める
+      関数実行後、結果に基づいて以下のように応答してください：
+      - 送信成功時: 「○件のタスクをLINEに送信しました！」と明確に報告
+      - LINE未連携時: 「LINE連携が完了していないため送信できませんでした。設定画面から連携をお願いします」
+      - タスク0件時: 「指定された条件のタスクは0件でした」と正確に報告
+      - 送信失敗時: エラー内容を伝え、代替案を提示
       - Web検索結果がある場合は自然に情報を織り込む
     PROMPT
   end
@@ -903,28 +913,30 @@ class AiSecretaryController < ApplicationController
         type: "function",
         function: {
           name: "send_tasks_to_line",
-          description: "ユーザーが指定した条件に基づいてタスクを抽出し、LINEに送信します。「今日のタスクを送って」「期限が近いタスク3つLINEに送って」などの指示に応答します。",
+          description: "タスクをデータベースから抽出してLINEに送信します。ユーザーが「今日のタスクを送って」「期限が近いタスクをLINEに送信」などと依頼した場合、必ずこの関数を呼び出してください。推測や一般的な説明ではなく、実際のデータを取得して送信します。",
           parameters: {
             type: "object",
             properties: {
               time_frame: {
                 type: "string",
                 enum: [ "today", "tomorrow", "this_week", "next_week", "overdue", "all" ],
-                description: "タスクの時間枠。today=今日、tomorrow=明日、this_week=今週、next_week=来週、overdue=期限切れ、all=すべて"
+                description: "タスクの時間枠。today=今日期限、tomorrow=明日期限、this_week=今週期限、next_week=来週期限、overdue=期限切れ、all=すべて（時間枠指定なし）"
               },
               limit: {
                 type: "integer",
-                description: "取得するタスクの件数（1〜50）。指定がない場合は10件",
+                description: "取得するタスクの最大件数（1〜50）。ユーザーが件数を指定しない場合は10件",
                 minimum: 1,
-                maximum: 50
+                maximum: 50,
+                default: 10
               },
               filter_type: {
                 type: "string",
                 enum: [ "nearing_deadline", "uncompleted", "all" ],
-                description: "フィルター種別。nearing_deadline=期限が近い（48時間以内）、uncompleted=未完了すべて、all=すべて"
+                description: "フィルター種別。nearing_deadline=期限が近い（48時間以内）、uncompleted=未完了すべて、all=完了・未完了すべて",
+                default: "uncompleted"
               }
             },
-            required: []
+            required: [ "time_frame" ]
           }
         }
       }

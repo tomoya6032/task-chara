@@ -3,10 +3,12 @@
   "short_name": "TaskChar",
   "description": "タスク管理とキャラクター育成を楽しめるアプリ",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#3b82f6",
   "orientation": "portrait-primary",
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/icon-192.png",
@@ -31,5 +33,21 @@
       "text": "text",
       "url": "url"
     }
-  }
+  },
+  "shortcuts": [
+    {
+      "name": "タスク追加",
+      "short_name": "新規タスク",
+      "description": "新しいタスクを追加",
+      "url": "/tasks/new",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "カレンダー",
+      "short_name": "カレンダー",
+      "description": "カレンダーを表示",
+      "url": "/calendar",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
 }

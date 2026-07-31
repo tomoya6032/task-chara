@@ -383,12 +383,28 @@ class CalendarController < ApplicationController
             is_exception: true,
             cancelled_at: Time.current  # 作成時点で論理削除済み
           )
-          Rails.logger.info "📝 Created cancelled dummy: ID=#{dummy.id}, cancelled_at: #{dummy.cancelled_at}"
+          Rails.logger.info "📝 ✅ Created cancelled dummy: ID=#{dummy.id}, cancelled_at: #{dummy.cancelled_at}"
         else
           # 既存インスタンスの削除
           Rails.logger.info "📝 About to soft delete event ID: #{target_event.id}"
-          target_event.soft_delete!
-          Rails.logger.info "📝 Soft deleted event: ID=#{target_event.id}, cancelled_at: #{target_event.cancelled_at}"
+
+          # タスク連動イベントの場合、タスク側も削除するかフラグを立てる
+          if target_event.task_deadline? && target_event.external_id&.start_with?("task_")
+            task_id = target_event.external_id.sub("task_", "").to_i
+            task = @character&.tasks&.find_by(id: task_id)
+            if task
+              Rails.logger.info "📝 Found linked task: ID=#{task_id}, will soft-delete event but keep task"
+              # タスクは残すが、イベントは削除
+            end
+          end
+
+          # 論理削除を実行
+          if target_event.soft_delete!
+            Rails.logger.info "📝 ✅ Soft deleted event: ID=#{target_event.id}, cancelled_at: #{target_event.cancelled_at}"
+          else
+            Rails.logger.error "📝 ❌ Failed to soft delete event: #{target_event.errors.full_messages.join(', ')}"
+            raise "削除に失敗しました: #{target_event.errors.full_messages.join(', ')}"
+          end
         end
 
         message = "イベントが削除されました。"
@@ -399,17 +415,33 @@ class CalendarController < ApplicationController
 
         if parent_event
           # この日以降の子インスタンスを削除
-          deleted_count = parent_event.recurring_instances.where("start_time >= ?", target_event.start_time).destroy_all.count
-          Rails.logger.info "📝 Deleted #{deleted_count} future instances"
+          future_instances = parent_event.recurring_instances.where("start_time >= ?", target_event.start_time)
+          deleted_count = future_instances.count
+          Rails.logger.info "📝 Deleting #{deleted_count} future instances"
+
+          future_instances.each do |instance|
+            if instance.soft_delete!
+              Rails.logger.info "📝 ✅ Soft deleted instance: ID=#{instance.id}"
+            else
+              Rails.logger.error "📝 ❌ Failed to delete instance: ID=#{instance.id}"
+            end
+          end
 
           # 親イベントの繰り返し終了日を更新（この日の前日に設定）
           new_end_date = target_event.start_time.to_date - 1.day
+          Rails.logger.info "📝 Updating parent recurrence_end_date to: #{new_end_date}"
           parent_event.update_recurrence_until!(new_end_date)
 
           message = "選択した日以降の予定が削除されました。"
         else
           # 通常のイベントの場合
-          target_event.destroy!
+          Rails.logger.info "📝 Deleting single event (no recurring parent)"
+          if target_event.destroy
+            Rails.logger.info "📝 ✅ Event destroyed: ID=#{target_event.id}"
+          else
+            Rails.logger.error "📝 ❌ Failed to destroy event: #{target_event.errors.full_messages.join(', ')}"
+            raise "削除に失敗しました: #{target_event.errors.full_messages.join(', ')}"
+          end
           message = "イベントが削除されました。"
         end
 
@@ -419,17 +451,35 @@ class CalendarController < ApplicationController
 
         if parent_event
           # 親を削除（dependent: :destroyで子も削除される）
-          parent_event.destroy!
+          Rails.logger.info "📝 Deleting entire recurring series: Parent ID=#{parent_event.id}"
+          if parent_event.destroy
+            Rails.logger.info "📝 ✅ Recurring series destroyed: Parent ID=#{parent_event.id}"
+          else
+            Rails.logger.error "📝 ❌ Failed to destroy recurring series: #{parent_event.errors.full_messages.join(', ')}"
+            raise "削除に失敗しました: #{parent_event.errors.full_messages.join(', ')}"
+          end
           message = "繰り返し予定のシリーズ全体が削除されました。"
         else
           # 通常のイベントの場合
-          target_event.destroy!
+          Rails.logger.info "📝 Deleting single event: ID=#{target_event.id}"
+          if target_event.destroy
+            Rails.logger.info "📝 ✅ Event destroyed: ID=#{target_event.id}"
+          else
+            Rails.logger.error "📝 ❌ Failed to destroy event: #{target_event.errors.full_messages.join(', ')}"
+            raise "削除に失敗しました: #{target_event.errors.full_messages.join(', ')}"
+          end
           message = "イベントが削除されました。"
         end
 
       else
         # デフォルトは「この予定のみ」
-        target_event.destroy!
+        Rails.logger.info "📝 Default deletion (scope unknown): #{scope}"
+        if target_event.destroy
+          Rails.logger.info "📝 ✅ Event destroyed: ID=#{target_event.id}"
+        else
+          Rails.logger.error "📝 ❌ Failed to destroy event: #{target_event.errors.full_messages.join(', ')}"
+          raise "削除に失敗しました: #{target_event.errors.full_messages.join(', ')}"
+        end
         message = "イベントが削除されました。"
       end
 
@@ -456,48 +506,14 @@ class CalendarController < ApplicationController
 
     Rails.logger.info "📝 handle_single_event_update - Event ID: #{@event.id}, is child instance: #{@event.recurring_event_id.present?}"
     Rails.logger.info "📝 New attributes: title=#{new_attributes[:title]}, description=#{new_attributes[:description]&.truncate(50)}"
+    Rails.logger.info "📝 Current start_time: #{@event.start_time}, new start_time: #{new_attributes[:start_time]}"
 
     # 繰り返しイベントの子の場合、例外フラグを立てる
     if @event.recurring_event_id.present?
-      # 日付が変更される場合、元の日付に論理削除されたレコードを作成
-      original_date = @event.original_start_time || @event.start_time
-
-      # 一時的に属性を適用して新しい日時を取得（まだ保存しない）
-      temp_event = @event.dup
-      temp_event.assign_attributes(new_attributes)
-      new_date = temp_event.start_time
-
-      # 日付が変更された場合のみ処理
-      if original_date.to_date != new_date.to_date
-        # 元の日付に論理削除されたダミーレコードを作成
-        parent = @event.recurring_event
-        duration = @event.end_time - @event.start_time
-
-        parent.recurring_instances.create!(
-          title: @event.title,
-          description: @event.description,
-          start_time: original_date,
-          end_time: original_date + duration,
-          original_start_time: original_date,
-          location: @event.location,
-          all_day: @event.all_day,
-          status: @event.status,
-          event_type: @event.event_type,
-          color: @event.color,
-          character: @event.character,
-          user: @event.user,
-          reminder_minutes: @event.reminder_minutes,
-          recurring: false,
-          is_exception: true,
-          cancelled_at: Time.current  # 論理削除済みとしてマーク
-        )
-
-        Rails.logger.info "📝 Created cancelled dummy record for original date: #{original_date.to_date}"
-      end
-
       # original_start_time が未設定の場合のみ設定（一度設定したら変更しない）
       if @event.original_start_time.blank?
-        new_attributes[:original_start_time] = original_date
+        new_attributes[:original_start_time] = @event.start_time
+        Rails.logger.info "📝 Setting original_start_time: #{@event.start_time}"
       end
 
       # 例外フラグを立てる（new_attributes に含める）
@@ -513,9 +529,10 @@ class CalendarController < ApplicationController
       # @event.recurrence_count = nil
     end
 
-    # 通常の更新処理
+    # 通常の更新処理（同じレコードを更新）
     if @event.update(new_attributes)
       Rails.logger.info "📝 Event updated successfully - ID: #{@event.id}, is_exception: #{@event.is_exception}, description: #{@event.description&.truncate(50)}"
+      Rails.logger.info "📝 Updated start_time: #{@event.start_time}, end_time: #{@event.end_time}"
 
       # タスク期限イベントの場合、対応するタスクのdescriptionも更新
       if @event.task_deadline? && @event.external_id&.start_with?("task_")
@@ -525,9 +542,11 @@ class CalendarController < ApplicationController
           event_desc = @event.description.to_s
           custom_desc = event_desc.include?("\n\n") ? event_desc.split("\n\n", 2).last.presence : nil
           task.update_columns(description: custom_desc)
+          Rails.logger.info "📝 Updated linked task description: Task ID=#{task_id}"
         end
       end
     else
+      Rails.logger.error "📝 Event update failed: #{@event.errors.full_messages.join(', ')}"
       raise "更新に失敗しました: #{@event.errors.full_messages.join(', ')}"
     end
   end

@@ -67,7 +67,7 @@
         %span.text-sm.text-purple-600.dark:text-purple-300
           = "#{@draft_tasks.count}件"
 
-      .space-y-3
+      #draft-tasks.space-y-3
         - @draft_tasks.each do |task|
           = render partial: 'task_card', locals: { task: task }
 
@@ -98,32 +98,34 @@
 
     / 未完了タスク
     #pending-tab.p-6
-      - if @pending_tasks.any?
-        #published-tasks.space-y-3
-          - @pending_tasks.each do |task|
-            = render partial: 'task_card', locals: { task: task }
-      - else
-        .text-center.py-8
-          .text-4xl.mb-2 🎉
-          %p.text-slate-600.dark:text-slate-400
-            すべてのタスクが完了しています！
+      #published-tasks
+        - if @pending_tasks.any?
+          .space-y-3
+            - @pending_tasks.each do |task|
+              = render partial: 'task_card', locals: { task: task }
+        - else
+          .text-center.py-8
+            .text-4xl.mb-2 🎉
+            %p.text-slate-600.dark:text-slate-400
+              すべてのタスクが完了しています！
 
     / 完了済みタスク
     #completed-tab.p-6.hidden
-      - if @completed_tasks.any?
-        .space-y-3
-          - @completed_tasks.limit(10).each do |task|
-            = render partial: 'task_card', locals: { task: task }
-        
-        - if @completed_tasks.count > 10
-          .text-center.mt-6
-            = link_to completed_tasks_path, class: "text-blue-600 dark:text-blue-400 hover:underline" do
-              すべての完了タスクを見る (#{@completed_tasks.count}件)
-      - else
-        .text-center.py-8
-          .text-4xl.mb-2 🎯
-          %p.text-slate-600.dark:text-slate-400
-            まだ完了したタスクがありません
+      #completed-tasks
+        - if @completed_tasks.any?
+          .space-y-3
+            - @completed_tasks.limit(10).each do |task|
+              = render partial: 'task_card', locals: { task: task }
+          
+          - if @completed_tasks.count > 10
+            .text-center.mt-6
+              = link_to completed_tasks_path, class: "text-blue-600 dark:text-blue-400 hover:underline" do
+                すべての完了タスクを見る (#{@completed_tasks.count}件)
+        - else
+          .text-center.py-8
+            .text-4xl.mb-2 🎯
+            %p.text-slate-600.dark:text-slate-400
+              まだ完了したタスクがありません
 
   / タスク編集モーダル
   #task-edit-modal.fixed.inset-0.bg-gray-600.bg-opacity-50.hidden.flex.items-center.justify-center.z-50
@@ -172,11 +174,11 @@
             期限日時 (任意)
           %input#edit-task-due-date-hidden{ type: "hidden", name: "task[due_date]" }
           .flex.items-center.gap-1.flex-wrap
-            %input.rounded-md.border-slate-300.dark:border-slate-600.dark:bg-slate-700.dark:text-white.text-sm{ type: "date", id: "edit-task-due-date-part", onchange: "syncEditTaskDueDate()" }
-            %select.rounded-md.border-slate-300.dark:border-slate-600.dark:bg-slate-700.dark:text-white.text-sm.px-2.py-2{ id: "edit-task-due-hour-part", onchange: "syncEditTaskDueDate()" }
+            %input.rounded-md.border-slate-300.dark:border-slate-600.bg-white.dark:bg-slate-700.text-slate-900.dark:text-white.text-sm{ type: "date", id: "edit-task-due-date-part", onchange: "syncEditTaskDueDate()", style: "color-scheme: light;" }
+            %select.rounded-md.border-slate-300.dark:border-slate-600.bg-white.dark:bg-slate-700.text-slate-900.dark:text-white.text-sm.px-2.py-2{ id: "edit-task-due-hour-part", onchange: "syncEditTaskDueDate()" }
               - (0..23).each do |h|
                 %option{ value: h.to_s.rjust(2,'0') }= "#{h.to_s.rjust(2,'0')}時"
-            %select.rounded-md.border-slate-300.dark:border-slate-600.dark:bg-slate-700.dark:text-white.text-sm.px-2.py-2{ id: "edit-task-due-min-part", onchange: "syncEditTaskDueDate()" }
+            %select.rounded-md.border-slate-300.dark:border-slate-600.bg-white.dark:bg-slate-700.text-slate-900.dark:text-white.text-sm.px-2.py-2{ id: "edit-task-due-min-part", onchange: "syncEditTaskDueDate()" }
               - [0, 15, 30, 45].each do |m|
                 %option{ value: m.to_s.rjust(2,'0') }= "#{m.to_s.rjust(2,'0')}分"
             %button.text-xs.text-slate-400.dark:text-slate-500.underline{ type: "button", onclick: "clearEditTaskDueDate()" } クリア

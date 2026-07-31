@@ -1,10 +1,11 @@
 # app/models/user.rb
 class User < ApplicationRecord
   # Include default devise modules. Others available are:
-  # :timeoutable, :trackable and :omniauthable
+  # :trackable and :omniauthable
   # NOTE: :confirmable を無効化（メール送信が無効のため）
+  # PWA最適化: :timeoutable を有効化（3時間の非アクティブでタイムアウト）
   devise :database_authenticatable, :registerable,
-         :recoverable, :rememberable, :validatable, :lockable
+         :recoverable, :rememberable, :validatable, :lockable, :timeoutable
 
   # ユーザーロールの定義
   enum :role, { individual: 0, enterprise_admin: 1, system_admin: 2 }, default: :individual

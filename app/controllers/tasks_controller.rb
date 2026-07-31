@@ -5,11 +5,12 @@ class TasksController < ApplicationController
   def index
     sort_by = params[:sort] || "created_date"
 
+    # @characterを通じて取得するため、includes(:character)は不要
     @tasks = case sort_by
     when "due_date"
-               @character.tasks.includes(:character).ordered_by_due_date
+               @character.tasks.ordered_by_due_date
     else
-               @character.tasks.includes(:character).ordered_by_created_date
+               @character.tasks.ordered_by_created_date
     end
 
     @pending_tasks = @tasks.pending.published
@@ -21,7 +22,7 @@ class TasksController < ApplicationController
   end
 
   def completed
-    @completed_tasks = @character.tasks.completed.order(completed_at: :desc)
+    @completed_tasks = @character.tasks.completed.order(completed_at: :desc).limit(100)
   end
 
   def new
@@ -35,10 +36,24 @@ class TasksController < ApplicationController
   end
 
   def create
+    # 二重送信防止チェック（セッションベース）
+    request_token = generate_request_token
+    if duplicate_request?(request_token)
+      Rails.logger.warn "⚠️ Duplicate task creation attempt detected: #{request_token}"
+      respond_to do |format|
+        format.turbo_stream { head :no_content }
+        format.html { redirect_to dashboard_path, alert: "同じタスクを連続して作成することはできません。" }
+      end
+      return
+    end
+
     @task = @character.tasks.build(task_params)
     @task.hidden = false if @task.hidden.nil?
 
     if @task.save
+      # 作成成功時にトークンを記録
+      mark_request_processed(request_token)
+
       respond_to do |format|
         format.turbo_stream do
           if params.dig(:task, :from_new_window) == "true"
@@ -56,6 +71,9 @@ class TasksController < ApplicationController
         end
       end
     else
+      # バリデーションエラー時はトークンをクリア（再送信可能にする）
+      clear_request_token(request_token)
+
       respond_to do |format|
         format.turbo_stream { render :new, status: :unprocessable_entity }
         format.html { render :new, status: :unprocessable_entity }
@@ -321,5 +339,31 @@ class TasksController < ApplicationController
 
   def task_params
     params.require(:task).permit(:title, :category, :dislike_level, :due_date, :description)
+  end
+
+  # 二重送信防止のためのヘルパーメソッド
+  def generate_request_token
+    # タスクのタイトル、カテゴリ、嫌い度から一意なトークンを生成
+    task_data = task_params.slice(:title, :category, :dislike_level, :due_date).to_json
+    Digest::SHA256.hexdigest("#{@character.id}-#{task_data}-#{Time.current.to_i / 5}")
+  end
+
+  def duplicate_request?(token)
+    # セッションに同じトークンが5秒以内に記録されているかチェック
+    return false unless session[:last_task_token].present?
+    return false unless session[:last_task_time].present?
+
+    session[:last_task_token] == token &&
+      (Time.current - Time.at(session[:last_task_time])) < 5.seconds
+  end
+
+  def mark_request_processed(token)
+    session[:last_task_token] = token
+    session[:last_task_time] = Time.current.to_i
+  end
+
+  def clear_request_token(token)
+    session[:last_task_token] = nil
+    session[:last_task_time] = nil
   end
 end

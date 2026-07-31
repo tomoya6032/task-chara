@@ -1,88 +1,244 @@
-const CACHE_NAME = 'task-character-v3';  // 無限ループ修正後のバージョン
-const urlsToCache = [
+// PWA最適化版 Service Worker
+// - App Shellキャッシュで高速起動
+// - Stale-While-Revalidateでデータ取得
+// - Herokuスリープ対策（タイムアウト処理）
+
+const CACHE_NAME = 'task-character-v4.1-calendar-fix';
+const APP_SHELL_CACHE = 'task-character-app-shell-v4.1';
+const RUNTIME_CACHE = 'task-character-runtime-v4.1';
+const TIMEOUT_DURATION = 8000; // 8秒でタイムアウト（Heroku起動待ち）
+
+// App Shell: アプリの骨組（即座にキャッシュから表示）
+const APP_SHELL_URLS = [
+  '/',
   '/icon-192.png',
   '/icon-512.png',
-  '/favicon.ico'
+  '/favicon.ico',
+  '/offline.html'
 ];
 
-// インストール時のキャッシュ処理
+// 静的アセット: 画像、フォント等
+const STATIC_ASSETS_REGEX = /\.(png|jpg|jpeg|gif|svg|ico|webp|woff|woff2|ttf|eot)$/;
+
+// API/データリクエスト: タイムアウト処理が必要
+const API_REGEX = /\/(api|tasks|activities|calendar|dashboards)/;
+
+// ===============================================
+// インストール: App Shellをプリキャッシュ
+// ===============================================
 self.addEventListener('install', (event) => {
-  console.log('[Service Worker] Installing...');
+  console.log('[Service Worker] Installing v4 - PWA Optimized');
   event.waitUntil(
-    caches.open(CACHE_NAME)
+    caches.open(APP_SHELL_CACHE)
       .then((cache) => {
-        console.log('[Service Worker] Caching app shell');
-        return cache.addAll(urlsToCache);
+        console.log('[Service Worker] Caching App Shell');
+        return cache.addAll(APP_SHELL_URLS.map(url => new Request(url, { cache: 'reload' })));
       })
-      .then(() => self.skipWaiting())
+      .then(() => {
+        console.log('[Service Worker] App Shell cached successfully');
+        return self.skipWaiting();
+      })
+      .catch((error) => {
+        console.error('[Service Worker] App Shell caching failed:', error);
+      })
   );
 });
 
-// アクティベーション時の古いキャッシュ削除
+// ===============================================
+// アクティベーション: 古いキャッシュ削除
+// ===============================================
 self.addEventListener('activate', (event) => {
-  console.log('[Service Worker] Activating...');
+  console.log('[Service Worker] Activating v4');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
+          if (cacheName !== CACHE_NAME && 
+              cacheName !== APP_SHELL_CACHE && 
+              cacheName !== RUNTIME_CACHE) {
             console.log('[Service Worker] Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
       );
-    }).then(() => self.clients.claim())
+    }).then(() => {
+      console.log('[Service Worker] Claiming clients');
+      return self.clients.claim();
+    })
   );
 });
 
-// Fetch時の処理
+// ===============================================
+// Fetch: リクエスト処理の振り分け
+// ===============================================
 self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
+  const { request } = event;
+  const url = new URL(request.url);
   
-  // 同一オリジンでない場合はスルー（外部API等）
+  // 同一オリジンでない場合はスルー
   if (url.origin !== location.origin) {
     return;
   }
-  
-  // HTMLナビゲーション（ページ遷移）は常にネットワークを使用
-  // これによりTurboの動作を妨げない
-  if (event.request.mode === 'navigate' || 
-      event.request.destination === 'document' ||
-      event.request.headers.get('Accept')?.includes('text/html')) {
-    console.log('[Service Worker] Navigation request - using network only:', url.pathname);
-    event.respondWith(
-      fetch(event.request, { cache: 'no-store' }).catch(() => {
-        // ネットワークエラー時のみキャッシュから返す
-        return caches.match(event.request);
-      })
-    );
+
+  // ログイン/認証系は常にネットワーク優先（キャッシュしない）
+  if (url.pathname.includes('/users/sign_in') || 
+      url.pathname.includes('/users/sign_out') ||
+      url.pathname.includes('/users/sign_up')) {
+    event.respondWith(fetchWithTimeout(request, TIMEOUT_DURATION));
+    return;
+  }
+
+  // カレンダーイベント詳細JSON: Network Only（キャッシュしない）
+  // 削除された予定の古いキャッシュが表示されるのを防ぐ
+  if (url.pathname.match(/^\/calendar\/\d+/) && request.headers.get('Accept')?.includes('application/json')) {
+    event.respondWith(fetchWithTimeout(request, TIMEOUT_DURATION));
+    return;
+  }
+
+  // HTMLナビゲーション: Stale-While-Revalidate + タイムアウト処理
+  if (request.mode === 'navigate' || 
+      request.destination === 'document' ||
+      request.headers.get('Accept')?.includes('text/html')) {
+    event.respondWith(handleNavigationRequest(request));
     return;
   }
   
-  // 静的アセット（画像、アイコン等）のみキャッシュを使用
-  if (url.pathname.match(/\.(png|jpg|jpeg|gif|svg|ico|webp)$/)) {
-    event.respondWith(
-      caches.match(event.request).then((response) => {
-        if (response) {
-          console.log('[Service Worker] Serving from cache:', url.pathname);
-          return response;
-        }
-        
-        return fetch(event.request).then((response) => {
-          // 成功したレスポンスをキャッシュに保存
-          if (response && response.status === 200) {
-            const responseToCache = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
-          }
-          return response;
-        });
-      })
-    );
+  // 静的アセット: Cache First（永続的にキャッシュ）
+  if (url.pathname.match(STATIC_ASSETS_REGEX)) {
+    event.respondWith(handleStaticAsset(request));
     return;
   }
   
-  // その他のリクエストはネットワークを優先（キャッシュなし）
-  event.respondWith(fetch(event.request));
+  // API/データリクエスト: Network First + タイムアウト処理
+  if (url.pathname.match(API_REGEX)) {
+    event.respondWith(handleApiRequest(request));
+    return;
+  }
+  
+  // その他: Network First
+  event.respondWith(fetchWithTimeout(request, TIMEOUT_DURATION));
 });
+
+// ===============================================
+// ナビゲーションリクエスト処理
+// ===============================================
+async function handleNavigationRequest(request) {
+  try {
+    console.log('[Service Worker] Navigation:', request.url);
+    
+    // まずキャッシュから即座に返す（Stale）
+    const cachedResponse = await caches.match(request);
+    
+    // バックグラウンドでネットワークから取得（Revalidate）
+    const networkPromise = fetchWithTimeout(request, TIMEOUT_DURATION)
+      .then(response => {
+        if (response && response.status === 200) {
+          // 成功したらキャッシュ更新
+          caches.open(RUNTIME_CACHE).then(cache => {
+            cache.put(request, response.clone());
+          });
+        }
+        return response;
+      })
+      .catch(error => {
+        console.warn('[Service Worker] Network failed:', error);
+        return null;
+      });
+    
+    // キャッシュがあれば即座に返す、なければネットワークを待つ
+    if (cachedResponse) {
+      console.log('[Service Worker] Serving from cache (stale):', request.url);
+      // バックグラウンドで更新は続行
+      networkPromise.catch(() => {});
+      return cachedResponse;
+    }
+    
+    // キャッシュがない場合はネットワークを待つ
+    const networkResponse = await networkPromise;
+    if (networkResponse) {
+      return networkResponse;
+    }
+    
+    // ネットワークもキャッシュもない場合はオフライン画面
+    return caches.match('/offline.html') || new Response(
+      '<h1>オフラインです</h1><p>ネットワーク接続を確認してください。</p>',
+      { headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+    );
+    
+  } catch (error) {
+    console.error('[Service Worker] Navigation error:', error);
+    return caches.match('/offline.html');
+  }
+}
+
+// ===============================================
+// 静的アセット処理: Cache First
+// ===============================================
+async function handleStaticAsset(request) {
+  try {
+    const cachedResponse = await caches.match(request);
+    if (cachedResponse) {
+      console.log('[Service Worker] Serving static asset from cache:', request.url);
+      return cachedResponse;
+    }
+    
+    const networkResponse = await fetch(request);
+    if (networkResponse && networkResponse.status === 200) {
+      const cache = await caches.open(APP_SHELL_CACHE);
+      cache.put(request, networkResponse.clone());
+    }
+    return networkResponse;
+    
+  } catch (error) {
+    console.error('[Service Worker] Static asset error:', error);
+    return new Response('Not found', { status: 404 });
+  }
+}
+
+// ===============================================
+// API リクエスト処理: Network First + タイムアウト
+// ===============================================
+async function handleApiRequest(request) {
+  try {
+    console.log('[Service Worker] API request:', request.url);
+    const networkResponse = await fetchWithTimeout(request, TIMEOUT_DURATION);
+    
+    // 成功したらキャッシュに保存
+    if (networkResponse && networkResponse.status === 200) {
+      const cache = await caches.open(RUNTIME_CACHE);
+      cache.put(request, networkResponse.clone());
+    }
+    
+    return networkResponse;
+    
+  } catch (error) {
+    console.warn('[Service Worker] API request failed, trying cache:', error);
+    
+    // ネットワーク失敗時はキャッシュから返す
+    const cachedResponse = await caches.match(request);
+    if (cachedResponse) {
+      return cachedResponse;
+    }
+    
+    // キャッシュもない場合はエラーレスポンス
+    return new Response(
+      JSON.stringify({ error: 'Network error', message: 'サーバーに接続できません' }),
+      { status: 503, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+}
+
+// ===============================================
+// タイムアウト付きFetch（Herokuスリープ対策）
+// ===============================================
+function fetchWithTimeout(request, timeout = TIMEOUT_DURATION) {
+  return Promise.race([
+    fetch(request),
+    new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Request timeout')), timeout)
+    )
+  ]).catch(error => {
+    console.error('[Service Worker] Fetch timeout or error:', error);
+    throw error;
+  });
+}

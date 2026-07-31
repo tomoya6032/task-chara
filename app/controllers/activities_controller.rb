@@ -2,10 +2,42 @@ class ActivitiesController < ApplicationController
   before_action :set_character
 
   def index
-    @activities = @character.activities.order(created_at: :desc).limit(50)
+    # 検索パラメータの取得
+    @search_query = params[:query]
+    @start_date = params[:start_date].present? ? Date.parse(params[:start_date]) : nil
+    @end_date = params[:end_date].present? ? Date.parse(params[:end_date]) : nil
+    
+    # 検索スコープの適用
+    @activities = @character.activities
+                            .search_by_keyword(@search_query)
+                            .between_dates(@start_date, @end_date)
+                            .order(created_at: :desc)
+                            .limit(100)
+    
+    # 統計情報を効率的に取得（追加クエリを避ける）
+    @total_activities_count = @activities.count
+    @monthly_activities_count = @character.activities
+                                          .where(created_at: Time.current.beginning_of_month..Time.current.end_of_month)
+                                          .count
+    
     @draft_extracted_tasks = @character.tasks.draft.extracted.includes(:extracted_from_activity).order(created_at: :desc).limit(20)
     @draft_extracted_schedules = @character.tasks.draft.extracted.includes(:extracted_from_activity).where.not(due_date: nil).order(due_date: :asc).limit(20)
 
+    respond_to do |format|
+      format.html
+      format.turbo_stream
+    end
+  rescue Date::Error
+    # 日付パースエラー時は検索条件を無視
+    @search_query = nil
+    @start_date = nil
+    @end_date = nil
+    @activities = @character.activities.order(created_at: :desc).limit(100)
+    @total_activities_count = @activities.count
+    @monthly_activities_count = @character.activities
+                                          .where(created_at: Time.current.beginning_of_month..Time.current.end_of_month)
+                                          .count
+    
     respond_to do |format|
       format.html
       format.turbo_stream
