@@ -18,12 +18,8 @@ class Users::SessionsController < Devise::SessionsController
 
   # POST /users/sign_in
   def create
-    # CSRF検証をバイパスした場合でも、ログイン成功後に新しいセッションを作成
-    super do |resource|
-      # ログイン成功時に新しいセッションを作成（セッション固定攻撃を防止）
-      reset_session if resource.persisted?
-      sign_in(resource_name, resource)
-    end
+    # Deviseのデフォルト処理を実行（自動的にsign_inが呼ばれる）
+    super
   rescue ActionController::InvalidAuthenticityToken => e
     # CSRFエラーが発生した場合の特別処理
     logger.warn "⚠️ CSRF error during login - attempting recovery"

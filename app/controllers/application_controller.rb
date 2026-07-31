@@ -10,6 +10,7 @@ class ApplicationController < ActionController::Base
   before_action :configure_permitted_parameters, if: :devise_controller?
   before_action :set_current_user
   before_action :check_token_limit
+  before_action :log_session_debug, if: -> { Rails.env.production? && params[:debug_session].present? }
 
   # Pundit認可
   include Pundit::Authorization
@@ -19,6 +20,19 @@ class ApplicationController < ActionController::Base
   rescue_from ActionController::InvalidAuthenticityToken, with: :handle_csrf_token_error
 
   private
+
+  # セッション診断用ログ（本番環境で ?debug_session=1 を付けると詳細ログを出力）
+  def log_session_debug
+    logger.info "🔍 Session Debug:"
+    logger.info "  - Session ID: #{session.id.inspect}"
+    logger.info "  - User ID: #{session[:user_id] || current_user&.id}"
+    logger.info "  - Request Protocol: #{request.protocol}"
+    logger.info "  - Request SSL?: #{request.ssl?}"
+    logger.info "  - X-Forwarded-Proto: #{request.headers['X-Forwarded-Proto']}"
+    logger.info "  - Cookie Header: #{request.headers['Cookie']&.truncate(100)}"
+    logger.info "  - Force SSL: #{Rails.configuration.force_ssl}"
+    logger.info "  - Assume SSL: #{Rails.configuration.assume_ssl}"
+  end
 
   # CSRF トークンエラー時の処理
   def handle_csrf_token_error

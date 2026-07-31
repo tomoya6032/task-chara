@@ -6,5 +6,4 @@ Rails.application.config.session_store :cookie_store,
   expire_after: 3.hours,              # 3時間後にセッション期限切れ
   same_site: :lax,                    # CSRF対策とPWA互換性のバランス
   secure: Rails.env.production?,      # 本番環境ではHTTPSのみ
-  httponly: true,                     # JavaScriptからのアクセスを防止（XSS対策）
-  domain: :all                        # サブドメイン間でセッション共有（必要に応じて）
+  httponly: true                      # JavaScriptからのアクセスを防止（XSS対策）
