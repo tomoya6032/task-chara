@@ -1,11 +1,11 @@
 // PWA最適化版 Service Worker
 // - App Shellキャッシュで高速起動
-// - Stale-While-Revalidateでデータ取得
+// - Network Firstでログイン状態を正確に反映
 // - Herokuスリープ対策（タイムアウト処理）
 
-const CACHE_NAME = 'task-character-v4.1-calendar-fix';
-const APP_SHELL_CACHE = 'task-character-app-shell-v4.1';
-const RUNTIME_CACHE = 'task-character-runtime-v4.1';
+const CACHE_NAME = 'task-character-v5.0-network-first';
+const APP_SHELL_CACHE = 'task-character-app-shell-v5.0';
+const RUNTIME_CACHE = 'task-character-runtime-v5.0';
 const TIMEOUT_DURATION = 8000; // 8秒でタイムアウト（Heroku起動待ち）
 
 // App Shell: アプリの骨組（即座にキャッシュから表示）
@@ -27,7 +27,7 @@ const API_REGEX = /\/(api|tasks|activities|calendar|dashboards)/;
 // インストール: App Shellをプリキャッシュ
 // ===============================================
 self.addEventListener('install', (event) => {
-  console.log('[Service Worker] Installing v4 - PWA Optimized');
+  console.log('[Service Worker] Installing v5 - Network First for Login');
   event.waitUntil(
     caches.open(APP_SHELL_CACHE)
       .then((cache) => {
@@ -48,7 +48,7 @@ self.addEventListener('install', (event) => {
 // アクティベーション: 古いキャッシュ削除
 // ===============================================
 self.addEventListener('activate', (event) => {
-  console.log('[Service Worker] Activating v4');
+  console.log('[Service Worker] Activating v5 - Network First');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
@@ -120,43 +120,33 @@ self.addEventListener('fetch', (event) => {
 });
 
 // ===============================================
-// ナビゲーションリクエスト処理
+// ナビゲーションリクエスト処理 (Network First)
+// ログイン状態が反映されるよう、常にネットワークを優先
 // ===============================================
 async function handleNavigationRequest(request) {
   try {
-    console.log('[Service Worker] Navigation:', request.url);
+    console.log('[Service Worker] Navigation (Network First):', request.url);
     
-    // まずキャッシュから即座に返す（Stale）
-    const cachedResponse = await caches.match(request);
-    
-    // バックグラウンドでネットワークから取得（Revalidate）
-    const networkPromise = fetchWithTimeout(request, TIMEOUT_DURATION)
-      .then(response => {
-        if (response && response.status === 200) {
-          // 成功したらキャッシュ更新
-          caches.open(RUNTIME_CACHE).then(cache => {
-            cache.put(request, response.clone());
-          });
-        }
-        return response;
-      })
-      .catch(error => {
-        console.warn('[Service Worker] Network failed:', error);
-        return null;
-      });
-    
-    // キャッシュがあれば即座に返す、なければネットワークを待つ
-    if (cachedResponse) {
-      console.log('[Service Worker] Serving from cache (stale):', request.url);
-      // バックグラウンドで更新は続行
-      networkPromise.catch(() => {});
-      return cachedResponse;
+    // ⚡ まずネットワークから取得（ログイン状態を正しく反映）
+    try {
+      const networkResponse = await fetchWithTimeout(request, TIMEOUT_DURATION);
+      if (networkResponse && networkResponse.status === 200) {
+        // 成功したらキャッシュも更新（オフライン時のフォールバック用）
+        caches.open(RUNTIME_CACHE).then(cache => {
+          cache.put(request, networkResponse.clone());
+        });
+        console.log('[Service Worker] Serving from network (fresh):', request.url);
+        return networkResponse;
+      }
+    } catch (networkError) {
+      console.warn('[Service Worker] Network failed, trying cache:', networkError);
     }
     
-    // キャッシュがない場合はネットワークを待つ
-    const networkResponse = await networkPromise;
-    if (networkResponse) {
-      return networkResponse;
+    // ネットワークが失敗した場合のみキャッシュから返す
+    const cachedResponse = await caches.match(request);
+    if (cachedResponse) {
+      console.log('[Service Worker] Serving from cache (fallback):', request.url);
+      return cachedResponse;
     }
     
     // ネットワークもキャッシュもない場合はオフライン画面
