@@ -1,0 +1,60 @@
+# frozen_string_literal: true
+
+class Users::SessionsController < Devise::SessionsController
+  # Heroku + iOS環境でのCSRFトークン問題の対策
+  # ログイン時のみCSRF検証を緩和（セッション作成前のため）
+  skip_before_action :verify_authenticity_token, only: [ :create ], if: :json_request?
+
+  # GET /users/sign_in
+  def new
+    # ログインフォーム表示前にセッションをリフレッシュ
+    # 古いCSRFトークンによるエラーを防止
+    if request.format.html?
+      # 既存のセッションがあれば新しいCSRFトークンを生成
+      session[:_csrf_token] = nil if session[:_csrf_token].present?
+    end
+    super
+  end
+
+  # POST /users/sign_in
+  def create
+    # CSRF検証をバイパスした場合でも、ログイン成功後に新しいセッションを作成
+    super do |resource|
+      # ログイン成功時に新しいセッションを作成（セッション固定攻撃を防止）
+      reset_session if resource.persisted?
+      sign_in(resource_name, resource)
+    end
+  rescue ActionController::InvalidAuthenticityToken => e
+    # CSRFエラーが発生した場合の特別処理
+    logger.warn "⚠️ CSRF error during login - attempting recovery"
+    logger.warn "⚠️ User-Agent: #{request.user_agent}"
+
+    # セッションをリセットして再度ログインフォームを表示
+    reset_session
+    flash[:alert] = "ログイン処理中にエラーが発生しました。もう一度お試しください。"
+    redirect_to new_user_session_path
+  end
+
+  # DELETE /users/sign_out
+  # def destroy
+  #   super
+  # end
+
+  protected
+
+  # ログイン後のリダイレクト先
+  # def after_sign_in_path_for(resource)
+  #   super(resource)
+  # end
+
+  # ログアウト後のリダイレクト先
+  # def after_sign_out_path_for(resource_or_scope)
+  #   super(resource_or_scope)
+  # end
+
+  private
+
+  def json_request?
+    request.format.json?
+  end
+end
