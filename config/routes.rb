@@ -4,7 +4,9 @@ Rails.application.routes.draw do
     mount LetterOpenerWeb::Engine, at: "/letter_opener"
   end
 
-  devise_for :users
+  devise_for :users, controllers: {
+    sessions: "users/sessions"
+  }
   # LINE Messaging API Webhook
   post "line/callback", to: "line_webhooks#callback"
 

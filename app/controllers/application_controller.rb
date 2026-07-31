@@ -22,24 +22,42 @@ class ApplicationController < ActionController::Base
 
   # CSRF トークンエラー時の処理
   def handle_csrf_token_error
-    logger.warn "⚠️ CSRF token error detected - User Agent: #{request.user_agent}"
+    logger.warn "⚠️ CSRF token error detected"
+    logger.warn "⚠️ User Agent: #{request.user_agent}"
     logger.warn "⚠️ Request: #{request.method} #{request.path}"
+    logger.warn "⚠️ Referer: #{request.referer}"
 
-    # セッションをクリアしてログインページにリダイレクト
-    reset_session
+    # Deviseコントローラーの場合は特別処理（リダイレクトループ防止）
+    if devise_controller?
+      # ログインページからのエラーの場合、セッションをクリアして再表示
+      reset_session
 
-    respond_to do |format|
-      format.html do
-        flash[:alert] = "セキュリティ保護のため、再度ログインしてください。"
-        redirect_to new_user_session_path
+      respond_to do |format|
+        format.html do
+          flash.now[:alert] = "セキュリティ保護のため、ページを更新してもう一度お試しください。"
+          # 元のアクションにリダイレクトせず、エラーページを表示
+          render file: "#{Rails.root}/public/422.html", status: :unprocessable_entity, layout: false
+        end
+        format.json do
+          render json: { error: "CSRF token invalid. Please refresh and try again." }, status: :unprocessable_entity
+        end
       end
-      format.turbo_stream do
-        # Turbo Stream の場合は通常のHTMLレスポンスとして処理
-        flash[:alert] = "セキュリティ保護のため、再度ログインしてください。"
-        redirect_to new_user_session_path
-      end
-      format.json do
-        render json: { error: "CSRF token invalid. Please login again." }, status: :unprocessable_entity
+    else
+      # 通常のコントローラーの場合はログインページにリダイレクト
+      reset_session
+
+      respond_to do |format|
+        format.html do
+          flash[:alert] = "セキュリティ保護のため、再度ログインしてください。"
+          redirect_to new_user_session_path
+        end
+        format.turbo_stream do
+          flash[:alert] = "セキュリティ保護のため、再度ログインしてください。"
+          redirect_to new_user_session_path
+        end
+        format.json do
+          render json: { error: "CSRF token invalid. Please login again." }, status: :unprocessable_entity
+        end
       end
     end
   end

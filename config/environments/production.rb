@@ -48,6 +48,14 @@ Rails.application.configure do
   # Force all access to the app over SSL, use Strict-Transport-Security, and use secure cookies.
   config.force_ssl = true
 
+  # 🔒 Heroku + iOS環境でのCSRF/Cookie問題の対策
+  # セッションCookieの設定を明示的に指定
+  config.session_store :cookie_store,
+    key: "_task_character_session",
+    secure: true,                    # HTTPS接続でのみCookieを送信
+    httponly: true,                  # JavaScriptからのアクセスを防止
+    same_site: :lax                  # CSRF保護を維持しつつ、通常のナビゲーションでCookieを送信
+
   # Skip http-to-https redirect for the default health check endpoint.
   # config.ssl_options = { redirect: { exclude: ->(request) { request.path == "/up" } } }
 
