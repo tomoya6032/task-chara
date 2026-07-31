@@ -15,7 +15,34 @@ class ApplicationController < ActionController::Base
   include Pundit::Authorization
   rescue_from Pundit::NotAuthorizedError, with: :user_not_authorized
 
+  # CSRF トークンエラーのハンドリング（PWA/Turbo遷移時の対策）
+  rescue_from ActionController::InvalidAuthenticityToken, with: :handle_csrf_token_error
+
   private
+
+  # CSRF トークンエラー時の処理
+  def handle_csrf_token_error
+    logger.warn "⚠️ CSRF token error detected - User Agent: #{request.user_agent}"
+    logger.warn "⚠️ Request: #{request.method} #{request.path}"
+
+    # セッションをクリアしてログインページにリダイレクト
+    reset_session
+
+    respond_to do |format|
+      format.html do
+        flash[:alert] = "セキュリティ保護のため、再度ログインしてください。"
+        redirect_to new_user_session_path
+      end
+      format.turbo_stream do
+        # Turbo Stream の場合は通常のHTMLレスポンスとして処理
+        flash[:alert] = "セキュリティ保護のため、再度ログインしてください。"
+        redirect_to new_user_session_path
+      end
+      format.json do
+        render json: { error: "CSRF token invalid. Please login again." }, status: :unprocessable_entity
+      end
+    end
+  end
 
   # 検索エンジンのインデックスを禁止するHTTPヘッダーを設定
   def set_no_index_header

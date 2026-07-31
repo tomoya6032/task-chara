@@ -7,7 +7,7 @@
     %p.text-sm.text-blue-700.mt-2
       メール内のリンクをクリックすると、アカウントが有効化されログイン可能になります。
 
-  = form_for(resource, as: resource_name, url: confirmation_path(resource_name), html: { method: :post, class: "space-y-4" }) do |f|
+  = form_for(resource, as: resource_name, url: confirmation_path(resource_name), html: { method: :post, class: "space-y-4", data: { turbo: false } }) do |f|
     = render "devise/shared/error_messages", resource: resource
 
     .field

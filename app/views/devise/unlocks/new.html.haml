@@ -10,7 +10,7 @@
     %p.text-sm.text-yellow-700.mt-2
       ⏱️ 30分後に自動的にロックが解除されます。
 
-  = form_for(resource, as: resource_name, url: unlock_path(resource_name), html: { method: :post, class: "space-y-4" }) do |f|
+  = form_for(resource, as: resource_name, url: unlock_path(resource_name), html: { method: :post, class: "space-y-4", data: { turbo: false } }) do |f|
     = render "devise/shared/error_messages", resource: resource
 
     .field
