@@ -26,7 +26,12 @@ class SupportReportPdfGenerator
       encoding: "UTF-8",
       enable_local_file_access: true,
       zoom: 1.0,
-      dpi: 96
+      dpi: 96,
+      # 日本語フォント対応の追加オプション
+      print_media_type: true,
+      disable_smart_shrinking: false,
+      # デバッグ用（本番環境でエラーが出た場合に詳細を確認）
+      log_level: "error"
     )
   end
 end

@@ -4,8 +4,21 @@
     %meta{ charset: 'utf-8' }
     %title= @support_report.title
     :css
+      /* 日本語フォントの明示的な定義 */
+      @font-face {
+        font-family: 'Noto Sans CJK JP';
+        src: url('file://#{Rails.root}/app/assets/fonts/NotoSansCJKjp-Regular.otf') format('opentype');
+        font-weight: normal;
+        font-style: normal;
+      }
+      @font-face {
+        font-family: 'IPAexGothic';
+        src: url('file://#{Rails.root}/app/assets/fonts/ipaexg.ttf') format('truetype');
+        font-weight: normal;
+        font-style: normal;
+      }
       body {
-        font-family: 'Noto Sans JP', sans-serif;
+        font-family: 'Noto Sans CJK JP', 'IPAexGothic', 'MS Gothic', sans-serif;
         line-height: 1.9;
         color: #1e293b;
         margin: 0;
