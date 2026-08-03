@@ -6,4 +6,5 @@ Rails.application.config.session_store :cookie_store,
   expire_after: 3.hours,              # 3時間後にセッション期限切れ
   same_site: :lax,                    # CSRF対策とPWA互換性のバランス
   secure: Rails.env.production?,      # 本番環境ではHTTPSのみ
-  httponly: true                      # JavaScriptからのアクセスを防止（XSS対策）
+  httponly: true,                     # JavaScriptからのアクセスを防止（XSS対策）
+  domain: nil                         # 現在のホストのみに制限（Heroku環境で重要）

@@ -507,13 +507,19 @@ class CalendarController < ApplicationController
     Rails.logger.info "📝 handle_single_event_update - Event ID: #{@event.id}, is child instance: #{@event.recurring_event_id.present?}"
     Rails.logger.info "📝 New attributes: title=#{new_attributes[:title]}, description=#{new_attributes[:description]&.truncate(50)}"
     Rails.logger.info "📝 Current start_time: #{@event.start_time}, new start_time: #{new_attributes[:start_time]}"
+    Rails.logger.info "📝 Current original_start_time: #{@event.original_start_time}"
 
     # 繰り返しイベントの子の場合、例外フラグを立てる
     if @event.recurring_event_id.present?
       # original_start_time が未設定の場合のみ設定（一度設定したら変更しない）
+      # 注: find_or_create_occurrence!で作成された場合は既に設定されている
+      # 古いデータや手動作成の子インスタンスの場合のみ、現在のstart_timeを保存
       if @event.original_start_time.blank?
+        # 変更前のstart_timeを元の発生時刻として記録
         new_attributes[:original_start_time] = @event.start_time
-        Rails.logger.info "📝 Setting original_start_time: #{@event.start_time}"
+        Rails.logger.info "📝 Setting original_start_time to current start_time: #{@event.start_time.iso8601}"
+      else
+        Rails.logger.info "📝 original_start_time already set: #{@event.original_start_time.iso8601}, keeping it unchanged"
       end
 
       # 例外フラグを立てる（new_attributes に含める）
@@ -532,7 +538,8 @@ class CalendarController < ApplicationController
     # 通常の更新処理（同じレコードを更新）
     if @event.update(new_attributes)
       Rails.logger.info "📝 Event updated successfully - ID: #{@event.id}, is_exception: #{@event.is_exception}, description: #{@event.description&.truncate(50)}"
-      Rails.logger.info "📝 Updated start_time: #{@event.start_time}, end_time: #{@event.end_time}"
+      Rails.logger.info "📝 Updated start_time: #{@event.start_time.iso8601}, original_start_time: #{@event.original_start_time&.iso8601}"
+      Rails.logger.info "📝 Updated end_time: #{@event.end_time.iso8601}"
 
       # タスク期限イベントの場合、対応するタスクのdescriptionも更新
       if @event.task_deadline? && @event.external_id&.start_with?("task_")

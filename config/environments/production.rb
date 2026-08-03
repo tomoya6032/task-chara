@@ -120,7 +120,8 @@ Rails.application.configure do
   config.i18n.fallbacks = true
 
   # 🚀 パフォーマンス最適化: HTTP圧縮を有効化（gzip）
-  config.middleware.insert_before ActionDispatch::Static, Rack::Deflater
+  # Set-Cookieヘッダーに影響しないよう、Rack::Deflaterを適切な位置に配置
+  config.middleware.use Rack::Deflater
 
   # Do not dump schema after migrations.
   config.active_record.dump_schema_after_migration = false

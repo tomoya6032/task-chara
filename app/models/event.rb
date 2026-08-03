@@ -239,6 +239,9 @@ class Event < ApplicationRecord
     # それぞれをEventオブジェクトに変換する
     duration = end_time - start_time
 
+    # 一度だけ全ての子インスタンスを取得（パフォーマンス最適化）
+    all_instances = recurring_instances.to_a
+
     schedule.occurrences_between(start_date, end_date).map do |occurrence_time|
       # この日時の既存の子インスタンスを検索（個別の変更があるかチェック）
       existing_instance = find_occurrence(occurrence_time)
@@ -249,6 +252,20 @@ class Event < ApplicationRecord
         next if existing_instance.cancelled_at.present?
         existing_instance
       else
+        # 仮想オカレンスを作成する前に、この時刻から移動した子インスタンスがないかチェック
+        # original_start_timeがこのoccurrence_timeと一致する子インスタンスがあれば、
+        # それは元の位置から移動しているため、仮想オカレンスを作成しない
+        moved_instance = all_instances.find do |inst|
+          inst.original_start_time.present? &&
+          (inst.original_start_time - occurrence_time).abs < 5.seconds
+        end
+
+        if moved_instance
+          # この時刻から移動した子インスタンスが存在する場合、仮想オカレンスは作成しない
+          Rails.logger.debug "📝 Skipping virtual occurrence at #{occurrence_time.iso8601} - instance moved to #{moved_instance.start_time.iso8601}"
+          next
+        end
+
         # 仮想オカレンス: 元のイベントを複製して、個別の開始・終了時刻をセット
         cloned = self.dup
         cloned.id = self.id # 元のイベントIDを保持（親イベントとして識別）

@@ -1,5 +1,5 @@
 / 成功通知モーダル
-.fixed.inset-0.bg-black.bg-opacity-50.z-50.flex.items-center.justify-center{ data: { controller: "success-modal", "success-modal-redirect-url-value": redirect_url, "success-modal-redirect-delay-value": redirect_delay } }
+.fixed.inset-0.bg-black.bg-opacity-50.flex.items-center.justify-center{ style: "z-index: 9999;", data: { controller: "success-modal", "success-modal-redirect-url-value": redirect_url, "success-modal-redirect-delay-value": redirect_delay } }
   .bg-white.rounded-2xl.shadow-xl.max-w-md.w-full.mx-4.overflow-hidden.transform.transition-all{ data: { action: "click->success-modal#stopPropagation" } }
     .bg-gradient-to-r.from-green-500.to-emerald-600.px-6.py-4
       .flex.items-center.justify-center.mb-2

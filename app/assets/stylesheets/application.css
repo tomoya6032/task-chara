@@ -9,6 +9,18 @@
  * Consider organizing styles into separate files for maintainability.
  */
 
+/* ========================================
+   モーダルオーバーレイのz-index統一
+   ======================================== */
+.modal-overlay {
+  z-index: 9999 !important;
+}
+
+/* 既存の .z-50 モーダルを上書き（念のため） */
+.fixed.inset-0.z-50 {
+  z-index: 9999 !important;
+}
+
 /* ファイルアップロード&AI処理用のカスタムアニメーション */
 @keyframes shake {
   0%, 100% { transform: translateX(0); }
@@ -178,6 +190,162 @@
   color: #991b1b !important;
 }
 
+/* ========================================
+   月間カレンダーのスタイル
+   ======================================== */
+
+/* 月間カレンダーのイベント枠（1行分の高さに調整） */
+.calendar-event {
+  background-color: #e0e7ff;
+  border-left: 3px solid #6366f1;
+  border-radius: 3px;
+  padding: 0 4px; /* 上下余白なし */
+  margin-bottom: 2px; /* イベント同士の間隔 */
+  font-size: 10px;
+  line-height: 1.1; /* 1行分の高さ */
+  height: 12px; /* 固定高さ: 1行分のみ */
+  cursor: pointer;
+  transition: background-color 0.2s;
+  overflow: hidden;
+  text-overflow: ellipsis; /* 省略表示 */
+  white-space: nowrap;
+  display: block;
+}
+
+.calendar-event:hover {
+  background-color: #c7d2fe;
+}
+
+.calendar-event.is-completed {
+  opacity: 0.6;
+  text-decoration: line-through;
+}
+
+/* 日付セル */
+.calendar-day-cell {
+  min-height: 80px; /* SP画面でも十分な高さを確保 */
+  border: 1px solid #e5e7eb;
+  padding: 4px;
+  background-color: #fff;
+}
+
+/* 日付ヘッダー */
+.calendar-date-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 4px;
+}
+
+.calendar-date-number-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.calendar-date-number {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.calendar-date-number-link:hover .calendar-date-number {
+  background-color: #f3f4f6;
+}
+
+.calendar-today-number {
+  background-color: #3b82f6;
+  color: white;
+}
+
+/* イベント表示エリア */
+.calendar-events-area {
+  display: flex;
+  flex-direction: column;
+  gap: 2px; /* イベント同士の間隔を縮小 */
+  overflow-y: auto;
+  max-height: 100px; /* SP画面での最大高さ */
+}
+
+/* SP画面での月間カレンダー調整 */
+@media (max-width: 1023px) {
+  .calendar-event {
+    font-size: 9px !important;
+    padding: 0 3px !important; /* 上下余白なし */
+    height: 11px !important; /* 固定高さ: 1行分のみ */
+    line-height: 1.1 !important;
+    margin-bottom: 1px !important;
+  }
+  
+  .calendar-day-cell {
+    min-height: 70px;
+    padding: 2px;
+  }
+  
+  .calendar-date-number {
+    font-size: 12px;
+    padding: 1px 4px;
+  }
+  
+  .calendar-events-area {
+    max-height: 80px;
+  }
+}
+
+/* 月間カレンダーのグリッドレイアウト */
+.calendar-main-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.calendar-header-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  background-color: #f9fafb;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.calendar-header-cell {
+  padding: 12px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 14px;
+  color: #374151;
+  border-right: 1px solid #e5e7eb;
+}
+
+.calendar-header-cell:last-child {
+  border-right: none;
+}
+
+/* その他の月間表示スタイル */
+.calendar-other-month {
+  background-color: #f9fafb;
+  opacity: 0.6;
+}
+
+.calendar-today {
+  background-color: #dbeafe;
+  border: 2px solid #3b82f6;
+}
+
+.calendar-highlight-date {
+  background-color: #fef3c7;
+  border: 2px solid #f59e0b;
+}
+
+.calendar-no-data {
+  padding: 40px;
+  text-align: center;
+  color: #6b7280;
+}
+
 /* ダークモード対応 */
 @media (prefers-color-scheme: dark) {
   .holiday-event {
@@ -194,5 +362,470 @@
     background-color: #7f1d1d !important;
     border-left: 3px solid #dc2626 !important;
     color: #fecaca !important;
+  }
+}
+
+/* ========================================
+   週表示カレンダーのスタイル
+   ======================================== */
+
+/* 週表示のコンテナ */
+.week-grid-wrapper {
+  display: flex;
+  flex-direction: column;
+  background-color: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* 曜日ヘッダー行 */
+.week-header-row {
+  display: grid;
+  grid-template-columns: 60px repeat(7, 1fr);
+  border-bottom: 2px solid #e5e7eb;
+  background-color: #f9fafb;
+}
+
+.week-time-gutter {
+  border-right: 1px solid #e5e7eb;
+}
+
+.week-header-cell {
+  padding: 12px 8px;
+  text-align: center;
+  border-right: 1px solid #e5e7eb;
+  transition: background-color 0.2s;
+}
+
+.week-header-cell:hover {
+  background-color: #f3f4f6;
+}
+
+.week-header-today {
+  background-color: #dbeafe !important;
+}
+
+.week-header-highlight {
+  background-color: #fef3c7 !important;
+}
+
+.week-header-dow {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.week-header-date {
+  font-size: 18px;
+  margin-top: 4px;
+  color: #1f2937;
+}
+
+.week-date-today-circle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background-color: #3b82f6;
+  color: white;
+  border-radius: 50%;
+  font-weight: bold;
+}
+
+.week-header-holiday {
+  font-size: 10px;
+  color: #dc2626;
+  margin-top: 4px;
+  font-weight: 600;
+}
+
+/* 終日イベント行 */
+.week-allday-row {
+  display: grid;
+  grid-template-columns: 60px repeat(7, 1fr);
+  min-height: 60px;
+  border-bottom: 2px solid #e5e7eb;
+  background-color: #fef3c7;
+}
+
+.week-allday-gutter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid #e5e7eb;
+  padding: 8px;
+}
+
+.week-allday-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+}
+
+.week-allday-cell {
+  padding: 4px;
+  border-right: 1px solid #e5e7eb;
+  overflow-y: auto;
+  max-height: 120px;
+}
+
+.week-allday-cell-today {
+  background-color: #dbeafe;
+}
+
+.week-allday-cell-highlight {
+  background-color: #fde68a;
+}
+
+.week-allday-event {
+  background-color: #e0e7ff;
+  border-left: 3px solid #6366f1;
+  padding: 4px 8px;
+  margin-bottom: 4px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.week-allday-event:hover {
+  background-color: #c7d2fe;
+}
+
+.week-allday-event-span {
+  background-color: #fef3c7;
+  border-left: 3px solid #f59e0b;
+}
+
+.week-allday-event-span:hover {
+  background-color: #fde68a;
+}
+
+.week-allday-event.is-completed {
+  opacity: 0.6;
+  text-decoration: line-through;
+}
+
+/* スクロール可能なタイムライン本体 */
+.week-body-scroll {
+  position: relative;
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: calc(100vh - 450px);
+  /* スマホ（SP）画面用の下部余白を確保（下部ナビゲーションバーの高さ分） */
+  padding-bottom: 40px;
+}
+
+/* SP表示時の調整 */
+@media (max-width: 1023px) {
+  .week-body-scroll {
+    max-height: calc(100vh - 350px);
+    /* SP画面では下部ナビゲーションバーの高さ + 余裕分の余白を確保 */
+    padding-bottom: 50px;
+  }
+}
+
+.week-body-inner {
+  display: grid;
+  grid-template-columns: 60px repeat(7, 1fr);
+  position: relative;
+  min-height: 1200px; /* 24時間 × 50px/時間 */
+}
+
+/* 時間ラベル列 */
+.week-time-column {
+  border-right: 1px solid #e5e7eb;
+  position: relative;
+}
+
+.week-time-label {
+  height: 50px; /* 1時間 = 50px */
+  padding: 4px 8px;
+  font-size: 12px;
+  color: #6b7280;
+  border-bottom: 1px solid #f3f4f6;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+}
+
+/* 各日のイベント列 */
+.week-day-column {
+  position: relative;
+  border-right: 1px solid #e5e7eb;
+}
+
+.week-day-today {
+  background-color: #f0f9ff;
+}
+
+.week-day-highlight {
+  background-color: #fffbeb;
+}
+
+.week-hour-cell {
+  height: 50px; /* 1時間 = 50px */
+  border-bottom: 1px solid #f3f4f6;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.week-hour-cell:hover {
+  background-color: #f9fafb;
+}
+
+/* 時刻指定イベント（絶対配置） */
+.week-day-column > div[style*="position: absolute"] {
+  /* 予定ブロックのz-indexを適切に設定 */
+  z-index: 10;
+  pointer-events: auto;
+}
+
+/* ========================================
+   カレンダーナビゲーションボタン
+   ======================================== */
+
+.nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  background-color: #f3f4f6;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.nav-btn:hover {
+  background-color: #e5e7eb;
+  border-color: #9ca3af;
+}
+
+.nav-arrow {
+  font-size: 12px;
+}
+
+.nav-text {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .nav-text {
+    display: inline;
+  }
+}
+
+.view-btn {
+  padding: 6px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #6b7280;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.view-btn:hover {
+  color: #374151;
+}
+
+.view-btn.active {
+  background-color: white;
+  color: #3b82f6;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* ========================================
+   カレンダーコンテナの表示範囲調整
+   ======================================== */
+
+.calendar-container {
+  position: relative;
+  /* SP表示時にカレンダー全体が下部ナビゲーションに隠れないよう調整 */
+  overflow: visible;
+}
+
+/* 月表示カレンダー */
+#month-view {
+  overflow-x: auto;
+}
+
+/* 週表示カレンダーのラッパー */
+#week-view {
+  position: relative;
+  /* SP表示時の下部余白を確保 */
+  margin-bottom: 20px;
+}
+
+@media (max-width: 1023px) {
+  #week-view {
+    margin-bottom: 40px;
+  }
+  
+  .calendar-container {
+    /* SP表示時はさらに下部に余白を確保 */
+    padding-bottom: 40px;
+  }
+}
+
+/* ========================================
+   下部ナビゲーションバーのスタイル強化
+   ======================================== */
+
+/* SP用下部ナビゲーションバーの最前面表示を確実に */
+@media (max-width: 1023px) {
+  .fixed.bottom-0.left-0.right-0.lg\\:hidden {
+    z-index: 100 !important;
+    position: fixed !important;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+}
+
+/* ダークモード対応 */
+@media (prefers-color-scheme: dark) {
+  .week-grid-wrapper {
+    background-color: #1e293b;
+  }
+
+  .week-header-row {
+    background-color: #334155;
+    border-bottom: 2px solid #475569;
+  }
+
+  .week-time-gutter,
+  .week-header-cell,
+  .week-allday-gutter,
+  .week-allday-cell,
+  .week-time-column,
+  .week-day-column {
+    border-color: #475569;
+  }
+
+  .week-header-dow,
+  .week-header-date {
+    color: #f1f5f9;
+  }
+
+  .week-allday-row {
+    background-color: #422006;
+  }
+
+  .week-allday-label {
+    color: #cbd5e1;
+  }
+
+  .week-time-label {
+    color: #cbd5e1;
+  }
+
+  .week-day-today {
+    background-color: #1e3a5f;
+  }
+
+  .week-day-highlight {
+    background-color: #422006;
+  }
+
+  .week-hour-cell:hover {
+    background-color: #334155;
+  }
+
+  .nav-btn {
+    background-color: #334155;
+    border-color: #475569;
+    color: #f1f5f9;
+  }
+
+  .nav-btn:hover {
+    background-color: #475569;
+    border-color: #64748b;
+  }
+
+  .view-btn {
+    color: #cbd5e1;
+  }
+
+  .view-btn:hover {
+    color: #f1f5f9;
+  }
+
+  .view-btn.active {
+    background-color: #1e293b;
+    color: #60a5fa;
+  }
+  
+  /* 月間カレンダーのダークモード */
+  .calendar-event {
+    background-color: #3730a3;
+    border-left-color: #818cf8;
+    color: #e0e7ff;
+  }
+  
+  .calendar-event:hover {
+    background-color: #4338ca;
+  }
+  
+  .calendar-day-cell {
+    background-color: #1e293b;
+    border-color: #475569;
+  }
+  
+  .calendar-date-number {
+    color: #f1f5f9;
+  }
+  
+  .calendar-date-number-link:hover .calendar-date-number {
+    background-color: #334155;
+  }
+  
+  .calendar-today-number {
+    background-color: #2563eb;
+    color: white;
+  }
+  
+  .calendar-main-grid {
+    border-color: #475569;
+  }
+  
+  .calendar-header-row {
+    background-color: #334155;
+    border-bottom-color: #475569;
+  }
+  
+  .calendar-header-cell {
+    color: #f1f5f9;
+    border-right-color: #475569;
+  }
+  
+  .calendar-other-month {
+    background-color: #0f172a;
+    opacity: 0.7;
+  }
+  
+  .calendar-today {
+    background-color: #1e3a5f;
+    border-color: #2563eb;
+  }
+  
+  .calendar-highlight-date {
+    background-color: #422006;
+    border-color: #f59e0b;
+  }
+  
+  .calendar-no-data {
+    color: #cbd5e1;
   }
 }

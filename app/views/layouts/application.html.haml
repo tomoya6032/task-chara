@@ -27,7 +27,7 @@
     %link{:href => "/icon-192.png", :rel => "apple-touch-icon", :sizes => "192x192"}/
     %link{:href => "/icon-512.png", :rel => "apple-touch-icon", :sizes => "512x512"}/
     = stylesheet_link_tag "tailwind", "data-turbo-track": "reload"
-    = stylesheet_link_tag :app, "data-turbo-track": "reload"
+    = stylesheet_link_tag "application", "data-turbo-track": "reload"
     = javascript_importmap_tags
   %body.bg-slate-50.dark:bg-slate-900{ data: { controller: "loading pwa-install" } }
     / ローディングオーバーレイ（画面全体を覆う）

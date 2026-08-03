@@ -29,9 +29,12 @@ class ApplicationController < ActionController::Base
     logger.info "  - Request Protocol: #{request.protocol}"
     logger.info "  - Request SSL?: #{request.ssl?}"
     logger.info "  - X-Forwarded-Proto: #{request.headers['X-Forwarded-Proto']}"
+    logger.info "  - X-Forwarded-For: #{request.headers['X-Forwarded-For']}"
     logger.info "  - Cookie Header: #{request.headers['Cookie']&.truncate(100)}"
+    logger.info "  - Set-Cookie in response: #{response.headers['Set-Cookie']&.truncate(100)}"
     logger.info "  - Force SSL: #{Rails.configuration.force_ssl}"
     logger.info "  - Assume SSL: #{Rails.configuration.assume_ssl}"
+    logger.info "  - Session Options: #{Rails.configuration.session_options.inspect}"
   end
 
   # CSRF トークンエラー時の処理

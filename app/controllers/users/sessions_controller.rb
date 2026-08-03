@@ -19,7 +19,17 @@ class Users::SessionsController < Devise::SessionsController
   # POST /users/sign_in
   def create
     # Deviseのデフォルト処理を実行（自動的にsign_inが呼ばれる）
-    super
+    super do |resource|
+      if resource.persisted?
+        # ログイン成功時の詳細ログ（Heroku環境での診断用）
+        logger.info "✅ Login successful for user: #{resource.email}"
+        logger.info "  - Session ID: #{session.id.inspect}"
+        logger.info "  - Request Protocol: #{request.protocol}"
+        logger.info "  - Request SSL?: #{request.ssl?}"
+        logger.info "  - X-Forwarded-Proto: #{request.headers['X-Forwarded-Proto']}"
+        logger.info "  - Secure Cookie: #{Rails.configuration.session_options[:secure]}"
+      end
+    end
   rescue ActionController::InvalidAuthenticityToken => e
     # CSRFエラーが発生した場合の特別処理
     logger.warn "⚠️ CSRF error during login - attempting recovery"
