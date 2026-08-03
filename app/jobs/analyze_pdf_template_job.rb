@@ -6,11 +6,36 @@ class AnalyzePdfTemplateJob < ApplicationJob
     Rails.logger.info "=== PDF Template Analysis Started ==="
     Rails.logger.info "Template ID: #{template_id}"
 
+    # OpenAI API Keyのチェック
+    api_key = ENV["OPENAI_API_KEY"] || Rails.application.credentials.dig(:openai, :api_key) || ENV["OPENAI_ACCESS_TOKEN"]
+    if api_key.blank?
+      Rails.logger.error "❌ OpenAI API Keyが設定されていません。環境変数OPENAI_API_KEYを設定してください。"
+      return
+    end
+
+    # ImageMagickの可用性チェック
+    begin
+      require "mini_magick"
+      MiniMagick::Tool::Convert.new { |c| c.version }
+    rescue LoadError
+      Rails.logger.error "❌ mini_magick gemが利用できません。Gemfileに追加してください。"
+      return
+    rescue MiniMagick::Error => e
+      Rails.logger.error "❌ ImageMagickがインストールされていません。Herokuの場合、ImageMagick buildpackを追加してください。"
+      Rails.logger.error "   heroku buildpacks:add https://github.com/DarthSim/heroku-buildpack-imagemagick"
+      return
+    end
+
     template = ReportTemplate.find(template_id)
 
     unless template.pdf_file.attached?
       Rails.logger.error "No PDF file attached to template #{template_id}"
       return
+    end
+
+    # Active Storageの設定チェック
+    if Rails.env.production? && Rails.application.config.active_storage.service != :amazon
+      Rails.logger.warn "⚠️ 本番環境ではAWS S3の使用を推奨します。現在の設定: #{Rails.application.config.active_storage.service}"
     end
 
     begin

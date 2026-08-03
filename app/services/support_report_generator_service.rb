@@ -4,6 +4,13 @@ class SupportReportGeneratorService
     @character = support_report.character
     @template = support_report.report_template
     @activity_ids = Array(activity_ids).map(&:to_i).uniq
+
+    # OpenAI API Keyのチェック
+    api_key = ENV["OPENAI_API_KEY"] || Rails.application.credentials.dig(:openai, :api_key) || ENV["OPENAI_ACCESS_TOKEN"]
+    if api_key.blank?
+      raise "OpenAI API Keyが設定されていません。環境変数OPENAI_API_KEYを設定してください。"
+    end
+
     @client = OpenAI::Client.new
   end
 
