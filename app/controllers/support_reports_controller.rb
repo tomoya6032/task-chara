@@ -8,15 +8,50 @@ class SupportReportsController < ApplicationController
     [ "🎉 その他", "other" ]
   ].freeze
 
+  # 認証デバッグ情報を追加
+  before_action :log_auth_debug, if: -> { Rails.env.development? }
   before_action :set_character
   before_action :set_organization
   before_action :set_support_report, only: [ :show, :edit, :update, :destroy, :download_pdf ]
 
   def index
-    @support_reports = support_reports_scope.recent.page(params[:page]).per(10)
-    @total_count = support_reports_scope.count
-    @draft_count = support_reports_scope.draft.count
-    @completed_count = support_reports_scope.completed.count
+    # ソート機能の実装
+    sort_column = safe_sort_column(params[:sort])
+    sort_direction = safe_sort_direction(params[:direction])
+    
+    # 検索機能の実装
+    base_scope = support_reports_scope
+    
+    # キーワード検索
+    if params[:keyword].present?
+      keyword = "%#{ActiveRecord::Base.sanitize_sql_like(params[:keyword])}%"
+      base_scope = base_scope.where("title ILIKE ? OR content ILIKE ?", keyword, keyword)
+    end
+    
+    # ステータス検索
+    if params[:status].present? && SupportReport.statuses.key?(params[:status])
+      base_scope = base_scope.where(status: params[:status])
+    end
+    
+    # 期間検索
+    if params[:period_start].present?
+      period_start = parse_date(params[:period_start])
+      base_scope = base_scope.where("period_start >= ?", period_start) if period_start
+    end
+    
+    if params[:period_end].present?
+      period_end = parse_date(params[:period_end])
+      base_scope = base_scope.where("period_end <= ?", period_end) if period_end
+    end
+    
+    # ソート適用
+    @support_reports = base_scope.order("#{sort_column} #{sort_direction}")
+                                  .page(params[:page])
+                                  .per(10)
+    
+    @total_count = base_scope.count
+    @draft_count = base_scope.draft.count
+    @completed_count = base_scope.completed.count
   end
 
   def show
@@ -154,6 +189,18 @@ class SupportReportsController < ApplicationController
   end
 
   private
+
+  # デバッグ情報をログに出力（開発環境のみ）
+  def log_auth_debug
+    Rails.logger.info "🔍 SupportReportsController - Authentication Debug:"
+    Rails.logger.info "  - Action: #{action_name}"
+    Rails.logger.info "  - User logged in: #{user_signed_in?}"
+    Rails.logger.info "  - Current user ID: #{current_user&.id}"
+    Rails.logger.info "  - Current user email: #{current_user&.email}"
+    Rails.logger.info "  - Character exists: #{current_user&.character.present?}"
+    Rails.logger.info "  - Character ID: #{current_user&.character&.id}"
+    Rails.logger.info "  - Organization ID: #{current_user&.organization_id}"
+  end
 
   def set_organization
     @organization = current_user.organization
@@ -394,5 +441,15 @@ class SupportReportsController < ApplicationController
   def pdf_filename(report)
     base = report.title.presence || "support_report"
     "#{base.to_s.gsub(/[\\\\\/:*?\"<>|]/, "_")}.pdf"
+  end
+
+  # ソート機能用のホワイトリスト
+  def safe_sort_column(column)
+    allowed_columns = %w[created_at period_start period_end updated_at]
+    allowed_columns.include?(column) ? column : 'created_at'
+  end
+
+  def safe_sort_direction(direction)
+    %w[asc desc].include?(direction) ? direction : 'desc'
   end
 end

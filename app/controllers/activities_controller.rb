@@ -7,11 +7,15 @@ class ActivitiesController < ApplicationController
     @start_date = params[:start_date].present? ? Date.parse(params[:start_date]) : nil
     @end_date = params[:end_date].present? ? Date.parse(params[:end_date]) : nil
     
+    # ソートパラメータの取得
+    sort_column = safe_sort_column
+    sort_direction = safe_sort_direction
+    
     # 検索スコープの適用
     @activities = @character.activities
                             .search_by_keyword(@search_query)
                             .between_dates(@start_date, @end_date)
-                            .order(created_at: :desc)
+                            .order("#{sort_column} #{sort_direction}")
                             .limit(100)
     
     # 統計情報を効率的に取得（追加クエリを避ける）
@@ -350,6 +354,16 @@ class ActivitiesController < ApplicationController
 
   def activity_params
     params.require(:activity).permit(:title, :content, :image, :image_url, :category, :mood_level, :fatigue_level, :visit_start_time, :visit_end_time)
+  end
+
+  # ソート機能のセーフティ（ホワイトリスト）
+  def safe_sort_column
+    allowed_columns = %w[created_at visit_start_time]
+    params[:sort].presence_in(allowed_columns) || "created_at"
+  end
+
+  def safe_sort_direction
+    params[:direction].presence_in(%w[asc desc]) || "desc"
   end
 
   # AIチャットの会話履歴を取得

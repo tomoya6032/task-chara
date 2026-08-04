@@ -130,6 +130,9 @@ export default class extends Controller {
       const data = await response.json()
       
       if (data.success) {
+        // SP画面でドロワーを閉じる
+        this.closeDrawerIfMobile()
+        
         // 新しい会話のページにリダイレクト
         window.location.href = `/ai_secretary/chat?conversation_id=${data.conversation_id}`
       } else {
@@ -151,6 +154,10 @@ export default class extends Controller {
     
     if (conversationId && conversationId !== this.currentConversationIdValue) {
       console.log(`🔄 Switching to conversation: ${conversationId}`)
+      
+      // SP画面でドロワーを閉じる
+      this.closeDrawerIfMobile()
+      
       window.location.href = `/ai_secretary/chat?conversation_id=${conversationId}`
     }
   }
@@ -237,6 +244,19 @@ export default class extends Controller {
     notification.addEventListener('click', () => {
       notification.remove()
     })
+  }
+
+  // SP画面でドロワーを閉じる（オーバーレイ残留を防ぐ）
+  closeDrawerIfMobile() {
+    // sp-drawer コントローラーを探して closeAll を呼び出す
+    const spDrawerController = this.application.getControllerForElementAndIdentifier(
+      document.querySelector('[data-controller~="sp-drawer"]'),
+      'sp-drawer'
+    )
+    
+    if (spDrawerController) {
+      spDrawerController.closeAll()
+    }
   }
 
   disconnect() {

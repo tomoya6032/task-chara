@@ -1,6 +1,13 @@
 .max-w-md.mx-auto.mt-8.p-6.bg-white.rounded-lg.shadow-md
   %h2.text-2xl.font-bold.mb-6.text-center ログイン
 
+  / アラートメッセージ
+  - if alert.present?
+    .bg-yellow-50.border.border-yellow-200.rounded.p-4.mb-4
+      %p.text-sm.text-yellow-800
+        ⚠️
+        = alert
+
   / セキュリティ警告メッセージ
   .bg-blue-50.border.border-blue-200.rounded.p-4.mb-4
     %p.text-sm.text-blue-800
@@ -9,6 +16,14 @@
       ログイン失敗が5回に達すると、アカウントが30分間ロックされます。
     %p.text-sm.text-blue-700.mt-1
       ロック時にはメールで通知されます。
+  
+  / デバッグ情報（開発環境のみ）
+  - if Rails.env.development?
+    .bg-slate-100.border.border-slate-300.rounded.p-4.mb-4
+      %p.text-xs.text-slate-700.font-mono
+        🔧 開発環境デバッグ情報
+      %p.text-xs.text-slate-600.font-mono.mt-1
+        テストアカウント: demo@example.com / password123
 
   = form_for(resource, as: resource_name, url: session_path(resource_name), html: { class: "space-y-4", data: { turbo: false } }) do |f|
     .field

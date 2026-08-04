@@ -53,7 +53,7 @@
     
     .px-6.py-4
       = form_with url: activities_path, method: :get, local: true, class: "space-y-4" do |f|
-        / キーワード検索
+        / キーワード検索と日付範囲
         .grid.grid-cols-1.lg:grid-cols-3.gap-4
           .lg:col-span-3
             = f.label :query, "キーワード検索", class: "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
@@ -77,28 +77,40 @@
               value: @end_date&.strftime("%Y-%m-%d"),
               class: "w-full rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500",
               style: "color-scheme: light;"
+        
+        / ソート機能
+        .grid.grid-cols-1.md:grid-cols-2.lg:grid-cols-3.gap-4.mt-4
+          .space-y-2
+            = f.label :sort, "並び替え", class: "block text-sm font-medium text-slate-700 dark:text-slate-300"
+            = f.select :sort, options_for_select([["作成日", "created_at"], ["支援実施日", "visit_start_time"]], params[:sort] || "created_at"), {}, { class: "block w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-700 dark:text-white" }
+          
+          .space-y-2
+            = f.label :direction, "順序", class: "block text-sm font-medium text-slate-700 dark:text-slate-300"
+            = f.select :direction, options_for_select([["新しい順", "desc"], ["古い順", "asc"]], params[:direction] || "desc"), {}, { class: "block w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-700 dark:text-white" }
           
           / ボタン
-          .lg:col-span-1.flex.items-end.gap-2
-            = f.submit "検索", 
-              class: "flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors shadow-sm"
-            = link_to "リセット", activities_path,
-              class: "flex-1 bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300 font-medium py-2 px-4 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-500 transition-colors text-center"
+          .flex.items-end.gap-2
+            = f.submit "🔍 検索", class: "flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors shadow-sm"
+            = link_to "クリア", activities_path, class: "flex-1 bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300 font-medium py-2 px-4 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-500 transition-colors text-center"
         
-        / 検索結果の表示
-        - if @search_query.present? || @start_date.present? || @end_date.present?
+        / 検索条件の表示
+        - if activities_search_active? || params[:sort].present?
           .mt-4.pt-4.border-t.border-slate-200.dark:border-slate-700
-            %p.text-sm.text-slate-600.dark:text-slate-400
-              = "検索結果: #{@activities.count}件"
+            .flex.items-center.flex-wrap.gap-2
+              %span.text-sm.text-slate-600.dark:text-slate-400
+                = "検索結果: #{@activities.count}件"
               - if @search_query.present?
-                %span.ml-2.inline-flex.items-center.px-2.py-1.rounded.text-xs.bg-blue-100.dark:bg-blue-900.text-blue-700.dark:text-blue-300
+                %span.inline-flex.items-center.px-3.py-1.rounded-full.text-xs.bg-blue-100.dark:bg-blue-900.text-blue-700.dark:text-blue-300
                   キーワード: #{@search_query}
               - if @start_date.present?
-                %span.ml-2.inline-flex.items-center.px-2.py-1.rounded.text-xs.bg-green-100.dark:bg-green-900.text-green-700.dark:text-green-300
+                %span.inline-flex.items-center.px-3.py-1.rounded-full.text-xs.bg-green-100.dark:bg-green-900.text-green-700.dark:text-green-300
                   開始: #{@start_date.strftime('%Y/%m/%d')}
               - if @end_date.present?
-                %span.ml-2.inline-flex.items-center.px-2.py-1.rounded.text-xs.bg-green-100.dark:bg-green-900.text-green-700.dark:text-green-300
+                %span.inline-flex.items-center.px-3.py-1.rounded-full.text-xs.bg-green-100.dark:bg-green-900.text-green-700.dark:text-green-300
                   終了: #{@end_date.strftime('%Y/%m/%d')}
+              - if params[:sort].present?
+                %span.inline-flex.items-center.px-3.py-1.rounded-full.text-xs.bg-purple-100.dark:bg-purple-900.text-purple-700.dark:text-purple-300
+                  並び順: #{activities_sort_label(params[:sort])}（#{params[:direction] == 'asc' ? '古い順' : '新しい順'}）
 
   / 抽出ドラフト一覧
   .bg-white.dark:bg-slate-800.shadow-xl.rounded-2xl.border.border-slate-200.dark:border-slate-700.mb-8

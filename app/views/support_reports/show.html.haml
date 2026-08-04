@@ -5,7 +5,7 @@
     .px-4.sm:px-6.lg:px-8.py-8.pb-24.lg:pb-8
       / 戻るボタン
       .mb-6
-        = link_to support_reports_path, class: "inline-flex items-center text-sm text-slate-500 hover:text-slate-700" do
+        = link_to support_reports_path(search_params_for_link), class: "inline-flex items-center text-sm text-slate-500 hover:text-slate-700" do
           ← 支援報告書一覧に戻る
 
       / 支援報告書詳細カード
@@ -110,7 +110,7 @@
         / アクションボタン
         .px-6.py-4.bg-slate-50.dark:bg-slate-700.border-t.border-slate-200.dark:border-slate-600
           .flex.justify-between.items-center
-            = link_to support_reports_path, 
+            = link_to support_reports_path(search_params_for_link), 
                 class: "inline-flex items-center px-4 py-2 border border-slate-300 text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors" do
               ← 一覧に戻る
             
@@ -150,7 +150,7 @@
       = link_to activities_path, class: "flex flex-col items-center py-2 px-1 text-slate-600 dark:text-slate-400" do
         %span.text-lg= "📖"
         %span.text-xs.mt-1 一覧
-      = link_to support_reports_path, class: "flex flex-col items-center py-2 px-1 text-blue-600 dark:text-blue-400" do
+      = link_to support_reports_path(search_params_for_link), class: "flex flex-col items-center py-2 px-1 text-blue-600 dark:text-blue-400" do
         %span.text-lg= "📋"
         %span.text-xs.mt-1 報告書
       %a.flex.flex-col.items-center.py-2.px-1.text-slate-600.dark:text-slate-400{href: "#"}

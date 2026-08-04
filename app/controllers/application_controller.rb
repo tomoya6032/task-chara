@@ -98,13 +98,18 @@ class ApplicationController < ActionController::Base
   # 現在のユーザーのキャラクターを取得
   def set_character
     unless current_user
-      redirect_to root_path, alert: "ログインが必要です。"
+      Rails.logger.warn "⚠️ set_character: current_user is nil - User not logged in"
+      Rails.logger.warn "⚠️ Redirecting to: #{new_user_session_path}"
+      flash[:alert] = "この機能を利用するにはログインが必要です。"
+      redirect_to new_user_session_path
       return
     end
 
     @character = current_user.character
     unless @character
-      redirect_to root_path, alert: "キャラクターが見つかりません。"
+      Rails.logger.error "❌ set_character: Character not found for user #{current_user.id} (#{current_user.email})"
+      flash[:alert] = "キャラクターが見つかりません。アカウント設定を確認してください。"
+      redirect_to root_path
       nil
     end
   end
