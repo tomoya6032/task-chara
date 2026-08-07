@@ -6,6 +6,7 @@ class Task < ApplicationRecord
 
   after_initialize :set_defaults
   after_save :manage_calendar_event
+  before_destroy :remove_calendar_event
   before_save :reset_line_due_reminder_flag_if_needed
   before_validation :check_duplicate_task, on: :create
 
@@ -82,6 +83,9 @@ class Task < ApplicationRecord
     else
       update!(hidden: true)
     end
+    # 非表示にしたタスクのカレンダーイベントを削除
+    remove_calendar_event
+    self
   end
 
   def unhide!
@@ -90,6 +94,9 @@ class Task < ApplicationRecord
     else
       update!(hidden: false)
     end
+    # 再表示時にカレンダーイベントを復元
+    sync_calendar_event if due_date.present? && published?
+    self
   end
 
   def category_display
@@ -233,6 +240,12 @@ class Task < ApplicationRecord
 
   def manage_calendar_event
     sync_calendar_event if saved_change_to_due_date? || saved_change_to_title? || saved_change_to_completed_at? || saved_change_to_description?
+  end
+
+  def remove_calendar_event
+    # タスク削除または非表示時にカレンダーイベントも削除
+    existing_event = Event.find_by(external_id: task_external_id)
+    existing_event&.destroy
   end
 
   def reset_line_due_reminder_flag_if_needed

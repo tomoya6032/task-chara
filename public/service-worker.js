@@ -2,10 +2,13 @@
 // - App Shellキャッシュで高速起動
 // - Network Firstでログイン状態を正確に反映
 // - Herokuスリープ対策（タイムアウト処理）
+// - POST/PATCH/DELETE は Service Worker をバイパス
+// - Turbo Stream リクエストもバイパス
+// - リダイレクトを正常なレスポンスとして扱う
 
-const CACHE_NAME = 'task-character-v5.0-network-first';
-const APP_SHELL_CACHE = 'task-character-app-shell-v5.0';
-const RUNTIME_CACHE = 'task-character-runtime-v5.0';
+const CACHE_NAME = 'task-character-v6.0-turbo-fixed';
+const APP_SHELL_CACHE = 'task-character-app-shell-v6.0';
+const RUNTIME_CACHE = 'task-character-runtime-v6.0';
 const TIMEOUT_DURATION = 8000; // 8秒でタイムアウト（Heroku起動待ち）
 
 // App Shell: アプリの骨組（即座にキャッシュから表示）
@@ -27,7 +30,7 @@ const API_REGEX = /\/(api|tasks|activities|calendar|dashboards)/;
 // インストール: App Shellをプリキャッシュ
 // ===============================================
 self.addEventListener('install', (event) => {
-  console.log('[Service Worker] Installing v5 - Network First for Login');
+  console.log('[Service Worker] Installing v6 - Turbo & POST/PATCH/DELETE Fixed');
   event.waitUntil(
     caches.open(APP_SHELL_CACHE)
       .then((cache) => {
@@ -48,7 +51,7 @@ self.addEventListener('install', (event) => {
 // アクティベーション: 古いキャッシュ削除
 // ===============================================
 self.addEventListener('activate', (event) => {
-  console.log('[Service Worker] Activating v5 - Network First');
+  console.log('[Service Worker] Activating v6 - Turbo Fixed');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
@@ -78,6 +81,21 @@ self.addEventListener('fetch', (event) => {
   // 同一オリジンでない場合はスルー
   if (url.origin !== location.origin) {
     return;
+  }
+
+  // 🔥 GET以外のメソッド（POST/PATCH/DELETE等）は Service Worker を通さない
+  // フォーム送信やAPIの変更処理はキャッシュせず、常にサーバーへ直接送信
+  if (request.method !== 'GET') {
+    console.log('[Service Worker] Non-GET request - bypassing SW:', request.method, request.url);
+    return; // Service Worker をスキップしてネットワークへ
+  }
+
+  // 🔥 Turbo Stream リクエストは常にネットワークへ（キャッシュしない）
+  // Turbo による動的更新は常に最新の内容が必要
+  const acceptHeader = request.headers.get('Accept') || '';
+  if (acceptHeader.includes('text/vnd.turbo-stream.html')) {
+    console.log('[Service Worker] Turbo Stream request - bypassing SW:', request.url);
+    return; // Service Worker をスキップしてネットワークへ
   }
 
   // ログイン/認証系は常にネットワーク優先（キャッシュしない）
@@ -130,34 +148,57 @@ async function handleNavigationRequest(request) {
     // ⚡ まずネットワークから取得（ログイン状態を正しく反映）
     try {
       const networkResponse = await fetchWithTimeout(request, TIMEOUT_DURATION);
-      if (networkResponse && networkResponse.status === 200) {
-        // 成功したらキャッシュも更新（オフライン時のフォールバック用）
-        caches.open(RUNTIME_CACHE).then(cache => {
-          cache.put(request, networkResponse.clone());
-        });
-        console.log('[Service Worker] Serving from network (fresh):', request.url);
+      
+      // 🔥 リダイレクト（302/303等）も成功として扱う
+      if (networkResponse && (networkResponse.ok || networkResponse.redirected || 
+          (networkResponse.status >= 300 && networkResponse.status < 400))) {
+        // 200 OK, リダイレクト、その他の成功レスポンスをキャッシュ
+        if (networkResponse.status === 200) {
+          caches.open(RUNTIME_CACHE).then(cache => {
+            cache.put(request, networkResponse.clone());
+          });
+        }
+        console.log('[Service Worker] Serving from network (fresh):', networkResponse.status, request.url);
         return networkResponse;
       }
     } catch (networkError) {
-      console.warn('[Service Worker] Network failed, trying cache:', networkError);
+      // 🔥 本当にオフライン（ネットワークなし）の場合のみキャッシュへフォールバック
+      if (!navigator.onLine) {
+        console.warn('[Service Worker] Offline detected, trying cache:', networkError);
+      } else {
+        // オンラインなのにエラー = サーバーエラーやタイムアウト
+        // この場合はエラーをそのまま返す（オフライン画面を表示しない）
+        console.error('[Service Worker] Network error (but online):', networkError);
+        throw networkError;
+      }
     }
     
-    // ネットワークが失敗した場合のみキャッシュから返す
-    const cachedResponse = await caches.match(request);
-    if (cachedResponse) {
-      console.log('[Service Worker] Serving from cache (fallback):', request.url);
-      return cachedResponse;
+    // 本当にオフラインの場合のみキャッシュから返す
+    if (!navigator.onLine) {
+      const cachedResponse = await caches.match(request);
+      if (cachedResponse) {
+        console.log('[Service Worker] Serving from cache (offline fallback):', request.url);
+        return cachedResponse;
+      }
+      
+      // キャッシュもない場合はオフライン画面
+      return caches.match('/offline.html') || new Response(
+        '<h1>オフラインです</h1><p>ネットワーク接続を確認してください。</p>',
+        { headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+      );
     }
     
-    // ネットワークもキャッシュもない場合はオフライン画面
-    return caches.match('/offline.html') || new Response(
-      '<h1>オフラインです</h1><p>ネットワーク接続を確認してください。</p>',
-      { headers: { 'Content-Type': 'text/html; charset=utf-8' } }
-    );
+    // オンラインだがエラー発生 = サーバーの問題なのでエラーを再スロー
+    throw new Error('Network request failed but device is online');
     
   } catch (error) {
     console.error('[Service Worker] Navigation error:', error);
-    return caches.match('/offline.html');
+    // オフラインの場合のみオフライン画面を表示
+    if (!navigator.onLine) {
+      return caches.match('/offline.html');
+    }
+    // オンラインの場合はエラーをそのまま返す（ブラウザのデフォルトエラー表示）
+    throw error;
   }
 }
 
@@ -223,7 +264,13 @@ async function handleApiRequest(request) {
 // ===============================================
 function fetchWithTimeout(request, timeout = TIMEOUT_DURATION) {
   return Promise.race([
-    fetch(request),
+    fetch(request).then(response => {
+      // 🔥 リダイレクト（302/303等）も正常なレスポンスとして扱う
+      if (response.redirected || (response.status >= 300 && response.status < 400)) {
+        console.log('[Service Worker] Redirect detected:', response.status, response.url);
+      }
+      return response;
+    }),
     new Promise((_, reject) => 
       setTimeout(() => reject(new Error('Request timeout')), timeout)
     )

@@ -1,6 +1,7 @@
 class TasksController < ApplicationController
   before_action :set_character
   before_action :set_task, only: [ :show, :edit, :update, :notify_line, :complete, :hide, :unhide, :approve, :destroy ]
+  before_action :skip_head_requests, if: -> { request.head? }
 
   def index
     sort_by = params[:sort] || "created_date"
@@ -36,13 +37,26 @@ class TasksController < ApplicationController
   end
 
   def create
+    # デバッグログ: 認証状態とセッション情報を記録
+    Rails.logger.info "🔍 TasksController#create called"
+    Rails.logger.info "  - current_user: #{current_user.inspect}"
+    Rails.logger.info "  - @character: #{@character.inspect}"
+    Rails.logger.info "  - session.id: #{session.id.inspect}"
+    Rails.logger.info "  - request.referer: #{request.referer}"
+    
     # 二重送信防止チェック（セッションベース）
     request_token = generate_request_token
     if duplicate_request?(request_token)
       Rails.logger.warn "⚠️ Duplicate task creation attempt detected: #{request_token}"
       respond_to do |format|
         format.turbo_stream { head :no_content }
-        format.html { redirect_to dashboard_path, alert: "同じタスクを連続して作成することはできません。" }
+        format.html { 
+          redirect_back_or_to(
+            dashboard_path, 
+            alert: "同じタスクを連続して作成することはできません。",
+            status: :see_other
+          ) 
+        }
       end
       return
     end
@@ -53,6 +67,9 @@ class TasksController < ApplicationController
     if @task.save
       # 作成成功時にトークンを記録
       mark_request_processed(request_token)
+      Rails.logger.info "✅ Task created successfully: #{@task.id} - #{@task.title}"
+      Rails.logger.info "  - Response format: #{request.format}"
+      Rails.logger.info "  - Will redirect to: #{request.referer&.include?('/tasks') ? tasks_path : dashboard_path}"
 
       respond_to do |format|
         format.turbo_stream do
@@ -66,13 +83,27 @@ class TasksController < ApplicationController
           end
         end
         format.html do
-          # すべての場合でダッシュボードにリダイレクト（シンプルな解決策）
-          redirect_to dashboard_path, notice: "✅ タスク「#{@task.title}」を追加しました！"
+          # リダイレクト先を明示的に決定（root_pathへのリダイレクトを避ける）
+          redirect_path = if request.referer&.include?("/tasks")
+                           tasks_path
+                         elsif request.referer&.include?("/dashboard")
+                           dashboard_path
+                         else
+                           # リファラーが不明な場合はダッシュボードへ
+                           dashboard_path
+                         end
+          
+          Rails.logger.info "  - Final redirect path: #{redirect_path}"
+          
+          redirect_to redirect_path,
+                     notice: "✅ タスク「#{@task.title}」を追加しました！",
+                     status: :see_other
         end
       end
     else
       # バリデーションエラー時はトークンをクリア（再送信可能にする）
       clear_request_token(request_token)
+      Rails.logger.warn "⚠️ Task validation failed: #{@task.errors.full_messages.join(', ')}"
 
       respond_to do |format|
         format.turbo_stream { render :new, status: :unprocessable_entity }
@@ -99,11 +130,11 @@ class TasksController < ApplicationController
         toughness_gain = (@task.dislike_level || 1) * 1.5
         flash[:notice] = "🎉 お疲れさま！タスク「#{@task.title}」を完了しました！強靭さ+#{toughness_gain}pt獲得！"
 
-        # リファラーに基づいてリダイレクト先を決定
+        # リファラーに基づいてリダイレクト先を決定（Turbo対応）
         if request.referer&.include?("/tasks")
-          redirect_to tasks_path
+          redirect_to tasks_path, status: :see_other
         else
-          redirect_to dashboard_path
+          redirect_to dashboard_path, status: :see_other
         end
       end
     end
@@ -111,7 +142,7 @@ class TasksController < ApplicationController
 
   def show
     respond_to do |format|
-      format.html { redirect_to tasks_path }
+      format.html { redirect_to tasks_path, status: :see_other }
       format.json { render json: @task }
     end
   end
@@ -127,7 +158,7 @@ class TasksController < ApplicationController
     if @task.update(task_params)
       respond_to do |format|
         format.html do
-          redirect_to tasks_path, notice: "✅ タスク「#{@task.title}」を更新しました！"
+          redirect_to tasks_path, notice: "✅ タスク「#{@task.title}」を更新しました！", status: :see_other
         end
         format.json { render json: { success: true, task: @task } }
       end
@@ -144,7 +175,7 @@ class TasksController < ApplicationController
 
     if user.nil? || user.line_user_id.blank?
       respond_to do |format|
-        format.html { redirect_to tasks_path, alert: "LINE連携されていないため通知できません。" }
+        format.html { redirect_to tasks_path, alert: "LINE連携されていないため通知できません。", status: :see_other }
         format.json { render json: { success: false, error: "LINE連携されていないため通知できません。" }, status: :unprocessable_entity }
       end
       return
@@ -167,29 +198,29 @@ class TasksController < ApplicationController
 
     respond_to do |format|
       if success
-        format.html { redirect_to tasks_path, notice: "LINEへタスク通知を送信しました。" }
+        format.html { redirect_to tasks_path, notice: "LINEへタスク通知を送信しました。", status: :see_other }
         format.json { render json: { success: true, message: "LINEへタスク通知を送信しました。" }, status: :ok }
       else
-        format.html { redirect_to tasks_path, alert: "LINE通知の送信に失敗しました。" }
+        format.html { redirect_to tasks_path, alert: "LINE通知の送信に失敗しました。", status: :see_other }
         format.json { render json: { success: false, error: "LINE通知の送信に失敗しました。" }, status: :unprocessable_entity }
       end
     end
   rescue LoadError => e
     Rails.logger.error("[Tasks#notify_line] LoadError: #{e.class} - #{e.message}")
     respond_to do |format|
-      format.html { redirect_to tasks_path, alert: "LINEライブラリの読み込みに失敗しました。" }
+      format.html { redirect_to tasks_path, alert: "LINEライブラリの読み込みに失敗しました。", status: :see_other }
       format.json { render json: { success: false, error: "LINEライブラリの読み込みに失敗しました。", details: e.message }, status: :internal_server_error }
     end
   rescue NameError => e
     Rails.logger.error("[Tasks#notify_line] NameError: #{e.class} - #{e.message}")
     respond_to do |format|
-      format.html { redirect_to tasks_path, alert: "LINE通知中に定数エラーが発生しました。" }
+      format.html { redirect_to tasks_path, alert: "LINE通知中に定数エラーが発生しました。", status: :see_other }
       format.json { render json: { success: false, error: "LINE通知中に定数エラーが発生しました。", details: e.message }, status: :internal_server_error }
     end
   rescue StandardError => e
     Rails.logger.error("[Tasks#notify_line] Error: #{e.class} - #{e.message}")
     respond_to do |format|
-      format.html { redirect_to tasks_path, alert: "LINE通知の処理中にエラーが発生しました。" }
+      format.html { redirect_to tasks_path, alert: "LINE通知の処理中にエラーが発生しました。", status: :see_other }
       format.json { render json: { success: false, error: "LINE通知の処理中にエラーが発生しました。", details: e.message }, status: :internal_server_error }
     end
   end
@@ -222,16 +253,23 @@ class TasksController < ApplicationController
 
     respond_to do |format|
       format.turbo_stream do
-        render turbo_stream: turbo_stream.remove("task-#{@task.id}")
+        render turbo_stream: [
+          turbo_stream.replace("tasks-list",
+            render_to_string(partial: "shared/tasks_overview", locals: { character: @character })
+          ),
+          turbo_stream.prepend("flash-container",
+            render_to_string(partial: "shared/flash", locals: { message: "👁️ タスク「#{@task.title}」を非表示にしました", type: "success" })
+          )
+        ]
       end
       format.html do
         flash[:notice] = "👁️ タスク「#{@task.title}」を非表示にしました"
 
-        # リファラーに基づいてリダイレクト先を決定
+        # リファラーに基づいてリダイレクト先を決定（Turbo対応）
         if request.referer&.include?("/tasks")
-          redirect_to tasks_path
+          redirect_to tasks_path, status: :see_other
         else
-          redirect_to dashboard_path
+          redirect_to dashboard_path, status: :see_other
         end
       end
     end
@@ -249,7 +287,7 @@ class TasksController < ApplicationController
           )
         ]
       end
-      format.html { redirect_to dashboard_path, notice: "タスクを復元しました" }
+      format.html { redirect_to dashboard_path, notice: "タスクを復元しました", status: :see_other }
     end
   end
 
@@ -269,7 +307,7 @@ class TasksController < ApplicationController
             )
           ]
         end
-        format.html { redirect_to tasks_path, notice: "タスク「#{@task.title}」を承認しました" }
+        format.html { redirect_to tasks_path, notice: "タスク「#{@task.title}」を承認しました", status: :see_other }
         format.json { render json: { status: "approved", task_id: @task.id, message: "タスクを承認しました" } }
       end
     else
@@ -279,7 +317,7 @@ class TasksController < ApplicationController
             render_to_string(partial: "shared/flash_message", locals: { message: "このタスクは承認できません", type: "error" })
           )
         end
-        format.html { redirect_to tasks_path, alert: "このタスクは承認できません" }
+        format.html { redirect_to tasks_path, alert: "このタスクは承認できません", status: :see_other }
         format.json { render json: { error: "Cannot approve this task" }, status: :unprocessable_entity }
       end
     end
@@ -300,20 +338,34 @@ class TasksController < ApplicationController
             )
           ]
         else
-          render turbo_stream: turbo_stream.remove("task-#{@task.id}")
+          # タスク削除時にダッシュボードのタスク一覧全体を更新
+          render turbo_stream: [
+            turbo_stream.replace("tasks-list",
+              render_to_string(partial: "shared/tasks_overview", locals: { character: @character })
+            ),
+            turbo_stream.prepend("flash-container",
+              render_to_string(partial: "shared/flash", locals: { message: "「#{task_title}」を削除しました", type: "success" })
+            )
+          ]
         end
       end
       format.html do
         if was_draft
-          redirect_to tasks_path, notice: "「#{task_title}」を却下しました"
+          redirect_to tasks_path, notice: "「#{task_title}」を却下しました", status: :see_other
         else
-          redirect_to dashboard_path, notice: "タスクを完全に削除しました"
+          redirect_to dashboard_path, notice: "タスクを完全に削除しました", status: :see_other
         end
       end
     end
   end
 
   private
+
+  # HEADリクエストに対する軽量レスポンス（Turboプリフェッチ対策）
+  def skip_head_requests
+    Rails.logger.info "🔍 HEAD request to #{controller_name}##{action_name} - returning :ok"
+    head :ok
+  end
 
   def set_task
     @task = @character.tasks.find(params[:id])

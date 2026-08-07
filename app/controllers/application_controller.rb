@@ -5,6 +5,9 @@ class ApplicationController < ActionController::Base
   # 検索エンジンのインデックスを禁止（会員制サイトのため）
   before_action :set_no_index_header
 
+  # HEADリクエストのログ出力（Turboプリフェッチのデバッグ用）
+  before_action :log_head_request, if: -> { request.head? }
+
   # Devise認証
   before_action :authenticate_user!
   before_action :configure_permitted_parameters, if: :devise_controller?
@@ -20,6 +23,16 @@ class ApplicationController < ActionController::Base
   rescue_from ActionController::InvalidAuthenticityToken, with: :handle_csrf_token_error
 
   private
+
+  # HEADリクエストのログ出力
+  def log_head_request
+    Rails.logger.info "🔍 HEAD request detected:"
+    Rails.logger.info "  - Path: #{request.fullpath}"
+    Rails.logger.info "  - Referer: #{request.referer}"
+    Rails.logger.info "  - User-Agent: #{request.user_agent&.truncate(50)}"
+    Rails.logger.info "  - current_user: #{current_user&.email || 'nil'}"
+    Rails.logger.info "  - Session ID: #{session.id.inspect}"
+  end
 
   # セッション診断用ログ（本番環境で ?debug_session=1 を付けると詳細ログを出力）
   def log_session_debug
@@ -43,6 +56,7 @@ class ApplicationController < ActionController::Base
     logger.warn "⚠️ User Agent: #{request.user_agent}"
     logger.warn "⚠️ Request: #{request.method} #{request.path}"
     logger.warn "⚠️ Referer: #{request.referer}"
+    logger.warn "⚠️ Controller: #{controller_name}##{action_name}"
 
     # Deviseコントローラーの場合は特別処理（リダイレクトループ防止）
     if devise_controller?
@@ -60,20 +74,30 @@ class ApplicationController < ActionController::Base
         end
       end
     else
-      # 通常のコントローラーの場合はログインページにリダイレクト
-      reset_session
-
+      # 通常のコントローラーの場合
+      # セッションは保持し、CSRFトークンだけを再生成
+      # ログイン状態を維持したまま、ユーザーに再試行を促す
+      
       respond_to do |format|
         format.html do
-          flash[:alert] = "セキュリティ保護のため、再度ログインしてください。"
-          redirect_to new_user_session_path
+          # リファラーがある場合はそこに戻す（セッション保持）
+          if request.referer.present?
+            flash[:alert] = "⚠️ セキュリティトークンが無効です。もう一度お試しください。"
+            redirect_to request.referer, status: :see_other
+          else
+            # リファラーがない場合はダッシュボードへ
+            flash[:alert] = "⚠️ セキュリティトークンが無効です。もう一度お試しください。"
+            redirect_to dashboard_path, status: :see_other
+          end
         end
         format.turbo_stream do
-          flash[:alert] = "セキュリティ保護のため、再度ログインしてください。"
-          redirect_to new_user_session_path
+          flash[:alert] = "⚠️ セキュリティトークンが無効です。ページを更新してもう一度お試しください。"
+          render turbo_stream: turbo_stream.replace("flash-container",
+            render_to_string(partial: "shared/flash", locals: { message: flash[:alert], type: "alert" })
+          )
         end
         format.json do
-          render json: { error: "CSRF token invalid. Please login again." }, status: :unprocessable_entity
+          render json: { error: "CSRF token invalid. Please try again." }, status: :unprocessable_entity
         end
       end
     end
@@ -97,37 +121,50 @@ class ApplicationController < ActionController::Base
 
   # 現在のユーザーのキャラクターを取得
   def set_character
+    # HEADリクエストの場合はスキップ（Turboプリフェッチ対策）
+    if request.head?
+      Rails.logger.info "🔍 set_character: Skipping for HEAD request"
+      return
+    end
+
     unless current_user
       Rails.logger.warn "⚠️ set_character: current_user is nil - User not logged in"
+      Rails.logger.warn "⚠️ Controller: #{controller_name}##{action_name}"
+      Rails.logger.warn "⚠️ Request path: #{request.fullpath}"
+      Rails.logger.warn "⚠️ Session ID: #{session.id.inspect}"
       Rails.logger.warn "⚠️ Redirecting to: #{new_user_session_path}"
       flash[:alert] = "この機能を利用するにはログインが必要です。"
-      redirect_to new_user_session_path
+      redirect_to new_user_session_path, status: :see_other
       return
     end
 
     @character = current_user.character
     unless @character
       Rails.logger.error "❌ set_character: Character not found for user #{current_user.id} (#{current_user.email})"
+      Rails.logger.error "❌ Controller: #{controller_name}##{action_name}"
+      Rails.logger.error "❌ Request path: #{request.fullpath}"
       flash[:alert] = "キャラクターが見つかりません。アカウント設定を確認してください。"
-      redirect_to root_path
+      redirect_to root_path, status: :see_other
       nil
     end
   end
 
   # トークン上限チェック
   def check_token_limit
+    # HEADリクエストの場合はスキップ（Turboプリフェッチ対策）
+    return if request.head?
     return unless current_user
     return if devise_controller?
     return if controller_name == "dashboards" && action_name == "show"
 
     unless current_user.can_use_ai?
       flash[:alert] = "トークン上限に達しています。管理者にお問い合わせください。"
-      redirect_to root_path if request.format.html?
+      redirect_to(root_path, status: :see_other) if request.format.html?
     end
   end
 
   def user_not_authorized
     flash[:alert] = "このアクションを実行する権限がありません。"
-    redirect_to(request.referrer || root_path)
+    redirect_to(request.referrer || root_path, status: :see_other)
   end
 end

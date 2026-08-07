@@ -1,5 +1,6 @@
 class ActivitiesController < ApplicationController
   before_action :set_character
+  before_action :skip_head_requests, if: -> { request.head? }
 
   def index
     # 検索パラメータの取得
@@ -351,6 +352,12 @@ class ActivitiesController < ApplicationController
   end
 
   private
+
+  # HEADリクエストに対する軽量レスポンス（Turboプリフェッチ対策）
+  def skip_head_requests
+    Rails.logger.info "🔍 HEAD request to #{controller_name}##{action_name} - returning :ok"
+    head :ok
+  end
 
   def activity_params
     params.require(:activity).permit(:title, :content, :image, :image_url, :category, :mood_level, :fatigue_level, :visit_start_time, :visit_end_time)

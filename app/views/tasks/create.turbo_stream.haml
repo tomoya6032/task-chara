@@ -7,4 +7,4 @@
 
 -# 成功メッセージを表示
 = turbo_stream.prepend "flash-container" do
-  = render "shared/flash", locals: { type: "success", message: "✅ タスク「#{@task.title}」を追加しました！" }
+  = render "shared/flash", type: "success", message: "✅ タスク「#{@task.title}」を追加しました！"

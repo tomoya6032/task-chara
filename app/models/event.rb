@@ -280,7 +280,7 @@ class Event < ApplicationRecord
   end
 
   # 繰り返しルールからIceCubeスケジュールを構築
-  def self.build_schedule_from_params(start_time, recurrence_params)
+  def self.build_schedule_from_params(start_time, recurrence_params, monthly_params = {})
     schedule = IceCube::Schedule.new(start_time)
 
     case recurrence_params[:frequency]
@@ -294,6 +294,43 @@ class Event < ApplicationRecord
       end
     when "monthly"
       rule = IceCube::Rule.monthly(recurrence_params[:interval].to_i)
+      
+      # 毎月の詳細設定を適用
+      monthly_type = monthly_params[:recurrence_type] || recurrence_params[:monthly_recurrence_type]
+      
+      case monthly_type
+      when "day_of_month"
+        # 日付指定: 毎月X日
+        day = (monthly_params[:day] || recurrence_params[:monthly_day]).to_i
+        rule = rule.day_of_month(day)
+      when "day_of_week"
+        # 曜日指定: 毎月第X 曜日
+        week = (monthly_params[:week] || recurrence_params[:monthly_week]).to_i
+        dow = (monthly_params[:day_of_week] || recurrence_params[:monthly_day_of_week]).to_i
+        
+        # IceCubeの曜日定数に変換（0=日曜 -> :sunday）
+        day_symbols = [:sunday, :monday, :tuesday, :wednesday, :thursday, :friday, :saturday]
+        day_sym = day_symbols[dow]
+        
+        if week == -1
+          # 最終週
+          rule = rule.day_of_week(day_sym => [-1])
+        else
+          # 第N週
+          rule = rule.day_of_week(day_sym => [week])
+        end
+      when "first_or_last"
+        # 月初・月末指定
+        special = monthly_params[:special_day] || recurrence_params[:monthly_special_day]
+        if special == "first"
+          rule = rule.day_of_month(1)
+        elsif special == "last"
+          rule = rule.day_of_month(-1)
+        end
+      else
+        # デフォルト: 開始日の日付を使用
+        rule = rule.day_of_month(start_time.day)
+      end
     else
       return nil
     end

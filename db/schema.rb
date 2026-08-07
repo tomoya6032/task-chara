@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_07_21_050640) do
+ActiveRecord::Schema[8.0].define(version: 2026_08_07_213344) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -138,6 +138,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_21_050640) do
     t.datetime "original_start_time"
     t.boolean "is_exception"
     t.datetime "cancelled_at"
+    t.string "monthly_recurrence_type"
+    t.integer "monthly_day"
+    t.integer "monthly_week"
+    t.integer "monthly_day_of_week"
     t.index ["character_id"], name: "index_events_on_character_id"
     t.index ["character_id"], name: "index_events_on_character_id_new"
     t.index ["end_time"], name: "index_events_on_end_time"

@@ -169,12 +169,28 @@ class CalendarController < ApplicationController
     if params[:event][:recurring] == "1" && params[:event][:recurrence].present?
       Rails.logger.info "📝 ✅ Recurring event detected - building schedule"
       recurrence_params = params[:event][:recurrence]
-      schedule = Event.build_schedule_from_params(@event.start_time, recurrence_params)
+      
+      # 毎月の詳細設定パラメータを収集
+      monthly_params = {
+        recurrence_type: params[:event][:monthly_recurrence_type],
+        day: params[:event][:monthly_day],
+        week: params[:event][:monthly_week],
+        day_of_week: params[:event][:monthly_day_of_week],
+        special_day: params[:event][:monthly_special_day]
+      }
+      
+      schedule = Event.build_schedule_from_params(@event.start_time, recurrence_params, monthly_params)
 
       if schedule
         Rails.logger.info "📝 ✅ Schedule built successfully"
         @event.recurrence_rule = schedule.to_yaml
         @event.recurring = true
+        
+        # 毎月の詳細設定を保存
+        @event.monthly_recurrence_type = monthly_params[:recurrence_type]
+        @event.monthly_day = monthly_params[:day].to_i if monthly_params[:day].present?
+        @event.monthly_week = monthly_params[:week].to_i if monthly_params[:week].present?
+        @event.monthly_day_of_week = monthly_params[:day_of_week].to_i if monthly_params[:day_of_week].present?
 
         # 終了日の設定
         if recurrence_params[:end_type] == "date" && recurrence_params[:end_date].present?

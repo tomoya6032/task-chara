@@ -399,6 +399,67 @@
                       %input{ type: "checkbox", id: "day-#{day}", name: "event[recurrence][days_of_week][]", value: day, class: "w-4 h-4 text-blue-600 border-gray-300 rounded" }
                       %label{ for: "day-#{day}", class: "ml-1 text-sm text-gray-700 dark:text-gray-300" }= day_label
 
+              / 毎月の詳細設定（毎月の場合のみ表示）
+              #monthly-options.hidden
+                %label.block.text-sm.font-medium.mb-2{ class: "text-gray-700 dark:text-gray-300" }
+                  繰り返し方法
+                
+                / 日付で指定
+                .mb-3.p-3.rounded.border{ class: "border-gray-200 dark:border-slate-600" }
+                  .flex.items-center.gap-2.mb-2
+                    %input#monthly-type-day{ type: "radio", name: "event[monthly_recurrence_type]", value: "day_of_month", checked: true, class: "w-4 h-4 text-blue-600", onchange: "updateMonthlyUI()" }
+                    %label{ for: "monthly-type-day", class: "text-sm font-medium cursor-pointer text-gray-700 dark:text-gray-300" }
+                      📅 日付で指定
+                  #monthly-day-input.ml-6
+                    .flex.items-center.gap-2
+                      %span.text-sm{ class: "text-gray-700 dark:text-gray-300" } 毎月
+                      %select#monthly-day-select.rounded-md.px-2.py-1.text-sm{ name: "event[monthly_day]", class: "border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white" }
+                        - (1..31).each do |day|
+                          %option{ value: day }= day
+                      %span.text-sm{ class: "text-gray-700 dark:text-gray-300" } 日
+
+                / 曜日で指定
+                .mb-3.p-3.rounded.border{ class: "border-gray-200 dark:border-slate-600" }
+                  .flex.items-center.gap-2.mb-2
+                    %input#monthly-type-week{ type: "radio", name: "event[monthly_recurrence_type]", value: "day_of_week", class: "w-4 h-4 text-blue-600", onchange: "updateMonthlyUI()" }
+                    %label{ for: "monthly-type-week", class: "text-sm font-medium cursor-pointer text-gray-700 dark:text-gray-300" }
+                      📆 曜日で指定
+                  #monthly-week-input.ml-6.hidden
+                    .flex.items-center.gap-2.flex-wrap
+                      %span.text-sm{ class: "text-gray-700 dark:text-gray-300" } 毎月 第
+                      %select#monthly-week-select.rounded-md.px-2.py-1.text-sm{ name: "event[monthly_week]", class: "border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white" }
+                        %option{ value: "1" } 1
+                        %option{ value: "2" } 2
+                        %option{ value: "3" } 3
+                        %option{ value: "4" } 4
+                        %option{ value: "-1" } 最終
+                      %select#monthly-dow-select.rounded-md.px-2.py-1.text-sm{ name: "event[monthly_day_of_week]", class: "border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white" }
+                        %option{ value: "0" } 日曜日
+                        %option{ value: "1" } 月曜日
+                        %option{ value: "2" } 火曜日
+                        %option{ value: "3" } 水曜日
+                        %option{ value: "4" } 木曜日
+                        %option{ value: "5" } 金曜日
+                        %option{ value: "6" } 土曜日
+
+                / 月初・月末で指定
+                .mb-3.p-3.rounded.border{ class: "border-gray-200 dark:border-slate-600" }
+                  .flex.items-center.gap-2.mb-2
+                    %input#monthly-type-special{ type: "radio", name: "event[monthly_recurrence_type]", value: "first_or_last", class: "w-4 h-4 text-blue-600", onchange: "updateMonthlyUI()" }
+                    %label{ for: "monthly-type-special", class: "text-sm font-medium cursor-pointer text-gray-700 dark:text-gray-300" }
+                      🗓️ 月初・月末で指定
+                  #monthly-special-input.ml-6.hidden
+                    %select#monthly-special-select.rounded-md.px-2.py-1.text-sm{ name: "event[monthly_special_day]", class: "border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-900 dark:text-white" }
+                      %option{ value: "first" } 月初（1日）
+                      %option{ value: "last" } 月末（最終日）
+
+                / 現在の日付からの候補
+                #monthly-suggestions.mt-3.p-3.rounded{ class: "bg-blue-50 dark:bg-slate-600" }
+                  %div.text-xs.font-medium.mb-2{ class: "text-blue-700 dark:text-blue-300" }
+                    💡 ワンタップ候補
+                  .flex.flex-wrap.gap-2#monthly-quick-buttons
+                    / JavaScriptで動的に生成
+
               / 終了条件
               .mb-3
                 %label.block.text-sm.font-medium.mb-2{ class: "text-gray-700 dark:text-gray-300" }
@@ -1715,6 +1776,11 @@
           const startHidden = document.getElementById('event-start-input');
           if (startHidden && startHidden.value) {
             updateEndTimeOneHourLater(startHidden.value, 'event-end-date-part', 'event-end-hour-part', 'event-end-min-part', 'event-end-input');
+            // 毎月の候補を再生成（開始日変更時）
+            const frequencySelect = document.getElementById('recurring-frequency');
+            if (frequencySelect && frequencySelect.value === 'monthly') {
+              generateMonthlySuggestions();
+            }
           }
         });
       }
@@ -2844,6 +2910,7 @@
     const frequency = document.getElementById('recurring-frequency');
     const intervalUnit = document.getElementById('interval-unit');
     const weeklyDays = document.getElementById('weekly-days-selector');
+    const monthlyOptions = document.getElementById('monthly-options');
     
     if (!frequency || !intervalUnit) return;
     
@@ -2854,16 +2921,140 @@
       case 'daily':
         intervalUnit.textContent = '日ごと';
         if (weeklyDays) weeklyDays.classList.add('hidden');
+        if (monthlyOptions) monthlyOptions.classList.add('hidden');
         break;
       case 'weekly':
         intervalUnit.textContent = '週ごと';
         if (weeklyDays) weeklyDays.classList.remove('hidden');
+        if (monthlyOptions) monthlyOptions.classList.add('hidden');
         break;
       case 'monthly':
         intervalUnit.textContent = 'ヶ月ごと';
         if (weeklyDays) weeklyDays.classList.add('hidden');
+        if (monthlyOptions) {
+          monthlyOptions.classList.remove('hidden');
+          updateMonthlyUI();
+          generateMonthlySuggestions();
+        }
         break;
     }
+  }
+
+  function updateMonthlyUI() {
+    const dayType = document.getElementById('monthly-type-day');
+    const weekType = document.getElementById('monthly-type-week');
+    const specialType = document.getElementById('monthly-type-special');
+    const dayInput = document.getElementById('monthly-day-input');
+    const weekInput = document.getElementById('monthly-week-input');
+    const specialInput = document.getElementById('monthly-special-input');
+    
+    if (!dayType || !weekType || !specialType) return;
+    
+    // 各入力欄の表示/非表示を切り替え
+    if (dayType.checked) {
+      if (dayInput) dayInput.classList.remove('hidden');
+      if (weekInput) weekInput.classList.add('hidden');
+      if (specialInput) specialInput.classList.add('hidden');
+    } else if (weekType.checked) {
+      if (dayInput) dayInput.classList.add('hidden');
+      if (weekInput) weekInput.classList.remove('hidden');
+      if (specialInput) specialInput.classList.add('hidden');
+    } else if (specialType.checked) {
+      if (dayInput) dayInput.classList.add('hidden');
+      if (weekInput) weekInput.classList.add('hidden');
+      if (specialInput) specialInput.classList.remove('hidden');
+    }
+  }
+
+  function generateMonthlySuggestions() {
+    const container = document.getElementById('monthly-quick-buttons');
+    if (!container) return;
+    
+    // 開始日から候補を生成
+    const startDateInput = document.getElementById('event-start-date-part');
+    if (!startDateInput || !startDateInput.value) return;
+    
+    const startDate = new Date(startDateInput.value);
+    const day = startDate.getDate();
+    const dayOfWeek = startDate.getDay(); // 0=日曜, 6=土曜
+    const weekOfMonth = Math.ceil(day / 7); // 第何週か（1-5）
+    const lastDayOfMonth = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0).getDate();
+    const isLastWeek = day > lastDayOfMonth - 7;
+    
+    const dayNames = ['日曜日', '月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日'];
+    const weekNames = ['第1', '第2', '第3', '第4', '最終'];
+    
+    container.innerHTML = '';
+    
+    // 候補1: 毎月X日
+    const dayButton = document.createElement('button');
+    dayButton.type = 'button';
+    dayButton.className = 'px-3 py-1 text-xs rounded-full bg-blue-100 hover:bg-blue-200 text-blue-700 dark:bg-blue-900 dark:hover:bg-blue-800 dark:text-blue-300 transition-colors';
+    dayButton.textContent = `毎月${day}日`;
+    dayButton.onclick = () => setMonthlyPattern('day_of_month', {day: day});
+    container.appendChild(dayButton);
+    
+    // 候補2: 毎月第X 曜日
+    const weekButton = document.createElement('button');
+    weekButton.type = 'button';
+    weekButton.className = 'px-3 py-1 text-xs rounded-full bg-blue-100 hover:bg-blue-200 text-blue-700 dark:bg-blue-900 dark:hover:bg-blue-800 dark:text-blue-300 transition-colors';
+    const weekLabel = isLastWeek ? '最終' : weekNames[weekOfMonth - 1];
+    weekButton.textContent = `毎月${weekLabel}${dayNames[dayOfWeek]}`;
+    weekButton.onclick = () => setMonthlyPattern('day_of_week', {week: isLastWeek ? -1 : weekOfMonth, dow: dayOfWeek});
+    container.appendChild(weekButton);
+    
+    // 候補3: 月初（1日に近い場合）
+    if (day <= 3) {
+      const firstButton = document.createElement('button');
+      firstButton.type = 'button';
+      firstButton.className = 'px-3 py-1 text-xs rounded-full bg-blue-100 hover:bg-blue-200 text-blue-700 dark:bg-blue-900 dark:hover:bg-blue-800 dark:text-blue-300 transition-colors';
+      firstButton.textContent = '毎月1日';
+      firstButton.onclick = () => setMonthlyPattern('first_or_last', {special: 'first'});
+      container.appendChild(firstButton);
+    }
+    
+    // 候補4: 月末（最終日に近い場合）
+    if (day >= lastDayOfMonth - 2) {
+      const lastButton = document.createElement('button');
+      lastButton.type = 'button';
+      lastButton.className = 'px-3 py-1 text-xs rounded-full bg-blue-100 hover:bg-blue-200 text-blue-700 dark:bg-blue-900 dark:hover:bg-blue-800 dark:text-blue-300 transition-colors';
+      lastButton.textContent = '毎月最終日';
+      lastButton.onclick = () => setMonthlyPattern('first_or_last', {special: 'last'});
+      container.appendChild(lastButton);
+    }
+  }
+
+  function setMonthlyPattern(type, options) {
+    // ラジオボタンを選択
+    const dayType = document.getElementById('monthly-type-day');
+    const weekType = document.getElementById('monthly-type-week');
+    const specialType = document.getElementById('monthly-type-special');
+    
+    if (type === 'day_of_month' && dayType) {
+      dayType.checked = true;
+      const daySelect = document.getElementById('monthly-day-select');
+      if (daySelect && options.day) {
+        daySelect.value = options.day;
+      }
+    } else if (type === 'day_of_week' && weekType) {
+      weekType.checked = true;
+      const weekSelect = document.getElementById('monthly-week-select');
+      const dowSelect = document.getElementById('monthly-dow-select');
+      if (weekSelect && options.week) {
+        weekSelect.value = options.week;
+      }
+      if (dowSelect && options.dow !== undefined) {
+        dowSelect.value = options.dow;
+      }
+    } else if (type === 'first_or_last' && specialType) {
+      specialType.checked = true;
+      const specialSelect = document.getElementById('monthly-special-select');
+      if (specialSelect && options.special) {
+        specialSelect.value = options.special;
+      }
+    }
+    
+    updateMonthlyUI();
   }
 
   function toggleEndDateInput() {

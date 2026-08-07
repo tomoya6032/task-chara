@@ -3,6 +3,13 @@ class DashboardsController < ApplicationController
   skip_before_action :check_token_limit, only: [ :show ]
 
   def show
+    # HEADリクエスト（Turboプリフェッチ）の場合は軽量レスポンス
+    if request.head?
+      Rails.logger.info "🔍 HEAD request to dashboard - returning minimal response"
+      head :ok
+      return
+    end
+
     if user_signed_in?
       # ログイン済みユーザーのダッシュボード
       @character = current_user.character

@@ -36,8 +36,8 @@
 
     - if devise_mapping.rememberable?
       .field.flex.items-center
-        = f.check_box :remember_me, class: "h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-        = f.label :remember_me, "ログイン状態を保持", class: "ml-2 block text-sm text-gray-700"
+        = f.check_box :remember_me, checked: true, class: "h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+        = f.label :remember_me, "ログイン状態を保持（6時間）", class: "ml-2 block text-sm text-gray-700"
 
     .actions
       = f.submit "ログイン", class: "w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"

@@ -167,8 +167,9 @@ Devise.setup do |config|
 
   # ==> Configuration for :rememberable
   # The time the user will be remembered without asking for credentials again.
-  # PWA最適化: iOS Safari PWAでも3時間はログイン状態を保持
-  config.remember_for = 3.hours
+  # PWA最適化: ブラウザを閉じても6時間はログイン状態を保持
+  # （timeout_inの3時間は無操作時のタイムアウトとして別途機能）
+  config.remember_for = 6.hours
 
   # Invalidates all the remember me tokens when the user signs out.
   config.expire_all_remember_me_on_sign_out = true
