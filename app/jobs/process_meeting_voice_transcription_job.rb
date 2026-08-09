@@ -59,35 +59,67 @@ class ProcessMeetingVoiceTranscriptionJob < ApplicationJob
       
       Rails.logger.info "✅ Blob downloaded successfully to: #{temp_file.path}"
       Rails.logger.info "📊 Downloaded file size: #{File.size(temp_file.path)} bytes"
+      
+      # ダウンロード後のメモリクリア（ストリーミングバッファを解放）
+      GC.start
+      Rails.logger.info "🧹 Memory cleanup after blob download"
 
       # 他のセクションと同じ方法で OpenAI クライアントを作成
       client = OpenAI::Client.new
       Rails.logger.info "🔗 OpenAI client initialized successfully"
 
+      # Whisper API呼び出し前にメモリをクリア
+      GC.start
+      Rails.logger.info "🧹 Pre-Whisper API memory cleanup"
+
       Rails.logger.info "📤 Sending audio file to OpenAI Whisper API..."
       Rails.logger.info "🎙️  Using model: whisper-1"
+      Rails.logger.info "📊 File size to send: #{File.size(temp_file.path)} bytes (#{(File.size(temp_file.path).to_f / 1024 / 1024).round(2)}MB)"
 
       # Whisper APIで音声を文字起こし
-      response = client.audio.transcribe(
-        parameters: {
-          model: "whisper-1",
-          file: File.open(temp_file.path, "rb"),
-          response_format: "json"
-        }
-      )
-      Rails.logger.info "📥 Whisper API response received successfully"
-      Rails.logger.info "📝 Response keys: #{response.keys.join(', ')}" if response.is_a?(Hash)
+      # File.openをブロック形式で使用し、確実にクローズ
+      transcribed_text = nil
+      audio_file = nil
+      
+      begin
+        audio_file = File.open(temp_file.path, "rb")
+        Rails.logger.info "📂 Audio file opened for Whisper API"
+        
+        response = client.audio.transcribe(
+          parameters: {
+            model: "whisper-1",
+            file: audio_file,
+            response_format: "json"
+          }
+        )
+        
+        Rails.logger.info "📥 Whisper API response received successfully"
+        Rails.logger.info "📝 Response keys: #{response.keys.join(', ')}" if response.is_a?(Hash)
 
-      transcribed_text = response["text"]
-      Rails.logger.info "Transcribed text: #{transcribed_text&.length || 0} characters"
+        # 即座にテキストを取り出してresponseを破棄
+        transcribed_text = response["text"]
+        Rails.logger.info "Transcribed text: #{transcribed_text&.length || 0} characters"
+        
+      ensure
+        # ファイルハンドルを確実にクローズ
+        if audio_file && !audio_file.closed?
+          audio_file.close
+          Rails.logger.info "🔒 Audio file handle closed"
+        end
+      end
 
       # メモリ解放（大きなファイル処理後）
       response = nil
+      audio_file = nil
       GC.start
       Rails.logger.info "🧹 Memory cleanup after Whisper API call"
 
       if transcribed_text.present?
         Rails.logger.info "Starting GPT formatting for transcribed text..."
+        
+        # GPT処理前にメモリをクリア
+        GC.start
+        Rails.logger.info "🧹 Pre-GPT memory cleanup"
 
         # 会議タイプとプロンプトテンプレートを判定
         meeting_type = "regular_meeting" # デフォルト値（通常の会議議事録）

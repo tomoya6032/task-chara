@@ -54,12 +54,19 @@ class ProcessMeetingImageOcrJob < ApplicationJob
       
       Rails.logger.info "✅ Blob downloaded successfully to: #{temp_file.path}"
       Rails.logger.info "📊 Downloaded file size: #{File.size(temp_file.path)} bytes"
+      
+      # ダウンロード後のメモリクリア（ストリーミングバッファを解放）
+      GC.start
+      Rails.logger.info "🧹 Memory cleanup after blob download"
 
       client = OpenAI::Client.new
 
       # 画像をBase64エンコード
+      Rails.logger.info "📝 Reading image file for Base64 encoding..."
       image_data = File.read(temp_file.path)
+      Rails.logger.info "📝 Encoding image to Base64..."
       base64_image = Base64.strict_encode64(image_data)
+      Rails.logger.info "✅ Base64 encoding completed (#{base64_image.length} characters)"
       
       # メモリ解放（Base64エンコード後）
       image_data = nil
@@ -111,6 +118,11 @@ class ProcessMeetingImageOcrJob < ApplicationJob
       end
 
       Rails.logger.info "Using image OCR prompt template: #{prompt_template.name}"
+
+      # Vision API呼び出し前にメモリをクリア
+      GC.start
+      Rails.logger.info "🧹 Pre-Vision API memory cleanup"
+      Rails.logger.info "📤 Sending image to OpenAI Vision API..."
 
       # OpenAI Vision APIで画像を解析し、議事録形式で出力
       response = client.chat(
