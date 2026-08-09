@@ -23,8 +23,14 @@ Rails.application.configure do
     config.require_master_key = true
     # 通常起動時は eager load を有効化
     config.eager_load = true
-    # 通常起動時は AWS S3 を使用
-    config.active_storage.service = :amazon
+    # 通常起動時は AWS S3 を使用（環境変数がない場合はlocalにフォールバック）
+    if ENV["AWS_ACCESS_KEY_ID"].present? && ENV["AWS_SECRET_ACCESS_KEY"].present? && ENV["AWS_S3_BUCKET"].present?
+      config.active_storage.service = :amazon
+      Rails.logger.info "🟢 Active Storage: Using Amazon S3"
+    else
+      config.active_storage.service = :local
+      Rails.logger.warn "🟡 Active Storage: AWS credentials not found, falling back to :local storage"
+    end
   end
 
   # Full error reports are disabled.
