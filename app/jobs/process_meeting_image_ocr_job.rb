@@ -200,7 +200,13 @@ class ProcessMeetingImageOcrJob < ApplicationJob
         broadcast_channel,
         {
           type: "meeting_image_ocr",
-          statu確実に削除（worker dynoのローカル/tmp）
+          status: "error",
+          error: e.message
+        }
+      )
+      Rails.logger.info "[ActionCable] Error broadcasted to #{broadcast_channel}"
+    ensure
+      # 一時ファイルを確実に削除（worker dynoのローカル/tmp）
       if temp_file
         begin
           temp_file.close unless temp_file.closed?
@@ -224,10 +230,6 @@ class ProcessMeetingImageOcrJob < ApplicationJob
       # 最終メモリクリーンアップ
       GC.start
       Rails.logger.info "🧹 Final memory cleanup completed"
-        }
-      )
-      Rails.logger.info "[ActionCable] Error broadcasted to #{broadcast_channel}"
-    ensure
       # 一時ファイルを削除
       File.delete(image_file_path) if File.exist?(image_file_path)
     end
