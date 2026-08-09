@@ -150,20 +150,31 @@ class MeetingMinutesController < ApplicationController
         content_type: image_file.content_type
       }
 
-      # 一時ファイルに画像を保存
-      temp_file = Tempfile.new([ "meeting_image_ocr", File.extname(image_file.original_filename) ])
-      temp_file.binmode
-      temp_file.write(image_file.read)
-      temp_file.close
+      # Active Storageに画像ファイルを直接アップロード（Heroku対応：S3に保存）
+      Rails.logger.info "📤 Uploading image file to Active Storage (S3)..."
+      
+      blob = ActiveStorage::Blob.create_and_upload!(
+        io: image_file.tempfile,
+        filename: image_file.original_filename,
+        content_type: image_file.content_type,
+        metadata: {
+          session_id: used_session_id,
+          uploaded_at: Time.current.iso8601
+        }
+      )
+      
+      Rails.logger.info "✅ Image file uploaded to Active Storage successfully"
+      Rails.logger.info "  - Blob ID: #{blob.id}"
+      Rails.logger.info "  - Key: #{blob.key}"
 
       # プロンプトテンプレートIDを取得
       prompt_template_id = params[:prompt_template_id]
       Rails.logger.info "📝 Prompt template ID: #{prompt_template_id || 'Not specified (will use default)'}"
 
-      # バックグラウンドジョブを開始（session_idをJob第一引数に渡す）
+      # バックグラウンドジョブを開始（blob.signed_idを渡す）
       Rails.logger.info "🚀 Queuing ProcessMeetingImageOcrJob..."
-      Rails.logger.info "📤 Job arguments: session_#{used_session_id}, #{temp_file.path}, #{prompt_template_id}"
-      ProcessMeetingImageOcrJob.perform_later("session_#{used_session_id}", temp_file.path, prompt_template_id)
+      Rails.logger.info "📤 Job arguments: session_#{used_session_id}, #{blob.signed_id}, #{prompt_template_id}"
+      ProcessMeetingImageOcrJob.perform_later("session_#{used_session_id}", blob.signed_id, prompt_template_id)
       Rails.logger.info "✅ Meeting OCR job queued for session: #{used_session_id}"
 
       render json: {
@@ -191,14 +202,25 @@ class MeetingMinutesController < ApplicationController
       prompt_template_id = params[:prompt_template_id]
       Rails.logger.info "📝 Prompt template ID: #{prompt_template_id || 'Not specified (will use default)'}"
 
-      # 一時ファイルに画像を保存
-      temp_file = Tempfile.new([ "meeting_image_ocr", File.extname(image_file.original_filename) ])
-      temp_file.binmode
-      temp_file.write(image_file.read)
-      temp_file.close
+      # Active Storageに画像ファイルを直接アップロード（Heroku対応：S3に保存）
+      Rails.logger.info "📤 Uploading image file to Active Storage (S3)..."
+      
+      blob = ActiveStorage::Blob.create_and_upload!(
+        io: image_file.tempfile,
+        filename: image_file.original_filename,
+        content_type: image_file.content_type,
+        metadata: {
+          meeting_id: meeting_id,
+          uploaded_at: Time.current.iso8601
+        }
+      )
+      
+      Rails.logger.info "✅ Image file uploaded to Active Storage successfully"
+      Rails.logger.info "  - Blob ID: #{blob.id}"
+      Rails.logger.info "  - Key: #{blob.key}"
 
-      # バックグラウンドジョブを開始
-      ProcessMeetingImageOcrJob.perform_later(meeting_id, temp_file.path, prompt_template_id)
+      # バックグラウンドジョブを開始（blob.signed_idを渡す）
+      ProcessMeetingImageOcrJob.perform_later(meeting_id, blob.signed_id, prompt_template_id)
       Rails.logger.info "Meeting OCR job queued for meeting_id: #{meeting_id}"
 
       render json: {
@@ -245,29 +267,32 @@ class MeetingMinutesController < ApplicationController
         received_at: Time.current
       }
 
-      # 一時ファイルに音声を保存
-      file_extension = File.extname(voice_file.original_filename)
-      temp_file = Tempfile.new([ "meeting_voice_transcription", file_extension ])
-      temp_file.binmode
-
-      Rails.logger.info "📁 Creating temporary file: #{temp_file.path}"
-      voice_file.tempfile.rewind
-      IO.copy_stream(voice_file.tempfile, temp_file)
-      temp_file.close
-
-      Rails.logger.info "💾 Temporary file saved successfully"
-      Rails.logger.info "  - Path: #{temp_file.path}"
-      Rails.logger.info "  - Size: #{File.size(temp_file.path)} bytes"
-      Rails.logger.info "  - Exists: #{File.exist?(temp_file.path)}"
+      # Active Storageに音声ファイルを直接アップロード（Heroku対応：S3に保存）
+      Rails.logger.info "📤 Uploading voice file to Active Storage (S3)..."
+      
+      blob = ActiveStorage::Blob.create_and_upload!(
+        io: voice_file.tempfile,
+        filename: voice_file.original_filename,
+        content_type: voice_file.content_type,
+        metadata: {
+          session_id: used_session_id,
+          uploaded_at: Time.current.iso8601
+        }
+      )
+      
+      Rails.logger.info "✅ Voice file uploaded to Active Storage successfully"
+      Rails.logger.info "  - Blob ID: #{blob.id}"
+      Rails.logger.info "  - Key: #{blob.key}"
+      Rails.logger.info "  - Size: #{blob.byte_size} bytes"
 
       # プロンプトテンプレートIDを取得
       prompt_template_id = params[:prompt_template_id]
       Rails.logger.info "📝 Prompt template ID: #{prompt_template_id || 'Not specified (will use default)'}"
 
-      # バックグラウンドジョブを開始（session_idをJob第一引数に渡す）
+      # バックグラウンドジョブを開始（blob.signed_idを渡す）
       Rails.logger.info "🚀 Queuing ProcessMeetingVoiceTranscriptionJob..."
-      Rails.logger.info "📤 Job arguments: session_#{used_session_id}, #{temp_file.path}, #{prompt_template_id}"
-      ProcessMeetingVoiceTranscriptionJob.perform_later("session_#{used_session_id}", temp_file.path, prompt_template_id)
+      Rails.logger.info "📤 Job arguments: session_#{used_session_id}, #{blob.signed_id}, #{prompt_template_id}"
+      ProcessMeetingVoiceTranscriptionJob.perform_later("session_#{used_session_id}", blob.signed_id, prompt_template_id)
       Rails.logger.info "✅ Meeting voice job queued for session: #{used_session_id}"
 
       render json: {
@@ -303,14 +328,25 @@ class MeetingMinutesController < ApplicationController
       prompt_template_id = params[:prompt_template_id]
       Rails.logger.info "📝 Prompt template ID: #{prompt_template_id || 'Not specified (will use default)'}"
 
-      # 一時ファイルに音声を保存
-      temp_file = Tempfile.new([ "meeting_voice_transcription", File.extname(voice_file.original_filename) ])
-      temp_file.binmode
-      temp_file.write(voice_file.read)
-      temp_file.close
+      # Active Storageに音声ファイルを直接アップロード（Heroku対応：S3に保存）
+      Rails.logger.info "📤 Uploading voice file to Active Storage (S3)..."
+      
+      blob = ActiveStorage::Blob.create_and_upload!(
+        io: voice_file.tempfile,
+        filename: voice_file.original_filename,
+        content_type: voice_file.content_type,
+        metadata: {
+          meeting_id: meeting_id,
+          uploaded_at: Time.current.iso8601
+        }
+      )
+      
+      Rails.logger.info "✅ Voice file uploaded to Active Storage successfully"
+      Rails.logger.info "  - Blob ID: #{blob.id}"
+      Rails.logger.info "  - Key: #{blob.key}"
 
-      # バックグラウンドジョブを開始
-      ProcessMeetingVoiceTranscriptionJob.perform_later(meeting_id, temp_file.path, prompt_template_id)
+      # バックグラウンドジョブを開始（blob.signed_idを渡す）
+      ProcessMeetingVoiceTranscriptionJob.perform_later(meeting_id, blob.signed_id, prompt_template_id)
       Rails.logger.info "Meeting voice job queued for meeting_id: #{meeting_id}"
 
       render json: {

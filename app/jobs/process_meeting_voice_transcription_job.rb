@@ -1,12 +1,11 @@
 class ProcessMeetingVoiceTranscriptionJob < ApplicationJob
   queue_as :default
 
-  def perform(meeting_id_or_session, audio_file_path, prompt_template_id = nil)
+  def perform(meeting_id_or_session, blob_signed_id, prompt_template_id = nil)
     Rails.logger.info "🤖 === Starting Meeting Voice Transcription Job ==="
     Rails.logger.info "📋 Meeting ID or Session: #{meeting_id_or_session}"
-    Rails.logger.info "📁 Audio file path: #{audio_file_path}"
+    Rails.logger.info "📦 Blob Signed ID: #{blob_signed_id}"
     Rails.logger.info "📝 Custom prompt template ID: #{prompt_template_id || 'Not specified'}"
-    Rails.logger.info "✅ Audio file exists: #{File.exist?(audio_file_path)}"
 
     # meeting_id_or_sessionがsession_で始まる場合は新規作成
     if meeting_id_or_session.to_s.start_with?("session_")
@@ -19,23 +18,48 @@ class ProcessMeetingVoiceTranscriptionJob < ApplicationJob
       Rails.logger.info "📋 Existing meeting edit - Meeting ID: #{meeting_id}"
     end
 
-    if File.exist?(audio_file_path)
-      file_size = File.size(audio_file_path)
-      file_extension = File.extname(audio_file_path).downcase
-      Rails.logger.info "📊 File details:"
-      Rails.logger.info "  - Size: #{file_size} bytes (#{(file_size.to_f / 1024 / 1024).round(2)}MB)"
-      Rails.logger.info "  - Extension: #{file_extension}"
+    # Active Storageからblobを取得
+    blob = nil
+    temp_file = nil
+    
+    begin
+      blob = ActiveStorage::Blob.find_signed(blob_signed_id)
+      
+      if blob.nil?
+        Rails.logger.error "❌ Blob not found with signed ID: #{blob_signed_id}"
+        raise "Audio blob not found"
+      end
+
+      Rails.logger.info "✅ Blob found successfully"
+      Rails.logger.info "📊 Blob details:"
+      Rails.logger.info "  - ID: #{blob.id}"
+      Rails.logger.info "  - Filename: #{blob.filename}"
+      Rails.logger.info "  - Content Type: #{blob.content_type}"
+      Rails.logger.info "  - Size: #{blob.byte_size} bytes (#{(blob.byte_size.to_f / 1024 / 1024).round(2)}MB)"
+      Rails.logger.info "  - Key: #{blob.key}"
 
       # M4Aファイルの特別な処理ログ
-      if file_extension == ".m4a"
+      if blob.filename.to_s.downcase.end_with?(".m4a")
         Rails.logger.info "🎵 Processing M4A file (iPhone/iOS format)"
       end
-    else
-      Rails.logger.error "❌ Audio file not found at path: #{audio_file_path}"
-      return
-    end
 
-    begin
+      # 一時ファイルにダウンロード（Heroku worker dynoのローカル/tmpに保存）
+      file_extension = File.extname(blob.filename.to_s)
+      temp_file = Tempfile.new([ "meeting_voice_#{blob.id}", file_extension ])
+      temp_file.binmode
+      
+      Rails.logger.info "📥 Downloading blob from S3 to temporary file: #{temp_file.path}"
+      
+      # ストリーミングでダウンロード（メモリ消費を抑える）
+      blob.download do |chunk|
+        temp_file.write(chunk)
+      end
+      temp_file.rewind
+      temp_file.close
+      
+      Rails.logger.info "✅ Blob downloaded successfully to: #{temp_file.path}"
+      Rails.logger.info "📊 Downloaded file size: #{File.size(temp_file.path)} bytes"
+
       # 他のセクションと同じ方法で OpenAI クライアントを作成
       client = OpenAI::Client.new
       Rails.logger.info "🔗 OpenAI client initialized successfully"
@@ -47,7 +71,7 @@ class ProcessMeetingVoiceTranscriptionJob < ApplicationJob
       response = client.audio.transcribe(
         parameters: {
           model: "whisper-1",
-          file: File.open(audio_file_path, "rb"),
+          file: File.open(temp_file.path, "rb"),
           response_format: "json"
         }
       )
@@ -56,6 +80,11 @@ class ProcessMeetingVoiceTranscriptionJob < ApplicationJob
 
       transcribed_text = response["text"]
       Rails.logger.info "Transcribed text: #{transcribed_text&.length || 0} characters"
+
+      # メモリ解放（大きなファイル処理後）
+      response = nil
+      GC.start
+      Rails.logger.info "🧹 Memory cleanup after Whisper API call"
 
       if transcribed_text.present?
         Rails.logger.info "Starting GPT formatting for transcribed text..."
@@ -133,6 +162,12 @@ class ProcessMeetingVoiceTranscriptionJob < ApplicationJob
 
         formatted_text = formatted_response.dig("choices", 0, "message", "content") || transcribed_text
 
+        # メモリ解放（GPT処理後）
+        formatted_response = nil
+        transcribed_text = nil
+        GC.start
+        Rails.logger.info "🧹 Memory cleanup after GPT formatting"
+
         Rails.logger.info "Meeting voice transcription completed successfully"
 
         # WebSocket経由でフロントエンドに結果を送信
@@ -182,8 +217,30 @@ class ProcessMeetingVoiceTranscriptionJob < ApplicationJob
         broadcast_channel,
         {
           type: "meeting_voice_transcription",
-          status: "error",
-          error: e.message
+          statu確実に削除（worker dynoのローカル/tmp）
+      if temp_file
+        begin
+          temp_file.close unless temp_file.closed?
+          File.delete(temp_file.path) if temp_file.path && File.exist?(temp_file.path)
+          Rails.logger.info "🗑️  Temporary file deleted: #{temp_file.path}"
+        rescue => e
+          Rails.logger.error "Failed to delete temporary file: #{e.message}"
+        end
+      end
+
+      # Active Storage blobを削除（S3から削除）
+      if blob
+        begin
+          blob.purge
+          Rails.logger.info "🗑️  Active Storage blob purged (deleted from S3): #{blob.key}"
+        rescue => e
+          Rails.logger.error "Failed to purge blob: #{e.message}"
+        end
+      end
+
+      # 最終メモリクリーンアップ
+      GC.start
+      Rails.logger.info "🧹 Final memory cleanup completed"
         }
       )
       Rails.logger.info "[ActionCable] Error broadcasted to #{broadcast_channel}"

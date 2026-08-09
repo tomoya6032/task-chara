@@ -3,6 +3,10 @@ class MeetingMinute < ApplicationRecord
   belongs_to :user, optional: true
   belongs_to :prompt_template, optional: true
 
+  # Active Storage: 一時的な音声・画像ファイル（処理後に削除）
+  has_one_attached :temp_voice_file
+  has_one_attached :temp_image_file
+
   # 会議タイプ定義
   enum :meeting_type, {
     regular_meeting: 0,    # 通常の会議議事録

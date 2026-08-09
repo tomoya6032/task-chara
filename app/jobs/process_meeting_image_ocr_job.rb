@@ -1,12 +1,11 @@
 class ProcessMeetingImageOcrJob < ApplicationJob
   queue_as :default
 
-  def perform(meeting_id_or_session, image_file_path, prompt_template_id = nil)
+  def perform(meeting_id_or_session, blob_signed_id, prompt_template_id = nil)
     Rails.logger.info "🤖 === Starting Meeting Image OCR Job ==="
     Rails.logger.info "📋 Meeting ID or Session: #{meeting_id_or_session}"
-    Rails.logger.info "📁 Image file path: #{image_file_path}"
+    Rails.logger.info "📦 Blob Signed ID: #{blob_signed_id}"
     Rails.logger.info "📝 Custom prompt template ID: #{prompt_template_id || 'Not specified'}"
-    Rails.logger.info "✅ Image file exists: #{File.exist?(image_file_path)}"
 
     # meeting_id_or_sessionがsession_で始まる場合は新規作成
     if meeting_id_or_session.to_s.start_with?("session_")
@@ -19,12 +18,53 @@ class ProcessMeetingImageOcrJob < ApplicationJob
       Rails.logger.info "📋 Existing meeting edit - Meeting ID: #{meeting_id}"
     end
 
+    # Active Storageからblobを取得
+    blob = nil
+    temp_file = nil
+    
     begin
+      blob = ActiveStorage::Blob.find_signed(blob_signed_id)
+      
+      if blob.nil?
+        Rails.logger.error "❌ Blob not found with signed ID: #{blob_signed_id}"
+        raise "Image blob not found"
+      end
+
+      Rails.logger.info "✅ Blob found successfully"
+      Rails.logger.info "📊 Blob details:"
+      Rails.logger.info "  - ID: #{blob.id}"
+      Rails.logger.info "  - Filename: #{blob.filename}"
+      Rails.logger.info "  - Content Type: #{blob.content_type}"
+      Rails.logger.info "  - Size: #{blob.byte_size} bytes (#{(blob.byte_size.to_f / 1024 / 1024).round(2)}MB)"
+      Rails.logger.info "  - Key: #{blob.key}"
+
+      # 一時ファイルにダウンロード（Heroku worker dynoのローカル/tmpに保存）
+      file_extension = File.extname(blob.filename.to_s)
+      temp_file = Tempfile.new([ "meeting_image_#{blob.id}", file_extension ])
+      temp_file.binmode
+      
+      Rails.logger.info "📥 Downloading blob from S3 to temporary file: #{temp_file.path}"
+      
+      # ストリーミングでダウンロード（メモリ消費を抑える）
+      blob.download do |chunk|
+        temp_file.write(chunk)
+      end
+      temp_file.rewind
+      temp_file.close
+      
+      Rails.logger.info "✅ Blob downloaded successfully to: #{temp_file.path}"
+      Rails.logger.info "📊 Downloaded file size: #{File.size(temp_file.path)} bytes"
+
       client = OpenAI::Client.new
 
       # 画像をBase64エンコード
-      image_data = File.read(image_file_path)
+      image_data = File.read(temp_file.path)
       base64_image = Base64.strict_encode64(image_data)
+      
+      # メモリ解放（Base64エンコード後）
+      image_data = nil
+      GC.start
+      Rails.logger.info "🧹 Memory cleanup after Base64 encoding"
 
       # 会議タイプとプロンプトテンプレートを判定
       meeting_type = "regular_meeting" # デフォルト値（通常の会議議事録）
@@ -104,6 +144,12 @@ class ProcessMeetingImageOcrJob < ApplicationJob
 
       processed_text = response.dig("choices", 0, "message", "content")
 
+      # メモリ解放（Vision API処理後）
+      response = nil
+      base64_image = nil
+      GC.start
+      Rails.logger.info "🧹 Memory cleanup after Vision API processing"
+
       if processed_text.present?
         Rails.logger.info "Meeting image OCR completed successfully"
 
@@ -154,8 +200,30 @@ class ProcessMeetingImageOcrJob < ApplicationJob
         broadcast_channel,
         {
           type: "meeting_image_ocr",
-          status: "error",
-          error: e.message
+          statu確実に削除（worker dynoのローカル/tmp）
+      if temp_file
+        begin
+          temp_file.close unless temp_file.closed?
+          File.delete(temp_file.path) if temp_file.path && File.exist?(temp_file.path)
+          Rails.logger.info "🗑️  Temporary file deleted: #{temp_file.path}"
+        rescue => e
+          Rails.logger.error "Failed to delete temporary file: #{e.message}"
+        end
+      end
+
+      # Active Storage blobを削除（S3から削除）
+      if blob
+        begin
+          blob.purge
+          Rails.logger.info "🗑️  Active Storage blob purged (deleted from S3): #{blob.key}"
+        rescue => e
+          Rails.logger.error "Failed to purge blob: #{e.message}"
+        end
+      end
+
+      # 最終メモリクリーンアップ
+      GC.start
+      Rails.logger.info "🧹 Final memory cleanup completed"
         }
       )
       Rails.logger.info "[ActionCable] Error broadcasted to #{broadcast_channel}"
