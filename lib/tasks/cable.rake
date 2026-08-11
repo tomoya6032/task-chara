@@ -13,11 +13,8 @@ namespace :db do
           ActiveRecord::Tasks::DatabaseTasks.with_temporary_connection(cable_config) do
             cable_migrations_path = Rails.root.join("db/cable_migrate").to_s
             
-            # cable専用のマイグレーションパスを使用してMigrationContextを作成
-            migration_context = ActiveRecord::MigrationContext.new(
-              [cable_migrations_path],
-              ActiveRecord::Base.connection.schema_migration
-            )
+            # Rails 8: MigrationContext は第1引数（マイグレーションパス配列）のみで動作
+            migration_context = ActiveRecord::MigrationContext.new([cable_migrations_path])
             migration_context.migrate
             
             puts "✅ Cable database migration complete"
@@ -49,12 +46,9 @@ namespace :db do
               puts "✅ Cable schema loaded"
             end
             
-            # マイグレーションを実行
+            # Rails 8: MigrationContext は第1引数（マイグレーションパス配列）のみで動作
             cable_migrations_path = Rails.root.join("db/cable_migrate").to_s
-            migration_context = ActiveRecord::MigrationContext.new(
-              [cable_migrations_path],
-              ActiveRecord::Base.connection.schema_migration
-            )
+            migration_context = ActiveRecord::MigrationContext.new([cable_migrations_path])
             migration_context.migrate
             
             puts "✅ Cable database prepared"
