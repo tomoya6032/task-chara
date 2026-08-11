@@ -9,17 +9,19 @@ namespace :db do
         cable_config = ActiveRecord::Base.configurations.configs_for(env_name: Rails.env, name: "cable")
         
         if cable_config
-          # cable接続に切り替え
-          ActiveRecord::Base.establish_connection(:cable)
-          
-          # Rails 8 互換: マイグレーションディレクトリを指定して実行
-          migrations_paths = [Rails.root.join("db/cable_migrate").to_s]
-          ActiveRecord::MigrationContext.new(migrations_paths, ActiveRecord::Base.connection.schema_migration).migrate
-          
-          puts "✅ Cable database migration complete"
-          
-          # primary接続に戻す
-          ActiveRecord::Base.establish_connection(:primary)
+          # Rails 8 互換: with_temporary_connection を使用してマイグレーションを実行
+          ActiveRecord::Tasks::DatabaseTasks.with_temporary_connection(cable_config) do
+            cable_migrations_path = Rails.root.join("db/cable_migrate").to_s
+            
+            # cable専用のマイグレーションパスを使用してMigrationContextを作成
+            migration_context = ActiveRecord::MigrationContext.new(
+              [cable_migrations_path],
+              ActiveRecord::Base.connection.schema_migration
+            )
+            migration_context.migrate
+            
+            puts "✅ Cable database migration complete"
+          end
         else
           puts "⚠️  Cable database configuration not found"
         end
@@ -38,24 +40,25 @@ namespace :db do
         cable_config = ActiveRecord::Base.configurations.configs_for(env_name: Rails.env, name: "cable")
         
         if cable_config
-          # cable接続に切り替え
-          ActiveRecord::Base.establish_connection(:cable)
-          
-          # スキーマをロード
-          schema_path = Rails.root.join("db/cable_schema.rb")
-          if File.exist?(schema_path)
-            load(schema_path)
-            puts "✅ Cable schema loaded"
+          # Rails 8 互換: with_temporary_connection を使用
+          ActiveRecord::Tasks::DatabaseTasks.with_temporary_connection(cable_config) do
+            # スキーマをロード
+            schema_path = Rails.root.join("db/cable_schema.rb")
+            if File.exist?(schema_path)
+              load(schema_path)
+              puts "✅ Cable schema loaded"
+            end
+            
+            # マイグレーションを実行
+            cable_migrations_path = Rails.root.join("db/cable_migrate").to_s
+            migration_context = ActiveRecord::MigrationContext.new(
+              [cable_migrations_path],
+              ActiveRecord::Base.connection.schema_migration
+            )
+            migration_context.migrate
+            
+            puts "✅ Cable database prepared"
           end
-          
-          # Rails 8 互換: マイグレーションを実行
-          migrations_paths = [Rails.root.join("db/cable_migrate").to_s]
-          ActiveRecord::MigrationContext.new(migrations_paths, ActiveRecord::Base.connection.schema_migration).migrate
-          
-          puts "✅ Cable database prepared"
-          
-          # primary接続に戻す
-          ActiveRecord::Base.establish_connection(:primary)
         else
           puts "⚠️  Cable database configuration not found"
         end
