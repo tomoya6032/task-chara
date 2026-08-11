@@ -948,7 +948,8 @@ class CalendarController < ApplicationController
     ]
 
     sample_events.each do |event_data|
-      Event.create!(event_data.merge(character: @character))
+      event = Event.new(event_data.merge(character: @character))
+      event.save!
     end
   end
 
