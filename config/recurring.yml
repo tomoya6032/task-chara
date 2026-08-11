@@ -22,7 +22,7 @@ production:
   check_event_reminders:
     class: CheckEventRemindersJob
     queue: default
-    schedule: every minute
+    schedule: every 5 minutes
 
   send_daily_schedule_notifications:
     class: SendDailyScheduleNotificationsJob
@@ -32,4 +32,4 @@ production:
   check_task_due_reminders:
     class: CheckTaskDueRemindersJob
     queue: default
-    schedule: every minute
+    schedule: every 5 minutes
