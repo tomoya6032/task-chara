@@ -7,10 +7,13 @@ class MeetingMinute < ApplicationRecord
   has_one_attached :temp_voice_file
   has_one_attached :temp_image_file
 
-  # 会議タイプ定義
+  # 会議タイプ定義（PromptTemplateと同じ）
   enum :meeting_type, {
-    regular_meeting: 0,    # 通常の会議議事録
-    medical_visit: 1       # 診察同行の要約
+    regular_meeting: 0,      # 通常の会議議事録
+    medical_visit: 1,        # 診察同行の要約
+    general: 2,              # 汎用（全タイプに適用）
+    support_meeting: 3,      # 支援報告書
+    professional_meeting: 4  # 専門職団体会議
   }
 
   # ステータス定義
@@ -34,6 +37,12 @@ class MeetingMinute < ApplicationRecord
       "通常の会議議事録"
     when "medical_visit"
       "診察同行の要約"
+    when "general"
+      "汎用"
+    when "support_meeting"
+      "支援報告書"
+    when "professional_meeting"
+      "専門職団体会議"
     else
       "不明"
     end
