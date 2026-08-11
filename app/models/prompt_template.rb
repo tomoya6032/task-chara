@@ -71,7 +71,7 @@ class PromptTemplate < ApplicationRecord
   def self.create_default_template(meeting_type, prompt_type)
     case prompt_type.to_s
     when "voice_transcription"
-      create!(
+      template = new(
         name: "デフォルト音声転写テンプレート",
         meeting_type: meeting_type,
         prompt_type: prompt_type,
@@ -80,8 +80,10 @@ class PromptTemplate < ApplicationRecord
         description: "システムデフォルトの音声転写用テンプレート - 音声内容重視",
         is_active: true
       )
+      template.save!
+      template
     when "image_ocr"
-      create!(
+      template = new(
         name: "デフォルト画像OCRテンプレート",
         meeting_type: meeting_type,
         prompt_type: prompt_type,
@@ -90,6 +92,8 @@ class PromptTemplate < ApplicationRecord
         description: "システムデフォルトの画像OCR用テンプレート - 画像内容重視",
         is_active: true
       )
+      template.save!
+      template
     end
   end
 
