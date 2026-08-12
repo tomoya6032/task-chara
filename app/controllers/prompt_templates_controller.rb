@@ -78,6 +78,7 @@ class PromptTemplatesController < ApplicationController
   # ApplicationController#set_characterを使用（current_user.character）
   def set_character
     super  # ApplicationControllerのset_characterを呼び出す
+    @organization = current_user&.organization
   end
 
   def set_prompt_template
