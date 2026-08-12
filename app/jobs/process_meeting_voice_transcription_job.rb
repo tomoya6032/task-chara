@@ -173,6 +173,32 @@ class ProcessMeetingVoiceTranscriptionJob < ApplicationJob
         Rails.logger.info "📝 Transcribed text length: #{transcribed_text.length} characters"
         Rails.logger.info "📝 First 200 chars of transcribed text: #{transcribed_text[0...200]}..."
 
+        # プロンプトテンプレートに文字起こしテキストを結合
+        # まずプレースホルダー置き換えを試みる
+        user_prompt_content = prompt_template.generate_user_prompt(transcribed_text: transcribed_text)
+        
+        # プレースホルダーが置き換えられたか確認（文字起こしテキストの一部が含まれているか）
+        text_sample = transcribed_text.length > 100 ? transcribed_text[0..100] : transcribed_text
+        if !user_prompt_content.include?(text_sample)
+          Rails.logger.warn "⚠️  Transcribed text not found in user prompt, appending explicitly"
+          Rails.logger.warn "⚠️  Template may not contain {transcribed_text} placeholder"
+          
+          # プレースホルダーが残っている場合は削除
+          user_prompt_content = user_prompt_content.gsub("{transcribed_text}", "")
+          
+          # 文字起こしテキストを明示的に追加
+          user_prompt_content = <<~TEXT
+            #{user_prompt_content}
+            
+            ---
+            【文字起こしテキスト】
+            #{transcribed_text}
+          TEXT
+        end
+        
+        Rails.logger.info "📝 Final user prompt length: #{user_prompt_content.length} characters"
+        Rails.logger.info "📝 User prompt preview (first 300 chars): #{user_prompt_content[0...300]}..."
+
         formatted_response = client.chat(
           parameters: {
             model: "gpt-4o-mini",
@@ -183,7 +209,7 @@ class ProcessMeetingVoiceTranscriptionJob < ApplicationJob
               },
               {
                 role: "user",
-                content: prompt_template.generate_user_prompt(transcribed_text: transcribed_text)
+                content: user_prompt_content
               }
             ],
             max_tokens: 4000,  # 音声内容を充実させるため大幅に増量

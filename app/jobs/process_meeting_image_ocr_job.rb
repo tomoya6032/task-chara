@@ -124,6 +124,11 @@ class ProcessMeetingImageOcrJob < ApplicationJob
       Rails.logger.info "🧹 Pre-Vision API memory cleanup"
       Rails.logger.info "📤 Sending image to OpenAI Vision API..."
 
+      # ユーザープロンプトを準備
+      user_prompt_text = prompt_template.user_prompt_template.presence || "この画像から会議内容を読み取り、詳細な議事録として整理してください。"
+      Rails.logger.info "📝 User prompt length: #{user_prompt_text.length} characters"
+      Rails.logger.info "📝 User prompt preview: #{user_prompt_text[0...200]}..."
+
       # OpenAI Vision APIで画像を解析し、議事録形式で出力
       response = client.chat(
         parameters: {
@@ -138,7 +143,7 @@ class ProcessMeetingImageOcrJob < ApplicationJob
               content: [
                 {
                   type: "text",
-                  text: prompt_template.user_prompt_template.presence || "この画像から会議内容を読み取り、詳細な議事録として整理してください。"
+                  text: user_prompt_text
                 },
                 {
                   type: "image_url",
