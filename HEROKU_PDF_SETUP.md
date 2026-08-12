@@ -1,33 +1,25 @@
 # Heroku PDF出力設定ガイド
 
 ## 概要
-このアプリケーションでは、WickedPDFを使用してPDFを生成しています。
+このアプリケーションでは、WickedPDFと`wkhtmltopdf-binary` gemを使用してPDFを生成しています。
 Heroku環境で日本語PDFを正常に出力するには、以下の設定が必要です。
 
 ## 必要な設定
 
-### 1. wkhtmltopdf buildpackの追加
+### 1. Gemのインストール
 
-Herokuにwkhtmltopdfをインストールするため、buildpackを追加します。
+`wkhtmltopdf-binary` gemはすでにGemfileに含まれています。
 
-```bash
-# wkhtmltopdf buildpackを追加（Ruby buildpackの前に追加すること）
-heroku buildpacks:add --index 1 https://github.com/dscout/wkhtmltopdf-buildpack.git -a task-chara-tomoya-352cae49d006
-
-# buildpackの確認
-heroku buildpacks -a task-chara-tomoya-352cae49d006
+```ruby
+# Gemfile
+gem "wkhtmltopdf-binary"
 ```
 
-出力例:
-```
-=== task-chara-tomoya-352cae49d006 Buildpack URLs
-1. https://github.com/dscout/wkhtmltopdf-buildpack.git
-2. heroku/ruby
-```
+デプロイ時に自動的にインストールされます。
 
 ### 2. デプロイ
 
-buildpackを追加したら、再デプロイします。
+コードをHerokuにデプロイします。
 
 ```bash
 git push heroku main
@@ -48,12 +40,14 @@ URL: https://task-chara-tomoya-352cae49d006.herokuapp.com/meeting_minutes/4/down
 # ログを確認
 heroku logs --tail -a task-chara-tomoya-352cae49d006
 
-# wkhtmltopdfのパスを確認
-heroku run "which wkhtmltopdf" -a task-chara-tomoya-352cae49d006
-# 期待される出力: /app/bin/wkhtmltopdf
+# wkhtmltopdfのパスを確認（Railsコンソール内で）
+heroku run rails console -a task-chara-tomoya-352cae49d006
+# コンソール内で実行:
+# Gem.bin_path('wkhtmltopdf-binary', 'wkhtmltopdf')
+# 期待される出力: /app/vendor/bundle/ruby/3.x.x/gems/wkhtmltopdf-binary-x.x.x.x/bin/wkhtmltopdf
 
 # wkhtmltopdfのバージョンを確認
-heroku run "wkhtmltopdf --version" -a task-chara-tomoya-352cae49d006
+heroku run "bundle exec wkhtmltopdf --version" -a task-chara-tomoya-352cae49d006
 ```
 
 ### 日本語フォントの問題
@@ -61,17 +55,20 @@ heroku run "wkhtmltopdf --version" -a task-chara-tomoya-352cae49d006
 現在の設定では、Google Fonts (Noto Sans JP) を使用しています。
 これにより、フォントファイルをアプリケーションに含める必要がなくなります。
 
-### buildpackが正しく追加されているか確認
+### Gemが正しくインストールされているか確認
 
 ```bash
-heroku buildpacks -a task-chara-tomoya-352cae49d006
+heroku run "bundle list | grep wkhtmltopdf" -a task-chara-tomoya-352cae49d006
 ```
 
-wkhtmltopdf buildpackがRuby buildpackより前に表示されていることを確認してください。
+出力例:
+```
+  * wkhtmltopdf-binary (0.12.6.10)
+```
 
 ## 参考リンク
 
-- [wkhtmltopdf-buildpack](https://github.com/dscout/wkhtmltopdf-buildpack)
+- [wkhtmltopdf-binary GitHub](https://github.com/pallymore/wkhtmltopdf-binary-edge)
 - [WickedPDF GitHub](https://github.com/mileszs/wicked_pdf)
 - [Google Fonts - Noto Sans JP](https://fonts.google.com/noto/specimen/Noto+Sans+JP)
 
@@ -82,9 +79,15 @@ wkhtmltopdf buildpackがRuby buildpackより前に表示されていることを
 - 外部フォントリソースの読み込み
 
 ### 2. WickedPDF 設定 (`config/initializers/wicked_pdf.rb`)
-- Heroku環境を検出してwkhtmltopdfパスを自動設定
-- `ENV['DYNO']` が存在する場合、`/app/bin/wkhtmltopdf` を使用
+- `wkhtmltopdf-binary` gem内の実行ファイルを参照
+- `c.exe_path = Gem.bin_path('wkhtmltopdf-binary', 'wkhtmltopdf')`
 
 ### 3. PDF生成サービス (`app/services/meeting_minute_pdf_generator.rb`)
 - 外部リンク（Google Fonts）へのアクセスを許可
 - `enable_external_links: true` を追加
+
+## 注意事項
+
+- **Buildpackは不要**: `wkhtmltopdf-binary` gemを使用するため、Heroku buildpackの追加は不要です
+- **クロスプラットフォーム対応**: gemはLinux、macOS、Windowsに対応したバイナリを含んでいます
+- **デプロイのみで動作**: コードをプッシュするだけで、Heroku環境でwkhtmltopdfが自動的に利用可能になります
