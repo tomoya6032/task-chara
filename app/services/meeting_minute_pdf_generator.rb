@@ -30,6 +30,9 @@ class MeetingMinutePdfGenerator
       # 日本語フォント対応の追加オプション
       print_media_type: true,
       disable_smart_shrinking: false,
+      # Google Fontsなどの外部リソースアクセスを許可
+      enable_external_links: true,
+      enable_internal_links: true,
       # デバッグ用（本番環境でエラーが出た場合に詳細を確認）
       log_level: "error"
     )
