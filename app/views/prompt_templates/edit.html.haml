@@ -3,26 +3,26 @@
   / メインコンテンツ
   .px-4.sm:px-6.lg:px-8.py-8
     / ページヘッダー
-      .mb-8
-        %h1.text-2xl.font-bold.text-slate-900.dark:text-white
-          ✏️ プロンプトテンプレート編集
-          %span.text-lg.font-normal.text-slate-600.ml-2= @prompt_template.name
-        %p.mt-2.text-sm.text-slate-600.dark:text-slate-400
-          プロンプトテンプレートを編集してAI議事録生成を改善できます
+    .mb-8
+      %h1.text-2xl.font-bold.text-slate-900.dark:text-white
+        ✏️ プロンプトテンプレート編集
+        %span.text-lg.font-normal.text-slate-600.ml-2= @prompt_template.name
+      %p.mt-2.text-sm.text-slate-600.dark:text-slate-400
+        プロンプトテンプレートを編集してAI議事録生成を改善できます
 
-      / エラー表示
-      - if @prompt_template.errors.any?
-        .mb-6.bg-red-50.border.border-red-200.rounded-lg.p-4
-          %h4.text-red-700.font-medium エラーが発生しました:
-          %ul.mt-2.text-sm.text-red-600
-            - @prompt_template.errors.full_messages.each do |message|
-              %li= message
+    / エラー表示
+    - if @prompt_template.errors.any?
+      .mb-6.bg-red-50.border.border-red-200.rounded-lg.p-4
+        %h4.text-red-700.font-medium エラーが発生しました:
+        %ul.mt-2.text-sm.text-red-600
+          - @prompt_template.errors.full_messages.each do |message|
+            %li= message
 
-      / フォーム
-      = form_with model: @prompt_template, local: true, class: "space-y-6" do |form|
-        .bg-white.dark:bg-slate-800.shadow-xl.rounded-2xl.border.border-slate-200.dark:border-slate-700.p-6
+    / フォーム
+    = form_with model: @prompt_template, local: true, class: "space-y-6" do |form|
+      .bg-white.dark:bg-slate-800.shadow-xl.rounded-2xl.border.border-slate-200.dark:border-slate-700.p-6
 
-          / 基本情報
+        / 基本情報
           .space-y-4
             %h3.text-lg.font-medium.text-slate-900.dark:text-white.mb-4
               📝 基本情報
