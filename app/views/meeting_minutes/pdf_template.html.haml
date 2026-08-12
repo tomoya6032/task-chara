@@ -147,18 +147,7 @@
       }
   %body
     / ヘッダー情報
-    - meeting_type_class = case @meeting_minute.meeting_type
-      when 'regular_meeting'
-        'badge-regular'
-      when 'medical_visit'
-        'badge-medical'
-      when 'support_meeting'
-        'badge-support'
-      when 'professional_meeting'
-        'badge-professional'
-      else
-        'badge-regular'
-      end
+    - meeting_type_class = { 'regular_meeting' => 'badge-regular', 'medical_visit' => 'badge-medical', 'support_meeting' => 'badge-support', 'professional_meeting' => 'badge-professional' }[@meeting_minute.meeting_type] || 'badge-regular'
     
     %div.meeting-type-badge{ class: meeting_type_class }
       = @meeting_minute.meeting_type_display
