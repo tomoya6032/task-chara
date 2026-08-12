@@ -1,6 +1,6 @@
 class MeetingMinutesController < ApplicationController
   before_action :set_character
-  before_action :set_meeting_minute, only: [ :show, :edit, :update, :destroy, :generate ]
+  before_action :set_meeting_minute, only: [ :show, :edit, :update, :destroy, :generate, :download_pdf ]
 
   def index
     @meeting_minutes = @character.meeting_minutes.recent.page(params[:page]).per(10)
@@ -104,10 +104,12 @@ class MeetingMinutesController < ApplicationController
     )
   rescue LoadError => e
     Rails.logger.error "PDF出力エラー(LoadError): #{e.message}"
-    redirect_to meeting_minute_path(@meeting_minute), alert: "PDF出力ライブラリが読み込めませんでした。サーバー再起動後に再試行してください。"
+    Rails.logger.error e.backtrace.join("\n")
+    redirect_to meeting_minute_path(params[:id]), alert: "PDF出力ライブラリが読み込めませんでした。サーバー再起動後に再試行してください。"
   rescue StandardError => e
     Rails.logger.error "PDF出力エラー: #{e.message}"
-    redirect_to meeting_minute_path(@meeting_minute), alert: "PDF出力に失敗しました。時間をおいて再試行してください。"
+    Rails.logger.error e.backtrace.join("\n")
+    redirect_to meeting_minute_path(params[:id]), alert: "PDF出力に失敗しました。時間をおいて再試行してください。"
   end
 
   def edit
