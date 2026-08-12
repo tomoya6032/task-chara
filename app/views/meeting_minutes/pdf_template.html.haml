@@ -1,0 +1,192 @@
+!!!
+%html
+  %head
+    %meta{ charset: 'utf-8' }
+    %title= @meeting_minute.title
+    :css
+      /* 日本語フォントの明示的な定義 */
+      @font-face {
+        font-family: 'Noto Sans CJK JP';
+        src: url('file://#{Rails.root}/app/assets/fonts/NotoSansCJKjp-Regular.otf') format('opentype');
+        font-weight: normal;
+        font-style: normal;
+      }
+      @font-face {
+        font-family: 'IPAexGothic';
+        src: url('file://#{Rails.root}/app/assets/fonts/ipaexg.ttf') format('truetype');
+        font-weight: normal;
+        font-style: normal;
+      }
+      body {
+        font-family: 'Noto Sans CJK JP', 'IPAexGothic', 'MS Gothic', sans-serif;
+        line-height: 1.9;
+        color: #1e293b;
+        margin: 0;
+        padding: 20px;
+        zoom: 1.25;
+      }
+      h1 {
+        font-size: 22px;
+        font-weight: bold;
+        margin-bottom: 8px;
+        color: #0f172a;
+        border-bottom: 2px solid #3b82f6;
+        padding-bottom: 8px;
+      }
+      .header-info {
+        margin-bottom: 20px;
+        padding: 12px;
+        background-color: #f8fafc;
+        border-left: 4px solid #3b82f6;
+        font-size: 12px;
+        line-height: 1.6;
+      }
+      .header-info .label {
+        font-weight: bold;
+        color: #475569;
+        display: inline-block;
+        min-width: 100px;
+      }
+      .header-info .value {
+        color: #1e293b;
+      }
+      .meeting-type-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: bold;
+        margin-bottom: 8px;
+      }
+      .badge-regular {
+        background-color: #dbeafe;
+        color: #1e40af;
+      }
+      .badge-medical {
+        background-color: #dcfce7;
+        color: #15803d;
+      }
+      .badge-support {
+        background-color: #fef3c7;
+        color: #92400e;
+      }
+      .badge-professional {
+        background-color: #e0e7ff;
+        color: #3730a3;
+      }
+      .content {
+        font-size: 13px;
+        line-height: 1.9;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        color: #334155;
+      }
+      /* 文字装飾のスタイル */
+      strong, b {
+        font-weight: bold;
+      }
+      u {
+        text-decoration: underline;
+      }
+      mark {
+        background-color: #fef08a;
+        color: #000000;
+        padding: 2px 0;
+      }
+      .text-red {
+        color: #dc2626;
+      }
+      /* フォントサイズ（1.2倍に調整） */
+      .font-small {
+        font-size: 14px;
+      }
+      .font-standard {
+        font-size: 13px;
+      }
+      .font-large {
+        font-size: 21px;
+      }
+      /* インラインスタイルのサポート（1.2倍に調整） */
+      span[style*="font-size: 12px"] {
+        font-size: 14px;
+      }
+      span[style*="font-size: 11px"] {
+        font-size: 13px;
+      }
+      span[style*="font-size: 18px"] {
+        font-size: 21px;
+      }
+      span[style*="font-weight: bold"] {
+        font-weight: bold;
+      }
+      span[style*="text-decoration-line: underline"],
+      span[style*="text-decoration: underline"] {
+        text-decoration: underline;
+      }
+      span[style*="color: rgb(220, 38, 38)"],
+      span[style*="color: red"] {
+        color: #dc2626;
+      }
+      span[style*="background-color: rgb(254, 240, 138)"],
+      span[style*="background-color: yellow"] {
+        background-color: #fef08a;
+        color: #000000;
+        padding: 2px 0;
+      }
+      /* 丸数字や箇条書き */
+      .content p {
+        margin: 8px 0;
+      }
+      .footer {
+        margin-top: 40px;
+        padding-top: 12px;
+        border-top: 1px solid #e2e8f0;
+        font-size: 10px;
+        color: #94a3b8;
+        text-align: right;
+      }
+  %body
+    / ヘッダー情報
+    - meeting_type_class = case @meeting_minute.meeting_type
+    - when 'regular_meeting'
+    -   'badge-regular'
+    - when 'medical_visit'
+    -   'badge-medical'
+    - when 'support_meeting'
+    -   'badge-support'
+    - when 'professional_meeting'
+    -   'badge-professional'
+    - else
+    -   'badge-regular'
+    
+    %div.meeting-type-badge{ class: meeting_type_class }
+      = @meeting_minute.meeting_type_display
+
+    %h1= @meeting_minute.title
+
+    .header-info
+      %div
+        %span.label 開催日時:
+        %span.value= @meeting_minute.formatted_meeting_date
+      - if @meeting_minute.location.present?
+        %div
+          %span.label 開催場所:
+          %span.value= @meeting_minute.location
+      - if @meeting_minute.participants.present?
+        %div
+          %span.label 参加者:
+          %span.value= @meeting_minute.participants
+      - if @meeting_minute.character.present?
+        %div
+          %span.label 対象者:
+          %span.value= @meeting_minute.character.name
+
+    / 本文
+    .content
+      = sanitize(@meeting_minute.content.to_s, tags: %w[p br div strong b u em span mark ul ol li], attributes: %w[style])
+
+    / フッター
+    .footer
+      作成日: #{@meeting_minute.created_at.strftime('%Y年%m月%d日')}
+      - if @meeting_minute.generated_at
+        | AI生成: #{@meeting_minute.generated_at.strftime('%Y年%m月%d日 %H:%M')}

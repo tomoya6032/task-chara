@@ -94,6 +94,22 @@ class MeetingMinutesController < ApplicationController
     end
   end
 
+  def download_pdf
+    pdf_data = MeetingMinutePdfGenerator.new(@meeting_minute, self).render
+    send_data(
+      pdf_data,
+      filename: pdf_filename(@meeting_minute),
+      type: "application/pdf",
+      disposition: "attachment"
+    )
+  rescue LoadError => e
+    Rails.logger.error "PDF出力エラー(LoadError): #{e.message}"
+    redirect_to meeting_minute_path(@meeting_minute), alert: "PDF出力ライブラリが読み込めませんでした。サーバー再起動後に再試行してください。"
+  rescue StandardError => e
+    Rails.logger.error "PDF出力エラー: #{e.message}"
+    redirect_to meeting_minute_path(@meeting_minute), alert: "PDF出力に失敗しました。時間をおいて再試行してください。"
+  end
+
   def edit
     # プロンプトテンプレートのリストを取得
     @prompt_templates = PromptTemplate.active.order(:meeting_type, :prompt_type, :name)
@@ -411,6 +427,12 @@ class MeetingMinutesController < ApplicationController
 
   def meeting_minute_params
     params.require(:meeting_minute).permit(:title, :meeting_type, :meeting_date, :content, :participants, :location, :prompt_template_id)
+  end
+
+  def pdf_filename(meeting_minute)
+    base = meeting_minute.title.presence || "meeting_minute"
+    date_str = meeting_minute.meeting_date&.strftime("%Y%m%d") || Time.current.strftime("%Y%m%d")
+    "#{date_str}_#{base.to_s.gsub(/[\\\\\/:*?\"<>|]/, "_")}.pdf"
   end
 
   # AIチャットの会話履歴を取得

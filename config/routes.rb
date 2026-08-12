@@ -81,6 +81,7 @@ Rails.application.routes.draw do
       post :generate
       post :process_image_ocr
       post :process_voice_transcription
+      get :download_pdf
     end
   end
 
