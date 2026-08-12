@@ -7,7 +7,7 @@
       body {
         font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", sans-serif;
         line-height: 1.9;
-        color: #1e293b;
+        color: #000000;
         margin: 0;
         padding: 20px;
         zoom: 1.25;
@@ -134,29 +134,29 @@
       }
   %body
     / ヘッダー情報
-    - meeting_type_class = { 'regular_meeting' => 'badge-regular', 'medical_visit' => 'badge-medical', 'support_meeting' => 'badge-support', 'professional_meeting' => 'badge-professional' }[@meeting_minute.meeting_type] || 'badge-regular'
+    -# - meeting_type_class = { 'regular_meeting' => 'badge-regular', 'medical_visit' => 'badge-medical', 'support_meeting' => 'badge-support', 'professional_meeting' => 'badge-professional' }[@meeting_minute.meeting_type] || 'badge-regular'
     
-    %div.meeting-type-badge{ class: meeting_type_class }
-      = @meeting_minute.meeting_type_display
+    -# %div.meeting-type-badge{ class: meeting_type_class }
+    -#   = @meeting_minute.meeting_type_display
 
-    %h1= @meeting_minute.title
+    -# %h1= @meeting_minute.title
 
-    .header-info
-      %div
-        %span.label 開催日時:
-        %span.value= @meeting_minute.formatted_meeting_date
-      - if @meeting_minute.location.present?
-        %div
-          %span.label 開催場所:
-          %span.value= @meeting_minute.location
-      - if @meeting_minute.participants.present?
-        %div
-          %span.label 参加者:
-          %span.value= @meeting_minute.participants
-      - if @meeting_minute.character.present?
-        %div
-          %span.label 対象者:
-          %span.value= @meeting_minute.character.name
+    -# .header-info
+    -#   %div
+    -#     %span.label 開催日時:
+    -#     %span.value= @meeting_minute.formatted_meeting_date
+    -#   - if @meeting_minute.location.present?
+    -#     %div
+    -#       %span.label 開催場所:
+    -#       %span.value= @meeting_minute.location
+    -#   - if @meeting_minute.participants.present?
+    -#     %div
+    -#       %span.label 参加者:
+    -#       %span.value= @meeting_minute.participants
+    -#   - if @meeting_minute.character.present?
+    -#     %div
+    -#       %span.label 対象者:
+    -#       %span.value= @meeting_minute.character.name
 
     / 本文
     .content
@@ -165,5 +165,5 @@
     / フッター
     .footer
       作成日: #{@meeting_minute.created_at.strftime('%Y年%m月%d日')}
-      - if @meeting_minute.generated_at
-        | AI生成: #{@meeting_minute.generated_at.strftime('%Y年%m月%d日 %H:%M')}
+      -# - if @meeting_minute.generated_at
+      -#   | AI生成: #{@meeting_minute.generated_at.strftime('%Y年%m月%d日 %H:%M')}
