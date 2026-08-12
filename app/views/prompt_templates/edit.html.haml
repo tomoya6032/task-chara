@@ -1,23 +1,8 @@
 / プロンプトテンプレート編集ページ
 .min-h-screen.bg-slate-50.dark:bg-slate-900
-  / デスクトップサイドバー（lg以上で表示）
-  .hidden.lg:fixed.lg:inset-y-0.lg:z-50.lg:flex.lg:w-72.lg:flex-col
-    .flex.grow.flex-col.gap-y-5.overflow-y-auto.bg-white.dark:bg-slate-800.px-6.border-r.border-slate-200.dark:border-slate-700
-      .flex.h-16.shrink-0.items-center
-        %h1.text-lg.font-semibold.text-slate-900.dark:text-white
-          TaskChara
-        %span.ml-2.text-xs.text-slate-500 ✨
-
-      %nav.flex.flex-1.flex-col
-        %ul.flex.flex-1.flex-col.gap-y-7{role: "list"}
-          %li.pt-4
-            = link_to @prompt_template, class: "text-blue-600 hover:text-blue-800 text-sm flex items-center gap-x-2" do
-              ← テンプレート詳細に戻る
-
   / メインコンテンツ
-  .lg:pl-72
-    .px-4.sm:px-6.lg:px-8.py-8
-      / ページヘッダー
+  .px-4.sm:px-6.lg:px-8.py-8
+    / ページヘッダー
       .mb-8
         %h1.text-2xl.font-bold.text-slate-900.dark:text-white
           ✏️ プロンプトテンプレート編集
