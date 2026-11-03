@@ -74,7 +74,7 @@ class CharacterPolisher
 
     response = @client.chat(
       parameters: {
-        model: "gpt-3.5-turbo",
+        model: "gpt-4o-mini",
         messages: [ { role: "user", content: prompt } ],
         max_tokens: 500,
         temperature: 0.7
@@ -180,7 +180,7 @@ class CharacterPolisher
         timestamp: Time.current,
         analysis_result: analysis_result,
         bonuses_applied: calculate_status_bonuses(analysis_result),
-        ai_model: "gpt-3.5-turbo"
+        ai_model: "gpt-4o-mini"
       }
     )
   end
