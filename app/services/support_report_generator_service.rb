@@ -209,9 +209,11 @@ class SupportReportGeneratorService
   end
 
   def call_openai_api(prompt)
+    model_name = ENV.fetch("OPENAI_MODEL", "gpt-4o-mini").presence || "gpt-4o-mini"
+
     response = @client.chat(
       parameters: {
-        model: "gpt-3.5-turbo",
+        model: model_name,
         messages: [
           {
             role: "system",
