@@ -129,9 +129,11 @@ class SupportReportsController < ApplicationController
 
   def generate
     @support_report = support_reports_scope.find(params[:id])
+    selected_activity_ids = parse_selected_activity_ids
 
     if @support_report.draft? || @support_report.error?
-      GenerateSupportReportJob.perform_later(@support_report)
+      Rails.logger.info("[SupportReportsController] enqueue generate support_report_id=#{@support_report.id} status=#{@support_report.status} selected_activity_ids_count=#{selected_activity_ids.size}")
+      GenerateSupportReportJob.perform_later(@support_report, selected_activity_ids)
       redirect_to support_report_path(@support_report), notice: "\u652F\u63F4\u5831\u544A\u66F8\u306E\u751F\u6210\u3092\u958B\u59CB\u3057\u307E\u3057\u305F\u3002"
     else
       redirect_to support_report_path(@support_report), alert: "\u73FE\u5728\u751F\u6210\u4E2D\u307E\u305F\u306F\u65E2\u306B\u5B8C\u6210\u3057\u3066\u3044\u307E\u3059\u3002"

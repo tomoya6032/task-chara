@@ -15,8 +15,12 @@ class SupportReportGeneratorService
   end
 
   def generate
-    return false unless @support_report.draft?
+    unless @support_report.draft? || @support_report.error?
+      Rails.logger.warn("[SupportReportGeneratorService] skipped support_report_id=#{@support_report.id} status=#{@support_report.status}")
+      return false
+    end
 
+    Rails.logger.info("[SupportReportGeneratorService] generate start support_report_id=#{@support_report.id} status=#{@support_report.status} selected_activity_ids_count=#{@activity_ids.size}")
     @support_report.update!(status: :generating, generated_at: Time.current)
 
     begin
@@ -29,6 +33,8 @@ class SupportReportGeneratorService
                        .order(Arel.sql("COALESCE(visit_start_time, visit_end_time, created_at) ASC"))
       end
 
+      Rails.logger.info("[SupportReportGeneratorService] activities fetched support_report_id=#{@support_report.id} count=#{activities.size} filtered=#{@activity_ids.present?}")
+
       if activities.empty?
         @support_report.update!(
           content: "この期間中に記録された活動がありません。",
@@ -38,16 +44,24 @@ class SupportReportGeneratorService
       end
 
       prompt = build_prompt(activities)
+      Rails.logger.info("[SupportReportGeneratorService] calling OpenAI support_report_id=#{@support_report.id}")
       response = call_openai_api(prompt)
+
+      if response.blank?
+        raise "OpenAI APIから空の応答が返されました"
+      end
 
       @support_report.update!(
         content: response,
         status: :completed
       )
 
+      Rails.logger.info("[SupportReportGeneratorService] generation completed support_report_id=#{@support_report.id} content_length=#{response.length}")
+
       true
     rescue => e
       Rails.logger.error "支援報告書生成エラー: #{e.message}"
+      Rails.logger.error "支援報告書生成エラー詳細: #{e.backtrace&.first(5)&.join("\n")}"
       @support_report.update!(status: :error)
       false
     end
@@ -209,7 +223,15 @@ class SupportReportGeneratorService
   end
 
   def call_openai_api(prompt)
-    model_name = ENV.fetch("OPENAI_MODEL", "gpt-4o-mini").presence || "gpt-4o-mini"
+    requested_model = ENV["OPENAI_MODEL"].to_s.strip
+    allowed_models = [ "gpt-4o-mini" ]
+    model_name = allowed_models.include?(requested_model) ? requested_model : "gpt-4o-mini"
+
+    if requested_model.present? && model_name != requested_model
+      Rails.logger.warn("[SupportReportGeneratorService] OPENAI_MODEL is invalid (#{requested_model}), fallback to gpt-4o-mini")
+    end
+
+    Rails.logger.info("[SupportReportGeneratorService] OpenAI model=#{model_name}")
 
     response = @client.chat(
       parameters: {
